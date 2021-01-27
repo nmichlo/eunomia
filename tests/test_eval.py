@@ -76,7 +76,7 @@ def test_eval():
 
 
 def test_interpret_timeit():
-    def ave_timeit_ms(expr, n=1000):
+    def ave_timeit_ms(expr, n=100):
         return f'{timeit(expr, number=n) / n * 1000:1.3f}ms'
 
     expr = 'tuple([i for i in range(3)])'

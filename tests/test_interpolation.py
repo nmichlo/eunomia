@@ -1,46 +1,32 @@
+from functools import partial
+
+import pytest
 from parser import ParserError
-
-
-def fmt_pntr(line, i, message, arrow='^--- '):
-    return f'{line}\n{" " * i}{arrow}{message}'
-
-
-def tokenize(string):
-    # state information
-    block_start, in_block = None, False
-    tokens, stack, prev = [], [], None
-
-    def push_token(type, skip=None):
-        tokens.append((type, ''.join(stack[:skip])))
-        stack.clear()
-
-    # loop over all the chars in the string
-    # blocks are pushed as tokens
-    # eg. string${eval}$string
-    for i, c in enumerate(string):
-        if prev == '$' and c == '{':
-            if in_block:
-                raise ParserError(f'Eval blocks cannot be nested.\n{fmt_pntr(fmt_pntr(string, i, "Error"), block_start, "Start")}')
-            block_start, in_block = i, True
-            push_token('eval', -1)
-        elif in_block and prev == '}' and c == '$':
-            block_start, in_block = None, False
-            push_token('string', -1)
-        else:
-            stack.append(c)
-            prev = c
-
-    # save suffix
-    if stack:
-        push_token('string')
-    if in_block:
-        raise ParserError(f'Block was not closed.\n{fmt_pntr(fmt_pntr(string, i, "Error"), block_start, "Start")}')
-
-    return tokens
-
-# A -> A + B | B + A | A + B + A
-# S -> A + B + A
+from eunomia._interpolation import _tokenize_string, TOKEN_STRING, TOKEN_INTERP
 
 
 def test_parse():
-    print(tokenize('prefix${asdf}postfix'))
+
+    tokenize = partial(_tokenize_string, bgn_tok='${', end_tok='}$')
+
+    assert tokenize('ac') == ([(TOKEN_STRING, 'ac')], False)
+    assert tokenize('${b}$') == ([(TOKEN_INTERP, 'b')], True)
+    assert tokenize('${}$') == ([(TOKEN_INTERP, '')], True)
+    assert tokenize('${b}$c') == ([(TOKEN_INTERP, 'b'), (TOKEN_STRING, 'c')], True)
+    assert tokenize('a${b}$') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, 'b')], True)
+    assert tokenize('a${b}$c') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, 'b'), (TOKEN_STRING, 'c')], True)
+    assert tokenize('prefix${interp}$suffix') == ([(TOKEN_STRING, 'prefix'), (TOKEN_INTERP, 'interp'), (TOKEN_STRING, 'suffix')], True)
+    assert tokenize('a${b}$c${d}$e') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, 'b'), (TOKEN_STRING, 'c'), (TOKEN_INTERP, 'd'), (TOKEN_STRING, 'e')], True)
+    assert tokenize('a${b}$${d}$e') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, 'b'), (TOKEN_INTERP, 'd'), (TOKEN_STRING, 'e')], True)
+    assert tokenize('a${}$${}$e') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, ''), (TOKEN_INTERP, ''), (TOKEN_STRING, 'e')], True)
+
+    with pytest.raises(ParserError):
+        tokenize('prefix${interp}suffix')
+
+    string = 'prefix{interp}$suffix'
+    tokenize(string, strict_end=False)
+    with pytest.raises(ParserError):
+        tokenize(string, strict_end=True)
+
+    with pytest.raises(ParserError):
+        assert tokenize('prefix${int${erp}$suffix') == 1

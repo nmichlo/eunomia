@@ -1,6 +1,8 @@
 import os as os
-from typing import NamedTuple, Iterator
-from eunomia._yaml import yaml_load_file
+from typing import NamedTuple, Iterator, Any
+
+from eunomia._interpolation import replace_interpolators
+from eunomia._yaml import yaml_load_file, yaml_load
 from eunomia import _util as util
 
 
@@ -20,6 +22,7 @@ class Config(object):
     def __init__(self, data: dict, key: str):
         self.key = key
         # extract various components from the config
+        data = replace_interpolators(data)
         self.defaults = self._config_pop_defaults(data)
         self.package = self._config_pop_package(data)
         self.data = data
@@ -117,7 +120,7 @@ class DiskConfigLoader(ConfigLoader):
         return config
 
 
-class MemConfigLoader(ConfigLoader):
+class DictConfigLoader(ConfigLoader):
 
     def __init__(self, data: dict):
         super().__init__()
@@ -131,11 +134,11 @@ class MemConfigLoader(ConfigLoader):
         return config
 
 
-class VirtualConfigLoader(MemConfigLoader):
+class VirtualConfigLoader(DictConfigLoader):
 
     def _get_config_data(self, path: str):
-        config_strings = super()._get_config_data(path)
-        return
+        config_string = super()._get_config_data(path)
+        return yaml_load(config_string)
 
 
 

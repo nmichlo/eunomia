@@ -6,10 +6,7 @@
 
 
 class Node(object):
-
-    @property
-    def TAG(self) -> str:
-        raise NotImplementedError
+    TAG = None
 
     def __init__(self, value: str):
         assert isinstance(value, str), f'{value=} corresponding to {self.TAG} must be a string.'
@@ -48,6 +45,17 @@ class EvalNode(Node):
             # max_time=None, readonly_symbols=None,
             builtins_readonly=True,
         )
+
+
+class InterpNode(Node):
+
+    def __init__(self, value: str):
+        assert isinstance(value, list), f'{value=} must be a list parsed by _tokenize_string'
+        self.raw_value = value
+
+    def get(self):
+        # TODO!
+        raise NotImplementedError
 
 
 # ========================================================================= #

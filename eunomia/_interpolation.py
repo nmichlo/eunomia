@@ -1,7 +1,10 @@
-from parser import ParserError
 
 from eunomia._nodes import InterpNode
 from eunomia._util import fmt_pntr
+
+
+class TokenizeError(Exception):
+    pass
 
 
 # ========================================================================= #
@@ -38,7 +41,7 @@ def _tokenize_string(string, bgn_tok=TOK_BGN, end_tok=TOK_END, strict_end=False)
         # 1. begin interp block
         if block[-bgn_len:] == bgn_tok:
             if in_block:
-                raise ParserError(f'Eval blocks cannot be nested.\n{fmt_pntr(fmt_pntr(string, i, "Error"), block_start, "Start")}')
+                raise TokenizeError(f'Eval blocks cannot be nested.\n{fmt_pntr(fmt_pntr(string, i, "Error"), block_start, "Start")}')
             block_start, in_block = i+1, True
             if block[:-bgn_len]:
                 tokens.append((TOKEN_STRING, block[:-bgn_len]))
@@ -46,7 +49,7 @@ def _tokenize_string(string, bgn_tok=TOK_BGN, end_tok=TOK_END, strict_end=False)
         elif block[-end_len:] == end_tok:
             if strict_end:
                 if not in_block:
-                    raise ParserError(f'Eval block ended but did not begin.\n{fmt_pntr(fmt_pntr(string, i, "Error"), block_start, "Start")}')
+                    raise TokenizeError(f'Eval block ended but did not begin.\n{fmt_pntr(fmt_pntr(string, i, "Error"), block_start, "Start")}')
             has_interp = True
             block_start, in_block = i+1, False
             tokens.append((TOKEN_INTERP, block[:-end_len]))
@@ -55,7 +58,7 @@ def _tokenize_string(string, bgn_tok=TOK_BGN, end_tok=TOK_END, strict_end=False)
         tokens.append((TOKEN_STRING, string[block_start:]))
     # Check that the interp block was closed - i will always be set if this runs
     if in_block:
-        raise ParserError(f'Block was not closed.\n{fmt_pntr(fmt_pntr(string, i, "Error"), block_start, "Start")}')
+        raise TokenizeError(f'Block was not closed.\n{fmt_pntr(fmt_pntr(string, i, "Error"), block_start, "Start")}')
     return tokens, has_interp
 
 

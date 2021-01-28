@@ -18,6 +18,7 @@ classifiers = [
 ]
 requires = [
     "asteval == 0.9.21",
+    "lark == 0.9.21",
     "ruamel.yaml == 0.16",
 ]
 

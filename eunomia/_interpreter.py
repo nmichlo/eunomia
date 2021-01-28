@@ -1,4 +1,8 @@
+import abc
 import ast
+from typing import Optional, Dict, Any, Union
+
+from asteval.astutils import UNSAFE_ATTRS, make_symbol_table, safe_mult, safe_add, safe_pow, safe_lshift
 
 
 # ========================================================================= #
@@ -23,13 +27,15 @@ class DisabledLanguageFeatureError(UnsupportedLanguageFeatureError):
     If the python language feature has been disabled
     """
 
-
 # ========================================================================= #
 # Interpreter                                                               #
 # ========================================================================= #
 
 
 class BaseInterpreter(object):
+
+    def copy(self) -> 'BaseInterpreter':
+        return BaseInterpreter()
 
     def _get_visit_name(self, node):
         return 'visit_' + node.__class__.__name__
@@ -69,16 +75,11 @@ class BaseInterpreter(object):
 
 
 # ========================================================================= #
-# symtable                                                                  #
+# Basic Interpreter for expressions and literals                            #
 # ========================================================================= #
 
 
-# ========================================================================= #
-# Visitors                                                                  #
-# ========================================================================= #
-
-
-class Interpreter(BaseInterpreter):
+class BasicInterpreter(BaseInterpreter):
     """
     https://docs.python.org/3/reference/expressions.html
     https://docs.python.org/3/library/stdtypes.html
@@ -95,6 +96,13 @@ class Interpreter(BaseInterpreter):
         self._allow_nested_unary = allow_nested_unary
         self._allow_numerical_unary_on_bool = allow_numerical_unary_on_bool
         self._allow_chained_comparisons = allow_chained_comparisons
+
+    def copy(self) -> 'BasicInterpreter':
+        return BasicInterpreter(
+            allow_nested_unary=self._allow_nested_unary,
+            allow_numerical_unary_on_bool=self._allow_numerical_unary_on_bool,
+            allow_chained_comparisons=self._allow_chained_comparisons,
+        )
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Atoms ::= identifier | literal | enclosure                            #
@@ -219,27 +227,142 @@ class Interpreter(BaseInterpreter):
     def visit_Invert(self, op, visited_value): return ~ visited_value
     def visit_Not   (self, op, visited_value): return not visited_value
 
+
+# ========================================================================= #
+# Interpreter for properties, getters and symtables                         #
+# ========================================================================= #
+
+
+class Interpreter(BasicInterpreter):
+
+    def __init__(
+            self,
+            # symtable
+            default_symtable: Optional[Dict[str, Any]] = None,
+            extra_symtable: Optional[Dict[str, Any]] = None,
+            # rules
+            allow_nested_unary=False,
+            allow_numerical_unary_on_bool=False,
+            allow_chained_comparisons=False,
+            allow_unpacking=False,
+    ):
+        super().__init__(
+            allow_nested_unary=allow_nested_unary,
+            allow_numerical_unary_on_bool=allow_numerical_unary_on_bool,
+            allow_chained_comparisons=allow_chained_comparisons,
+        )
+        self._allow_unpacking = allow_unpacking
+        # make default symtable
+        self._symtable = make_symbol_table(use_numpy=False) if (default_symtable is None) else default_symtable
+        # add extras to symtable
+        self._symtable.update({} if (extra_symtable is None) else extra_symtable)
+
+    def copy(self) -> 'Interpreter':
+        # TODO: this is not safe, does not use a deep copy
+        return Interpreter(
+            default_symtable=dict(self._symtable),
+            # rules
+            allow_nested_unary=self._allow_nested_unary,
+            allow_numerical_unary_on_bool=self._allow_numerical_unary_on_bool,
+            allow_chained_comparisons=self._allow_chained_comparisons,
+            allow_unpacking=self._allow_unpacking,
+        )
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Properties                                                            #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+    def visit_Name(self, node):
+        try:
+            return self._symtable[node.id]
+        except KeyError:
+            pass
+        raise NameError(f"name {repr(node.id)} is not defined")
 
+    def visit_Attribute(self, node):
+        if node.attr in UNSAFE_ATTRS:
+            raise KeyError(f'Tried to access unsafe attribute: {node.attr}')
+        return getattr(self._visit(node.value), node.attr)
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # List, Tuple, Set, Dict Unpacking                                      #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-# ========================================================================= #
-# Printing                                                                  #
-# ========================================================================= #
+    def _yield_visit_unpack_elts(self, elts) -> list:
+        for n in elts:
+            if isinstance(n, ast.Starred):
+                if not self._allow_unpacking:
+                    raise DisabledLanguageFeatureError('Starred unpacking is disabled.')
+                yield from self._visit(n.value)
+            else:
+                yield self._visit(n)
 
+    def _yield_visit_unpack_dict_pairs(self, keys, values, is_keywords=False) -> list:
+        # same error as super().visit_Dict(...)
+        if not is_keywords:
+            if len(keys) != len(values):
+                raise ValueError('Dict node is malformed, differing number of keys and values!')
+        # actually unpack
+        for k, v in zip(keys, values):
+            if k is None:
+                if not self._allow_unpacking:
+                    raise DisabledLanguageFeatureError('Starred unpacking is disabled.')
+                # get dictionary value
+                unpack_dict = self._visit(v)
+                # check that we are not malformed
+                if not isinstance(unpack_dict, dict):
+                    raise ValueError('Tried to unpack non dict.')
+                # return all
+                yield from unpack_dict.items()
+            else:
+                if not is_keywords:
+                    yield self._visit(k), self._visit(v)
+                else:
+                    yield k, self._visit(v)
 
-# def interpret_expr(expr: str, usersyms: Optional[dict[str, Any]] = None):
-#     """
-#     Interpret the given expression with preset
-#     limitations on what is allowed.
-#     """
-#
-#     import ast
-#
-#     if usersyms is None:
-#         usersyms = {}
+    def visit_List (self, node): return list(self._yield_visit_unpack_elts(node.elts))
+    def visit_Tuple(self, node): return tuple(self._yield_visit_unpack_elts(node.elts))
+    def visit_Set  (self, node): return set(self._yield_visit_unpack_elts(node.elts))
+    def visit_Dict (self, node): return dict(self._yield_visit_unpack_dict_pairs(node.keys, node.values, is_keywords=False))
 
+    def visit_Starred(self, node):
+        raise RuntimeError('This should never happen.')
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Call                                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def _build_kwargs(self, keywords: list):
+        # unpack everything like a dictionary
+        unpacked_keys_values = self._yield_visit_unpack_dict_pairs(
+            keys=(kw.arg for kw in keywords),
+            values=(kw.value for kw in keywords),
+            is_keywords=True,
+        )
+        # check that kwargs are unique
+        kwargs = {}
+        for k, v in unpacked_keys_values:
+            if k in kwargs:
+                raise TypeError(f"got multiple values for keyword argument {repr(k)}")
+            kwargs[k] = v
+        # done!
+        return kwargs
+
+    def visit_Call(self, node):
+        func = self._visit(node.func)
+        # get args and kwargs
+        args = self._yield_visit_unpack_elts(node.args) if node.args else []
+        kwargs = self._build_kwargs(node.keywords) if node.keywords else {}
+        # call the function
+        return func(*args, **kwargs)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Get Item                                                              #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    # TODO: maybe names, subscripts and properties should be moved into basic
+    #       but with limitations on which funcs are available
+    def visit_Subscript(self, node):
+        slice = self._visit(node.slice)
+        value = self._visit(node.value)
+        return value[slice]

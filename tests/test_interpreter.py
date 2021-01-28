@@ -1,7 +1,7 @@
 from typing import Callable, Any
 import pytest
 import ast
-from eunomia._interpreter import Interpreter, UnsupportedLanguageFeatureError, DisabledLanguageFeatureError
+from eunomia._interpreter import Interpreter, BasicInterpreter, UnsupportedLanguageFeatureError, DisabledLanguageFeatureError
 
 
 # ========================================================================= #
@@ -11,12 +11,12 @@ from eunomia._interpreter import Interpreter, UnsupportedLanguageFeatureError, D
 
 @pytest.fixture()
 def interpret() -> Callable[[str], Any]:
-    return Interpreter().interpret
+    return BasicInterpreter().interpret
 
 
 @pytest.fixture()
 def interpret_nonstrict() -> Callable[[str], Any]:
-    return Interpreter(
+    return BasicInterpreter(
         allow_nested_unary=True,
         allow_numerical_unary_on_bool=True,
         allow_chained_comparisons=True,
@@ -57,19 +57,19 @@ def test_interpret_literals(interpret):
 # https://docs.python.org/3/reference/expressions.html#displays-for-lists-sets-and-dictionaries
 def test_interpret_lists_sets_dicts_tuples(interpret):
     # lists
-    # TODO: assert interpret('list()') == list()
+    # assert interpret('list()') == list()
     assert interpret('[]') == []
     assert interpret('[1, 2, 3]') == [1, 2, 3]
     # sets
-    # TODO: assert interpret('set()') == set()
+    # assert interpret('set()') == set()
     assert interpret('{1, 2, 3, 3}') == {1, 2, 3, 3}
     # dicts
-    # TODO: assert interpret('dict()') == dict()
+    # assert interpret('dict()') == dict()
     assert interpret('{}') == dict()
     assert interpret('{}') != set()
     assert interpret('{1: 11, 2: 22, 3: 33, 3: 44}') == {1: 11, 2: 22, 3: 33, 3: 44}
     # tuples
-    # TODO: assert interpret('tuple()') == tuple()
+    # assert interpret('tuple()') == tuple()
     assert interpret('()') == ()
     assert interpret('(1)') != (1,)
     assert interpret('(1,)') == (1,)
@@ -164,6 +164,13 @@ def test_custom_interpreter(interpret):
     assert c_interpr('({1, 2}, 1)') == ({1, 2}, 1)
 
 
+# TODO: these are not supported
+# def test_interp_init_types(interpret):
+#     assert interpret('list()') == list()
+#     assert interpret('set()') == set()
+#     assert interpret('dict()') == dict()
+#     assert interpret('tuple()') == tuple()
+
 # ========================================================================= #
 # Original ast.literal_eval tests                                           #
 # Relavent copyright applies for this section, I am not the owner.          #
@@ -176,9 +183,7 @@ def test_literal_eval(interpret, interpret_nonstrict):
     assert interpret('(True, False, None)') == (True, False, None)
     assert interpret('{1, 2, 3}') == {1, 2, 3}
     assert interpret('b"hi"') == b"hi"
-    # TODO: assert interpret('set()') == set()
-    with pytest.raises(UnsupportedLanguageFeatureError):
-        interpret('foo()')
+    # assert interpret('set()') == set()
     assert interpret('6') == 6
     assert interpret('+6') == 6
     assert interpret('-6') == -6
@@ -257,4 +262,82 @@ def test_literal_eval_malformed_lineno(interpret, interpret_nonstrict):
     with pytest.raises(DisabledLanguageFeatureError, match=r'Nested unary operators are not allowed'):
         interpret(node)
     interpret_nonstrict(node)
+
+
+# ========================================================================= #
+# Original ast.literal_eval tests                                           #
+# ========================================================================= #
+
+
+
+class name:
+    foo = 1
+    class bar:
+        baz = 2
+    @staticmethod
+    def taz(a=100, b=200):
+        return 10 + a + b
+
+
+conf = {'a': {'c': 1}, 'b': 2}
+
+
+@pytest.fixture()
+def name_sym_interp():
+    interpret = Interpreter(
+        default_symtable={'name': name, 'range': range, 'conf': conf},
+        allow_unpacking=True,
+    ).interpret
+    return interpret
+
+
+def test_interpreter_names(name_sym_interp):
+    assert name_sym_interp('name') is name
+    with pytest.raises(NameError):
+        assert name_sym_interp('_unknown') is name.bar
+
+
+def test_interpreter_properties(name_sym_interp):
+    assert name_sym_interp('name.foo') is name.foo
+    assert name_sym_interp('name.bar') is name.bar
+    with pytest.raises(AttributeError):
+        assert name_sym_interp('name._unknown') is name.bar
+
+def test_interpreter_unpack(name_sym_interp):
+    assert name_sym_interp('{*"abcaaaa"}') == {"a", "b", "c"} == {*"abcaaaa"}
+    assert name_sym_interp('{*[1, 2], *(1, 2, 3)}') == {1, 2, 3}
+    assert name_sym_interp('{1: 1.0, **{2: 2.0}, 3: 3.0}') == {1: 1.0, 2: 2.0, 3: 3.0}
+    assert name_sym_interp('{1: 1.0, **{2: 2.0, **{4: 4.0}, **{4: 5.0}}, 3: 3.0}') == {1: 1.0, 2: 2.0, 3: 3.0, 4: 5.0}
+    assert name_sym_interp('[1, *[2, *(3, 4), *{1, 2, 2}, 5], *{6: 6., 7: 7.}]') == [1, 2, 3, 4, 1, 2, 5, 6, 7]
+    with pytest.raises(SyntaxError, match='invalid syntax'):
+        assert name_sym_interp('[1, *[2, *(3, 4), *{1, 2, 2}, 5], **{6: 6., 7: 7.}]')
+
+def test_interpreter_call(name_sym_interp):
+    assert name_sym_interp('range(5)') == range(5)
+    assert name_sym_interp('name.taz(1)') == name.taz(1)
+    assert name_sym_interp('name.taz(a=1)') == name.taz(a=1)
+    assert name_sym_interp('name.taz(b=2)') == name.taz(b=2)
+    assert name_sym_interp('name.taz(a=1, b=2)') == name.taz(a=1, b=2)
+    assert name_sym_interp('name.taz(1, b=2)') == name.taz(1, b=2)
+    # technically this should raise SyntaxError, only TypeError for kwargs
+    with pytest.raises(TypeError, match="got multiple values for keyword argument 'b'"):
+        name_sym_interp('name.taz(b=1, b=2)')
+
+def test_interpreter_call_and_unpack(name_sym_interp):
+    # CALL TESTS
+    assert name_sym_interp('[*range(5)]') == [0, 1, 2, 3, 4]
+
+    # CALL & UNPACK TESTS
+    assert name_sym_interp('name.taz(**{"b": 2})') == name.taz(**{"b": 2})
+    assert name_sym_interp('name.taz(*[1], **{"b": 2})') == name.taz(*[1], **{"b": 2})
+    assert name_sym_interp('name.taz(**{**{"b": 2}, **{"b": 3}})') == name.taz(b=3)
+    with pytest.raises(TypeError, match="got multiple values for keyword argument 'a'"):
+        name_sym_interp('name.taz(*[111], **{"a": 1}, **{"a": 11}, **{"b": 2})')
+
+
+def test_interpreter_getitem(name_sym_interp):
+    assert name_sym_interp('conf') is conf
+    assert name_sym_interp('conf["a"]') == conf["a"]
+    assert name_sym_interp('conf["b"]') == conf["b"]
+    assert name_sym_interp('conf["a"]["c"]') == conf["a"]["c"]
 

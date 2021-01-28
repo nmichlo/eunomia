@@ -227,6 +227,21 @@ class BasicInterpreter(BaseInterpreter):
     def visit_Invert(self, op, visited_value): return ~ visited_value
     def visit_Not   (self, op, visited_value): return not visited_value
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # F Strings                                                             #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def visit_JoinedStr(self, node):
+        return ''.join(str(self._visit(v)) for v in node.values)
+
+    def visit_FormattedValue(self, node):
+        value = self._visit(node.value)
+        if node.format_spec is None:
+            return f'{value}'
+        else:
+            format = self._visit(node.format_spec)
+            return f'{value:{format}}'
+
 
 # ========================================================================= #
 # Interpreter for properties, getters and symtables                         #

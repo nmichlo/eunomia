@@ -143,6 +143,26 @@ def test_interpret_unary_ops(interpret):
     assert interpret('~1') == ~1
 
 
+def test_interpret_fstrings(interpret):
+    assert interpret('f"string"') == "string"
+    assert interpret('f"prefix{1}suffix"') == f"prefix{1}suffix"
+    assert interpret('f"prefix{1}suffix{2}"') == f"prefix{1}suffix{2}"
+    assert interpret('f"{1}"') == f"{1}"
+    assert interpret('f"{1}{2}"') == f"{1}{2}"
+    with pytest.raises(SyntaxError):
+        assert interpret('f"{}"')
+
+
+def test_interpret_fstrings_formatting(interpret):
+    assert interpret('f"{1.012612313:1.3f}"') == "1.013"
+    assert interpret('f"{[1,2,3]}"') == "[1, 2, 3]"
+    assert interpret('f"{[1,{1,2,2},3]}"') == "[1, {1, 2}, 3]"
+    assert interpret('f"{\'asdf\'}"') == "asdf"
+    assert interpret('f"{1 + 2.56:1.1f}"') == "3.6"
+    assert interpret('f"{1 + 2.54:1.1f}"') == "3.5"
+    assert interpret('f"{1 + 2.546:1.{1+1}f}"') == "3.55"
+
+
 # ========================================================================= #
 # Interpreter                                                               #
 # ========================================================================= #

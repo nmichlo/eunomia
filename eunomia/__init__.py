@@ -11,7 +11,7 @@ __version__ = "0.0.1dev1"
 # ========================================================================= #
 
 
-from eunomia._config import DiskConfigLoader, DictConfigLoader, Group
+from eunomia._config_loader import DiskConfigLoader, DictConfigLoader, Group
 
 
 def eunomia(config_root='configs', config_name='default'):

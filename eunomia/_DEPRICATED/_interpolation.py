@@ -1,5 +1,5 @@
 
-from eunomia._nodes import InterpNode
+from eunomia._config_nodes import InterpNode
 from eunomia._util import fmt_pntr
 
 

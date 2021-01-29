@@ -1,7 +1,7 @@
 from functools import partial
 
 import pytest
-from eunomia._interpolation import _tokenize_string, TOKEN_STRING, TOKEN_INTERP, TokenizeError
+from eunomia._DEPRICATED._interpolation import _tokenize_string, TOKEN_STRING, TOKEN_INTERP, TokenizeError
 
 
 def test_parse():

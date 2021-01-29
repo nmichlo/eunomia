@@ -1,7 +1,5 @@
 import os as os
-from typing import NamedTuple, Iterator, Any
-
-from eunomia._interpolation import replace_interpolators
+from typing import NamedTuple, Iterator
 from eunomia._yaml import yaml_load_file, yaml_load
 from eunomia import _util as util
 

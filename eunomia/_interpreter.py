@@ -90,7 +90,7 @@ class BasicInterpreter(BaseInterpreter):
             # rules
             allow_nested_unary=False,
             allow_numerical_unary_on_bool=False,
-            allow_chained_comparisons=False,
+            allow_chained_comparisons=True,
     ):
         # TODO: maybe convert to mixins?
         self._allow_nested_unary = allow_nested_unary
@@ -258,7 +258,7 @@ class Interpreter(BasicInterpreter):
             # rules
             allow_nested_unary=False,
             allow_numerical_unary_on_bool=False,
-            allow_chained_comparisons=False,
+            allow_chained_comparisons=True,
             allow_unpacking=False,
     ):
         super().__init__(
@@ -381,3 +381,51 @@ class Interpreter(BasicInterpreter):
         slice = self._visit(node.slice)
         value = self._visit(node.value)
         return value[slice]
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # List Comprehension                                                    #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    # def visit_ListComp(self, node):
+    #
+    #     # limitations - only one "for .. in"
+    #     assert len(node.generators) == 1
+    #     gen = node.generators[0]
+    #     # limitations - no "if", no multiple assignment, no async
+    #     assert len(gen.ifs) == 0
+    #     assert not gen.is_async
+    #     assert isinstance(gen.target, ast.Name)
+    #
+    #     # target name
+    #     target: str = node.generators[0].target.id
+    #
+    #     # this is super slow
+    #     results, interp_scope = [], self.copy()
+    #     for value in self._visit(gen.iter):
+    #         interp_scope._symtable[target] = value
+    #         results.append(interp_scope._visit(node.elt))
+    #
+    #     return results
+
+    # def test_interpreter_list_comprehension(name_sym_interp):
+    #     # assert name_sym_interp('[i for i in [1, 2, 3, 4, 5]]') == [1, 2, 3, 4, 5]
+    #     # assert name_sym_interp('[i for i, j in [1, 2, 3, 4, 5] if i == 4]') == [1, 2, 3, 4, 5]
+    #     # assert name_sym_interp('[i - 1 for i in [1, 2, 3, 4, 5]]') == [0, 1, 2, 3, 4]
+    #     # assert name_sym_interp('{i - 1 for i in [1, 2, 3, 4, 5]}') == {0, 1, 2, 3, 4}
+    #     # assert name_sym_interp('{i: i - 1 for i in [1, 2, 3, 4, 5]}') == {1:0, 2:1, 3:2, 4:3, 5:4}
+    #     # assert name_sym_interp('(i for i in [1, 2, 3, 4, 5])') == {1:0, 2:1, 3:2, 4:3, 5:4}
+    #
+    #     # assert name_sym_interp('[x+1 for x in [0,1,2,3,4]]') == [1, 2, 3, 4, 5]
+    #     # assert name_sym_interp('[i for j in [[0],[1,2],[3,4]] for i in j]') == [0, 1, 2, 3, 4]
+    #
+    #     # [i for i in [1, 2, 3] if i for j in [3, 4, 5] if j if j]
+
+
+def interpret_expr(string: str, usersyms: Optional[dict[str, Any]] = None):
+    """
+    Interpret the given expression with preset
+    limitations on what is allowed.
+    """
+    interpreter = Interpreter(extra_symtable=usersyms)
+    assert isinstance(string, str)
+    return interpreter.interpret(string)

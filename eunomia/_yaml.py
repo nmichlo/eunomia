@@ -1,4 +1,4 @@
-from eunomia._nodes import RefNode, EvalNode
+from eunomia._config_nodes import IgnoreNode, RefNode, EvalNode
 import ruamel.yaml as yaml
 import sys
 
@@ -25,16 +25,29 @@ class EunomiaSafeLoader(yaml.SafeLoader):
     def construct_eval(self, node):
         return EvalNode(self.construct_yaml_str(node))
 
-    # if interpolate_always:
-    #     def construct_scalar(self, node):
-    #         if node.tag == u'tag:yaml.org,2002:str':
-    #             return Evaluator(node.value)
-    #         return super().construct_scalar(node)
+    def construct_raw(self, node):
+        if isinstance(node, yaml.ScalarNode):
+            value = self.construct_scalar(node)
+        # elif isinstance(node, yaml.SequenceNode):
+        #     value = self.construct_sequence(node)
+        # elif isinstance(node, yaml.MappingNode):
+        #     value = self.construct_mapping(node)
+        else:
+            raise TypeError(f'{IgnoreNode.TAG} is not compatible with node type: {node.__class__.__name__}')
+        return str(value)
+
+    def construct_scalar(self, node):
+        if node.tag == u'tag:yaml.org,2002:str':
+            assert isinstance(node.value, str), 'This should never happen!'
+            if node.value[0:2] in ('f"', "f'") and node.value[1] == node.value[-1]:
+                return EvalNode(node.value)
+        return super().construct_scalar(node)
 
 
 EunomiaSafeLoader.add_constructor('!tuple', EunomiaSafeLoader.construct_tuple)
 EunomiaSafeLoader.add_constructor(RefNode.TAG, EunomiaSafeLoader.construct_ref)
 EunomiaSafeLoader.add_constructor(EvalNode.TAG, EunomiaSafeLoader.construct_eval)
+EunomiaSafeLoader.add_constructor(IgnoreNode.TAG, EunomiaSafeLoader.construct_raw)
 
 
 # NOTE: unknown tags can be parsed
@@ -61,4 +74,3 @@ def yaml_load_file(path):
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-

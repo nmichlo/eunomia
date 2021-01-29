@@ -20,7 +20,7 @@ class Config(object):
     def __init__(self, data: dict, key: str):
         self.key = key
         # extract various components from the config
-        data = replace_interpolators(data)
+        # TODO: reenable data = replace_interpolators(data)
         self.defaults = self._config_pop_defaults(data)
         self.package = self._config_pop_package(data)
         self.data = data
@@ -81,7 +81,36 @@ class ConfigLoader(object):
     def _get_config_data(self, path: str):
         raise NotImplementedError()
 
-    def load_config(self, config_name):
+    def load_config(self, config_name, simultaneous_merge=True):
+        if simultaneous_merge:
+            return self._load_config_simultaneous(config_name)
+        else:
+            return self._load_config_separate(config_name)
+
+    def _load_config_simultaneous(self, config_name):
+        merged_defaults = {}
+        merged_config = {}
+
+        # flatten and merge the defaults list using DFS, while
+        # simultaneously merging the config
+        for info in self._traverse(config_name):
+            # get the defaults key
+            defaults_key = info.get_defaults_key()
+            # check that there is not a duplicate
+            if defaults_key in merged_defaults:
+                prev_info = merged_defaults[defaults_key]
+                raise KeyError(f'Merged defaults has duplicate entry: {repr(defaults_key)}. '
+                               f'Key previously added by: {repr(info.parent + util.EXT)}. '
+                               f'Current config file is: {repr(prev_info.parent + util.EXT)}.')
+            # 1. merge the defaults!
+            merged_defaults[defaults_key] = info
+            # 2. second recursively merge the configs
+            # TODO: add resolving of variables
+            util.recursive_update(merged_config, info.config.data)
+
+        return merged_config
+
+    def _load_config_separate(self, config_name):
         # 1. first flatten and merge the defaults list using DFS
         merged_defaults = {}
         for info in self._traverse(config_name):

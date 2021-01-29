@@ -361,3 +361,16 @@ def test_interpreter_getitem(name_sym_interp):
     assert name_sym_interp('conf["b"]') == conf["b"]
     assert name_sym_interp('conf["a"]["c"]') == conf["a"]["c"]
 
+# def test_interpreter_list_comprehension(name_sym_interp):
+#     # assert name_sym_interp('[i for i in [1, 2, 3, 4, 5]]') == [1, 2, 3, 4, 5]
+#     # assert name_sym_interp('[i for i, j in [1, 2, 3, 4, 5] if i == 4]') == [1, 2, 3, 4, 5]
+#     # assert name_sym_interp('[i - 1 for i in [1, 2, 3, 4, 5]]') == [0, 1, 2, 3, 4]
+#     # assert name_sym_interp('{i - 1 for i in [1, 2, 3, 4, 5]}') == {0, 1, 2, 3, 4}
+#     # assert name_sym_interp('{i: i - 1 for i in [1, 2, 3, 4, 5]}') == {1:0, 2:1, 3:2, 4:3, 5:4}
+#     # assert name_sym_interp('(i for i in [1, 2, 3, 4, 5])') == {1:0, 2:1, 3:2, 4:3, 5:4}
+#
+#     # assert name_sym_interp('[x+1 for x in [0,1,2,3,4]]') == [1, 2, 3, 4, 5]
+#     # assert name_sym_interp('[i for j in [[0],[1,2],[3,4]] for i in j]') == [0, 1, 2, 3, 4]
+#
+#     # [i for i in [1, 2, 3] if i for j in [3, 4, 5] if j if j]
+

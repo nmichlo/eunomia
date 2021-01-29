@@ -9,7 +9,65 @@ from eunomia import _util as util
 # ========================================================================= #
 
 
-class Config(object):
+class Group(object):
+
+    def __init__(self):
+        super().__init__()
+        self._groups = {}
+        self._options = {}
+
+    def new_subgroup(self, name) -> 'Group':
+        assert name not in self._groups
+        assert name not in self._options
+        self._groups[name] = Group()
+        return self._groups[name]
+
+    def add_option(self, name, conf) -> 'Group':
+        assert name not in self._groups
+        assert name not in self._options
+        self._options[name] = conf
+        return self
+
+    def get_subgroup(self, name) -> 'Group':
+        return self._groups[name]
+
+    def get_option(self, name) -> dict:
+        return self._options[name]
+
+    def __getitem__(self, name):
+        if name in self._options:
+            return self._options[name]
+        if name in self._groups:
+            return self._groups[name]
+        raise KeyError
+
+    def __getattr__(self, name):
+        try:
+            return self.__getitem__(name)
+        except KeyError:
+            return self.__getattribute__(name)
+
+
+class Option(dict):
+
+    KEY_DEFAULTS = '_defaults_'  # default is {}
+    KEY_PACKAGE = '_package_'    # default is _group_
+
+    PACKAGE_GROUP = '_group_'
+    PACKAGE_GLOBAL = '_global_'
+
+    def __init__(self):
+        super().__init__()
+
+    # def get_data_only(self):
+
+
+
+
+
+
+
+class GroupOption(object):
 
     KEY_DEFAULTS = '_defaults_'  # default is {}
     KEY_PACKAGE = '_package_'    # default is _group_
@@ -27,19 +85,13 @@ class Config(object):
 
     def _config_pop_defaults(self, data: dict) -> dict:
         # split the config file
-        defaults = data.pop(Config.KEY_DEFAULTS, {})
-        # hydra support for defaults that are lists of pairs
-        if isinstance(defaults, list):
-            new_defaults = {k: v for k, v in defaults}
-            assert len(new_defaults) == len(
-                defaults), f'Config file: {self.key=} ERROR: keys in defaults are not unique (deprecated hydra support for lists)'
-            defaults = new_defaults
+        defaults = data.pop(GroupOption.KEY_DEFAULTS, {})
         # check types
         assert isinstance(defaults, dict), f'Config: {self.key=} ERROR: defaults must be a mapping!'
         return defaults
 
     def _config_pop_package(self, data: dict) -> str:
-        package = data.pop(Config.KEY_DEFAULTS, Config.PACKAGE_GROUP)
+        package = data.pop(GroupOption.KEY_DEFAULTS, GroupOption.PACKAGE_GROUP)
         assert isinstance(package, str), f'Config: {self.key=} ERROR: package must be a string!'
         return package
 
@@ -53,7 +105,7 @@ class ConfigLoader(object):
 
     class ConfigInfo(NamedTuple):
         # values
-        config: Config
+        config: GroupOption
         # paths
         subgroups: list[str]
         subconfig: str
@@ -66,7 +118,7 @@ class ConfigLoader(object):
         def _dfs(curr_subgroups, curr_subconfig, parent_path):
             # load the current config in the subgroup
             path = os.path.join(*curr_subgroups, curr_subconfig)
-            config = Config(self._get_config_data(path), path)
+            config = GroupOption(self._get_config_data(path), path)
             # yield the values
             yield ConfigLoader.ConfigInfo(config, curr_subgroups, curr_subconfig, parent_path)
             # append all the defaults contained in the subconfig to the stack

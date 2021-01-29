@@ -1,7 +1,7 @@
 import os as os
 from typing import NamedTuple, Iterator
 from eunomia._yaml import yaml_load_file, yaml_load
-from eunomia import _util as util
+from eunomia._util import conf_paths, recursive_update_dict
 
 
 # ========================================================================= #
@@ -152,13 +152,13 @@ class ConfigLoader(object):
             if defaults_key in merged_defaults:
                 prev_info = merged_defaults[defaults_key]
                 raise KeyError(f'Merged defaults has duplicate entry: {repr(defaults_key)}. '
-                               f'Key previously added by: {repr(info.parent + util.EXT)}. '
-                               f'Current config file is: {repr(prev_info.parent + util.EXT)}.')
+                               f'Key previously added by: {repr(info.parent + conf_paths.EXT)}. '
+                               f'Current config file is: {repr(prev_info.parent + conf_paths.EXT)}.')
             # 1. merge the defaults!
             merged_defaults[defaults_key] = info
             # 2. second recursively merge the configs
             # TODO: add resolving of variables
-            util.recursive_update(merged_config, info.config.data)
+            conf_paths.recursive_update(merged_config, info.config.data)
 
         return merged_config
 
@@ -172,15 +172,15 @@ class ConfigLoader(object):
             if defaults_key in merged_defaults:
                 prev_info = merged_defaults[defaults_key]
                 raise KeyError(f'Merged defaults has duplicate entry: {repr(defaults_key)}. '
-                               f'Key previously added by: {repr(info.parent + util.EXT)}. '
-                               f'Current config file is: {repr(prev_info.parent + util.EXT)}.')
+                               f'Key previously added by: {repr(info.parent + conf_paths.EXT)}. '
+                               f'Current config file is: {repr(prev_info.parent + conf_paths.EXT)}.')
             # merge the defaults!
             merged_defaults[defaults_key] = info
 
         # 2. second recursively merge the configs in the merged defaults lists
         merged_config = {}
         for defaults_key, info in merged_defaults.items():
-            util.recursive_update(merged_config, info.config.data)
+            recursive_update_dict(merged_config, info.config.data)
 
         return merged_config
 
@@ -193,7 +193,7 @@ class DiskConfigLoader(ConfigLoader):
 
     def _get_config_data(self, path: str):
         # load the config file
-        disk_path = util.add_extension(os.path.join(self._config_folder, path))
+        disk_path = conf_paths.add_extension(os.path.join(self._config_folder, path))
         config = yaml_load_file(disk_path)
         # split the config file
         return config
@@ -206,7 +206,7 @@ class DictConfigLoader(ConfigLoader):
         self._data = data
 
     def _get_config_data(self, path: str):
-        config = util.recursive_get(self._data, util.split_elems(path))
+        config = conf_paths.recursive_get(self._data, conf_paths.split_elems(path))
         # TODO: some sort of check that we haven't gone too far into the config.
         #       maybe add group datatype, or config datatype
         # split the config file

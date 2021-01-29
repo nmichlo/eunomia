@@ -112,13 +112,13 @@ class BasicInterpreter(BaseInterpreter):
     def visit_Constant(self, node): return node.value
 
     # enclosures ::= parenth_form | list_display | dict_display | set_display | generator_expression | yield_atom
-    def visit_List (self, node): return [self._visit(n) for n in node.elts]
+    def visit_List (self, node): return list(self._visit(n) for n in node.elts)
     def visit_Tuple(self, node): return tuple(self._visit(n) for n in node.elts)
-    def visit_Set  (self, node): return {self._visit(n) for n in node.elts}
+    def visit_Set  (self, node): return set(self._visit(n) for n in node.elts)
     def visit_Dict (self, node):
         if len(node.keys) != len(node.values):
             raise ValueError('Dict node is malformed, differing number of keys and values!')
-        return {self._visit(k): self._visit(v) for k, v in zip(node.keys, node.values)}
+        return dict((self._visit(k), self._visit(v)) for k, v in zip(node.keys, node.values))
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Boolean Operations                                                    #

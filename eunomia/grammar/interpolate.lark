@@ -25,7 +25,7 @@ FSTRING.10: /f".*"/
 
 // B. interpolation string - reference & interpret
 interpolate_string: // empty string
-                  | (template | STR)+
+                  | (template | str)+
 
 ?template: "${" template_ref "}"
          | "${{" template_exp "}}"
@@ -33,6 +33,7 @@ template_ref: NAME ("." NAME)*
 template_exp: expr_stmt
 
 // escaped string
+str: STR
 STR: /(.(?<!\$)(?!\{))+/
 
 

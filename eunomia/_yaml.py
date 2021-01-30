@@ -1,6 +1,6 @@
-from eunomia._config_nodes import IgnoreNode, RefNode, EvalNode
 import ruamel.yaml as yaml
 import sys
+from eunomia._config_nodes import TupleNode, IgnoreNode, RefNode, EvalNode, InterpolateNode
 
 
 # we need 3.6 or above for ordered dictionary support
@@ -14,40 +14,31 @@ assert sys.version_info[0] == 3 and sys.version_info[1] >= 6, 'Python 3.6 or abo
 
 class EunomiaSafeLoader(yaml.SafeLoader):
 
-    def construct_tuple(self, node):
-        if not isinstance(node, yaml.SequenceNode):
-            raise yaml.YAMLError(f'{repr(node.tag)} {repr(node.value)} <<< must be a sequence/list')
-        return tuple(self.construct_sequence(node))
-
-    def construct_ref(self, node):
-        return RefNode(self.construct_yaml_str(node))
-
-    def construct_eval(self, node):
-        return EvalNode(self.construct_yaml_str(node))
-
-    def construct_raw(self, node):
-        if isinstance(node, yaml.ScalarNode):
-            value = self.construct_scalar(node)
-        # elif isinstance(node, yaml.SequenceNode):
-        #     value = self.construct_sequence(node)
-        # elif isinstance(node, yaml.MappingNode):
-        #     value = self.construct_mapping(node)
-        else:
-            raise TypeError(f'{IgnoreNode.TAG} is not compatible with node type: {node.__class__.__name__}')
-        return str(value)
+    def __init__(self, *args, always_interpolate_strings=True, **kwargs):
+        super().__init__(*args, **kwargs)
+        # custom config values
+        self._always_interpolate_strings = always_interpolate_strings
 
     def construct_scalar(self, node):
-        if node.tag == u'tag:yaml.org,2002:str':
-            assert isinstance(node.value, str), 'This should never happen!'
-            if node.value[0:2] in ('f"', "f'") and node.value[1] == node.value[-1]:
-                return EvalNode(node.value)
+        # we always want to interpolate strings!
+        if self._always_interpolate_strings:
+            if node.tag == u'tag:yaml.org,2002:str':
+                assert isinstance(node.value, str), 'This should never happen!'
+                return InterpolateNode(node.value)
+        # otherwise construct like usual
         return super().construct_scalar(node)
 
+    @classmethod
+    def yaml_register_config_node(cls, class_):
+        for tag in class_.TAGS:
+            EunomiaSafeLoader.add_constructor(tag, class_.yaml_constructor)
 
-EunomiaSafeLoader.add_constructor('!tuple', EunomiaSafeLoader.construct_tuple)
-EunomiaSafeLoader.add_constructor(RefNode.TAG, EunomiaSafeLoader.construct_ref)
-EunomiaSafeLoader.add_constructor(EvalNode.TAG, EunomiaSafeLoader.construct_eval)
-EunomiaSafeLoader.add_constructor(IgnoreNode.TAG, EunomiaSafeLoader.construct_raw)
+
+EunomiaSafeLoader.yaml_register_config_node(TupleNode)
+EunomiaSafeLoader.yaml_register_config_node(IgnoreNode)
+EunomiaSafeLoader.yaml_register_config_node(RefNode)
+EunomiaSafeLoader.yaml_register_config_node(EvalNode)
+EunomiaSafeLoader.yaml_register_config_node(InterpolateNode)
 
 
 # NOTE: unknown tags can be parsed

@@ -114,6 +114,9 @@ class ConfigLoader(object):
         def get_defaults_key(self):
             return os.path.join(*self.subgroups) if self.subgroups else None
 
+    def __init__(self, storage_backend: ConfigBackend):
+        self._backend = storage_backend
+
     def _traverse(self, config_name) -> Iterator[ConfigInfo]:
         def _dfs(curr_subgroups, curr_subconfig, parent_path):
             # load the current config in the subgroup
@@ -129,9 +132,6 @@ class ConfigLoader(object):
                     parent_path=path
                 )
         yield from _dfs([], config_name, None)
-
-    def _get_config_data(self, path: str):
-        raise NotImplementedError()
 
     def load_config(self, config_name, simultaneous_merge=True):
         if simultaneous_merge:
@@ -183,41 +183,6 @@ class ConfigLoader(object):
             recursive_update_dict(merged_config, info.config.data)
 
         return merged_config
-
-
-class DiskConfigLoader(ConfigLoader):
-
-    def __init__(self, config_folder):
-        super().__init__()
-        self._config_folder = config_folder
-
-    def _get_config_data(self, path: str):
-        # load the config file
-        disk_path = conf_paths.add_extension(os.path.join(self._config_folder, path))
-        config = yaml_load_file(disk_path)
-        # split the config file
-        return config
-
-
-class DictConfigLoader(ConfigLoader):
-
-    def __init__(self, data: dict):
-        super().__init__()
-        self._data = data
-
-    def _get_config_data(self, path: str):
-        config = conf_paths.recursive_get(self._data, conf_paths.split_elems(path))
-        # TODO: some sort of check that we haven't gone too far into the config.
-        #       maybe add group datatype, or config datatype
-        # split the config file
-        return config
-
-
-class VirtualConfigLoader(DictConfigLoader):
-
-    def _get_config_data(self, path: str):
-        config_string = super()._get_config_data(path)
-        return yaml_load(config_string)
 
 
 # ========================================================================= #

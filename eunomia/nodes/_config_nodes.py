@@ -5,6 +5,10 @@ from eunomia._interpreter import interpret_expr
 from eunomia.grammar._lark import INTERPOLATE_PARSER, INTERPOLATE_RECONSTRUCTOR
 
 
+# TODO: maybe resplit nodes and YAML
+#       yaml should be added as a 'plugin' backend
+
+
 # ========================================================================= #
 # Base Loaders                                                              #
 # ========================================================================= #

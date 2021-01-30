@@ -1,4 +1,48 @@
 
+// ============================== //
+// yaml string template language
+// ============================== //
+
+?start: interpolate
+
+// Two types of templates exist:
+// - reference templates
+//     - these are paths to items in the config
+//     - B. syntax: ${...} eg. f{key1.key2.key3}
+// - interpret templates
+//     - these are python expressions that can be evaluated
+//     - B. syntax: ${{...}} eg. ${{'='*100}}
+//     - A. alternative syntax: f"{'='*100}"
+
+interpolate: interpret_fstring
+           | interpolate_string
+
+// A. alternative syntax - fstring template
+// has higher priority than normal strings
+interpret_fstring: FSTRING
+FSTRING.10: /f".*"/
+          | /f'.*'/
+
+// B. interpolation string - reference & interpret
+interpolate_string: // empty string
+                  | (template | STR)+
+
+?template: "${" template_ref "}"
+         | "${{" template_exp "}}"
+template_ref: NAME ("." NAME)*
+template_exp: expr_stmt
+
+// escaped string
+STR: /(.(?<!\$)(?!\{))+/
+
+
+
+// ============================== //
+// Python 3 grammar for Lark
+// https://github.com/lark-parser/lark/blob/master/examples/advanced/python3.lark
+// ============================== //
+
+
 // Python 3 grammar for Lark
 
 // NOTE: Work in progress!!! (XXX TODO)

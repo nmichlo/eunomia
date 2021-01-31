@@ -1,99 +1,6 @@
 import os as os
 from typing import NamedTuple, Iterator
-from eunomia._yaml import yaml_load_file, yaml_load
-from eunomia._util import conf_paths, recursive_update_dict
-
-
-# ========================================================================= #
-# Config                                                                    #
-# ========================================================================= #
-
-
-class Group(object):
-
-    def __init__(self):
-        super().__init__()
-        self._groups = {}
-        self._options = {}
-
-    def new_subgroup(self, name) -> 'Group':
-        assert name not in self._groups
-        assert name not in self._options
-        self._groups[name] = Group()
-        return self._groups[name]
-
-    def add_option(self, name, conf) -> 'Group':
-        assert name not in self._groups
-        assert name not in self._options
-        self._options[name] = conf
-        return self
-
-    def get_subgroup(self, name) -> 'Group':
-        return self._groups[name]
-
-    def get_option(self, name) -> dict:
-        return self._options[name]
-
-    def __getitem__(self, name):
-        if name in self._options:
-            return self._options[name]
-        if name in self._groups:
-            return self._groups[name]
-        raise KeyError
-
-    def __getattr__(self, name):
-        try:
-            return self.__getitem__(name)
-        except KeyError:
-            return self.__getattribute__(name)
-
-
-class Option(dict):
-
-    KEY_DEFAULTS = '_defaults_'  # default is {}
-    KEY_PACKAGE = '_package_'    # default is _group_
-
-    PACKAGE_GROUP = '_group_'
-    PACKAGE_GLOBAL = '_global_'
-
-    def __init__(self):
-        super().__init__()
-
-    # def get_data_only(self):
-
-
-
-
-
-
-
-class GroupOption(object):
-
-    KEY_DEFAULTS = '_defaults_'  # default is {}
-    KEY_PACKAGE = '_package_'    # default is _group_
-
-    PACKAGE_GROUP = '_group_'
-    PACKAGE_GLOBAL = '_global_'
-
-    def __init__(self, data: dict, key: str):
-        self.key = key
-        # extract various components from the config
-        # TODO: reenable data = replace_interpolators(data)
-        self.defaults = self._config_pop_defaults(data)
-        self.package = self._config_pop_package(data)
-        self.data = data
-
-    def _config_pop_defaults(self, data: dict) -> dict:
-        # split the config file
-        defaults = data.pop(GroupOption.KEY_DEFAULTS, {})
-        # check types
-        assert isinstance(defaults, dict), f'Config: {self.key=} ERROR: defaults must be a mapping!'
-        return defaults
-
-    def _config_pop_package(self, data: dict) -> str:
-        package = data.pop(GroupOption.KEY_DEFAULTS, GroupOption.PACKAGE_GROUP)
-        assert isinstance(package, str), f'Config: {self.key=} ERROR: package must be a string!'
-        return package
+from eunomia.backend import ConfigBackend
 
 
 # ========================================================================= #
@@ -119,7 +26,7 @@ class ConfigLoader(object):
 
     def _traverse(self, config_name) -> Iterator[ConfigInfo]:
         def _dfs(curr_subgroups, curr_subconfig, parent_path):
-            # load the current config in the subgroup
+            # load the current config option in the subgroup
             path = os.path.join(*curr_subgroups, curr_subconfig)
             config = GroupOption(self._get_config_data(path), path)
             # yield the values
@@ -163,6 +70,10 @@ class ConfigLoader(object):
         return merged_config
 
     def _load_config_separate(self, config_name):
+        """
+        This is like
+        """
+
         # 1. first flatten and merge the defaults list using DFS
         merged_defaults = {}
         for info in self._traverse(config_name):
@@ -172,8 +83,8 @@ class ConfigLoader(object):
             if defaults_key in merged_defaults:
                 prev_info = merged_defaults[defaults_key]
                 raise KeyError(f'Merged defaults has duplicate entry: {repr(defaults_key)}. '
-                               f'Key previously added by: {repr(info.parent + conf_paths.EXT)}. '
-                               f'Current config file is: {repr(prev_info.parent + conf_paths.EXT)}.')
+                               f'Key previously added by: {repr(info.parent)}. '
+                               f'Current config file is: {repr(prev_info.parent)}.')
             # merge the defaults!
             merged_defaults[defaults_key] = info
 

@@ -1,4 +1,4 @@
-from typing import Mapping
+import keyword
 
 
 # ========================================================================= #
@@ -45,7 +45,7 @@ class SimpleAttrDict(dict):
 # ========================================================================= #
 
 
-class AttrDict(object):
+class AttrMap(object):
     """
     Nested Attribute Dictionary
 
@@ -60,7 +60,7 @@ class AttrDict(object):
 
     def __init__(self, mapping=None):
         # initialise this dict
-        super(AttrDict, self).__init__()
+        super(AttrMap, self).__init__()
         # add all keys and values to dict
         if mapping:
             attrhelp.update(self, mapping)
@@ -76,7 +76,7 @@ class AttrDict(object):
     def __setitem__(self, key, value):
         if not str.isidentifier(key):
             raise KeyError(f'{key=} must be a valid python identifier.')
-        if key in AttrDict.__INVALID_ITEM_NAMES:
+        if key in AttrMap.__INVALID_ITEM_NAMES:
             raise KeyError(f'{key=} name is not allowed.')
         # recursively merge dictionaries
         value = attrhelp.recursive_to_attrdict(value)
@@ -109,13 +109,15 @@ class AttrDict(object):
 
 
 # update the invalid names
-AttrDict.__INVALID_ITEM_NAMES = {
+AttrMap.__INVALID_ITEM_NAMES = {
+    # python reserved words, eg. def, class, global, etc
+    *keyword.kwlist,
     # reserve dictionary keys for future use
     *[k if k.startswith('__') else f'_{k}_' for k in dir(dict)],                      # eg. _get_
     *[k if k.startswith('__') else f'__{k}' for k in dir(dict)],                      # eg. __get
-    *[k if k.startswith('__') else f'_{AttrDict.__name__}__{k}' for k in dir(dict)],  # eg. _AttrDict__get_
+    *[k if k.startswith('__') else f'_{AttrMap.__name__}__{k}' for k in dir(dict)],  # eg. _AttrMap__get_
     # values obtained from this class
-    *dir(AttrDict)
+    *dir(AttrMap)
 }
 
 
@@ -128,12 +130,12 @@ def _recursive_convert(value, dict_type):
     """
     NOTE: This function works in conjunction with the constructor above.
     """
-    if isinstance(value, (dict, AttrDict)):
-        dct = dict_type()
-        # TODO: this may call recursive twice...?
-        for k, v in attrhelp.items(value):
-            dct[k] = _recursive_convert(v, dict_type=dict_type)
-        return dct
+    if isinstance(value, (dict, AttrMap)):
+        if issubclass(dict_type, AttrMap):
+            # AttrMap calls _recursive_convert internally
+            return dict_type(value)
+        else:
+            return {k: _recursive_convert(v, dict_type=dict_type) for k, v in attrhelp.items(value)}
     elif isinstance(value, list):
         return list(_recursive_convert(v, dict_type=dict_type) for v in value)
     elif isinstance(value, tuple):
@@ -144,6 +146,29 @@ def _recursive_convert(value, dict_type):
         return value
 
 
+def _recursive_update_map(left, right, stack):
+    # b takes priority
+    for k, v in attrhelp.items(right):
+        if k in left:
+            if isinstance(left[k], dict) or isinstance(v, dict):
+                new_stack = stack + [k]
+                if not (isinstance(left[k], dict) and isinstance(v, dict)):
+                    raise TypeError(f'Recursive update cannot merge keys with a different type if one is a dictionary. {".".join(new_stack)}')
+                else:
+                    _recursive_update_map(left[k], v, stack=new_stack)
+                    continue
+        left[k] = v
+
+
+def recursive_update_map(left, right):
+    return _recursive_update_map(left, right, stack=[])
+
+
+# ========================================================================= #
+# Helper                                                                    #
+# ========================================================================= #
+
+
 class attrhelp:
 
     # double underscores mangle names, however because this is in a
@@ -151,13 +176,13 @@ class attrhelp:
     # dct.__keys becomes dct._attrhelp__keys instead of dct._AttrDict__keys
 
     @staticmethod
-    def keys(dct):          return dct._AttrDict__keys()        if isinstance(dct, AttrDict) else dct.keys()
+    def keys(dct):          return dct._AttrMap__keys()        if isinstance(dct, AttrMap) else dct.keys()
     @staticmethod
-    def values(dct):        return dct._AttrDict__values()      if isinstance(dct, AttrDict) else dct.values()
+    def values(dct):        return dct._AttrMap__values()      if isinstance(dct, AttrMap) else dct.values()
     @staticmethod
-    def items(dct):         return dct._AttrDict__items()       if isinstance(dct, AttrDict) else dct.items()
+    def items(dct):         return dct._AttrMap__items()       if isinstance(dct, AttrMap) else dct.items()
     @staticmethod
-    def update(dct, other): return dct._AttrDict__update(other) if isinstance(dct, AttrDict) else dct.update(other)
+    def update(dct, other): return dct._AttrMap__update(other) if isinstance(dct, AttrMap) else dct.update(other)
 
     @staticmethod
     def recursive_to_dict(value):
@@ -165,10 +190,9 @@ class attrhelp:
 
     @staticmethod
     def recursive_to_attrdict(value):
-        return _recursive_convert(value, dict_type=AttrDict)
+        return _recursive_convert(value, dict_type=AttrMap)
 
 
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-

@@ -1,5 +1,5 @@
 import json
-from eunomia._attrdict import AttrDict, attrhelp
+from eunomia.attrmap import AttrMap, attrhelp
 
 
 # ========================================================================= #
@@ -13,7 +13,7 @@ def check_dict_equal(a, b):
 
 
 def test_attrdict():
-    conf = AttrDict({'a': {'b': {'a': 1}}})
+    conf = AttrMap({'a': {'b': {'a': 1}}})
 
     check_dict_equal(conf, {'a': {'b': {'a': 1}}})
     conf.a.b.a = 2

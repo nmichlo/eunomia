@@ -1,7 +1,5 @@
-import abc
 import ast
-from typing import Optional, Dict, Any, Union
-
+from typing import Optional, Dict, Any
 from asteval.astutils import UNSAFE_ATTRS, make_symbol_table, safe_mult, safe_add, safe_pow, safe_lshift
 
 
@@ -189,20 +187,20 @@ class BasicInterpreter(BaseInterpreter):
     def visit_BinOp(self, node):
         return self._visit(node.op, self._visit(node.left), self._visit(node.right))
 
-    def visit_Add     (self, node, vis_left, vis_right): return vis_left + vis_right
+    def visit_Add     (self, node, vis_left, vis_right): return safe_add(vis_left, vis_right)
     def visit_Sub     (self, node, vis_left, vis_right): return vis_left - vis_right
-    def visit_Mult    (self, node, vis_left, vis_right): return vis_left * vis_right
+    def visit_Mult    (self, node, vis_left, vis_right): return safe_mult(vis_left, vis_right)
     def visit_MatMult (self, node, vis_left, vis_right): return vis_left @ vis_right
     def visit_Div     (self, node, vis_left, vis_right): return vis_left / vis_right
     def visit_FloorDiv(self, node, vis_left, vis_right): return vis_left // vis_right
     def visit_Mod     (self, node, vis_left, vis_right): return vis_left % vis_right
-    def visit_Pow     (self, node, vis_left, vis_right): return vis_left ** vis_right
+    def visit_Pow     (self, node, vis_left, vis_right): return safe_pow(vis_left, vis_right)
 
     def visit_BitAnd  (self, node, vis_left, vis_right): return vis_left & vis_right
     def visit_BitOr   (self, node, vis_left, vis_right): return vis_left | vis_right
     def visit_BitXor  (self, node, vis_left, vis_right): return vis_left ^ vis_right
 
-    def visit_LShift  (self, node, vis_left, vis_right): return vis_left << vis_right
+    def visit_LShift  (self, node, vis_left, vis_right): return safe_lshift(vis_left, vis_right)
     def visit_RShift  (self, node, vis_left, vis_right): return vis_left >> vis_right
 
     def visit_In   (self, node, vis_left, vis_right): return vis_left in vis_right

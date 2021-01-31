@@ -1,6 +1,5 @@
 import os
-from eunomia._util import conf_paths
-from eunomia.backend._backend_yaml import yaml_load, yaml_load_file
+from eunomia.backend._yaml import yaml_load, yaml_load_file
 
 
 # ========================================================================= #
@@ -21,9 +20,9 @@ class ConfigBackend(object):
 
 class DiskConfigLoader(ConfigBackend):
 
-    def __init__(self, config_folder):
+    def __init__(self, config_root):
         super().__init__()
-        self._config_folder = config_folder
+        self._config_folder = config_root
 
     def _get_config_data(self, keys: list[str]):
         # load the config file

@@ -1,8 +1,8 @@
 import pytest
 from eunomia._keys import ALL_PACKAGE_DIRECTIVES, ALL_RESERVED_KEYS, PACKAGE_ROOT, PACKAGE_GROUP, KEY_PACKAGE, KEY_OPTIONS
 from eunomia._keys import assert_valid_eunomia_key, is_valid_eunomia_key
-from eunomia._keys import assert_valid_eunomia_package, is_valid_eunomia_package
-from eunomia._keys import assert_valid_eunomia_path, is_valid_eunomia_path
+from eunomia._keys import assert_valid_eunomia_package, is_valid_eunomia_package, split_eunomia_package
+from eunomia._keys import assert_valid_eunomia_path, is_valid_eunomia_path, split_eunomia_path
 
 
 # ========================================================================= #
@@ -82,6 +82,11 @@ def test_eunomia_packages():
     assert not is_valid_eunomia_package('valid.1invalid')
     assert not is_valid_eunomia_package('1invalid.valid')
 
+    # test splitting
+    assert split_eunomia_package('a') == ['a']
+    assert split_eunomia_package('a.b.c') == ['a', 'b', 'c']
+    assert split_eunomia_package(['a', 'b', 'c']) == ['a', 'b', 'c']
+
 
 def test_eunomia_paths():
     """
@@ -126,3 +131,9 @@ def test_eunomia_paths():
     assert not is_valid_eunomia_path('1invalid')
     assert not is_valid_eunomia_path('valid/1invalid')
     assert not is_valid_eunomia_path('1invalid/valid')
+
+    # test splitting
+    assert split_eunomia_path('a') == ['a']
+    assert split_eunomia_path('a/b/c') == ['a', 'b', 'c']
+    assert split_eunomia_path(['a', 'b', 'c']) == ['a', 'b', 'c']
+

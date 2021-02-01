@@ -6,6 +6,13 @@ from eunomia._loader import ConfigLoader
 from eunomia.backend import Backend, ConfigGroup, BackendConfigGroup, BackendYaml, BackendDict
 
 
+# ========================================================================= #
+# Variables                                                                 #
+# ========================================================================= #
+
+
+# default config gives BackedYaml pointing to ./configs
+# default entrypoint recursively loads ./configs/default.yaml
 DEFAULT_CONFIG = 'configs'
 DEFAULT_ENTRYPOINT = 'default'
 
@@ -60,7 +67,7 @@ def eunomia_runner_adv(func: callable, backend: Backend, entrypoint=DEFAULT_ENTR
     - This function is the core of eunomia, calling the relevant plugins, creating
       the merged config and finally calling your entry.
     """
-    raise NotImplementedError
+    raise NotImplementedError('TODO: implement me!')
 
 
 # ========================================================================= #

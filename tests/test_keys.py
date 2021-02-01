@@ -6,7 +6,7 @@ from eunomia._keys import assert_valid_value_path, is_valid_value_path, split_va
 
 
 # ========================================================================= #
-# Test YAML & Custom Tags                                                   #
+# Test Config Keys                                                          #
 # ========================================================================= #
 
 

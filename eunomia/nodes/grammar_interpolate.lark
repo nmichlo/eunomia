@@ -11,10 +11,13 @@
 //     - B. syntax: ${...} eg. f{key1.key2.key3}
 // - interpret templates
 //     - these are python expressions that can be evaluated
-//     - B. syntax: ${{...}} eg. ${{'='*100}}
 //     - A. alternative syntax: f"{'='*100}"
+//     - B.1. syntax: ${{...}} eg. ${{'#'*100}}  DEPRICATED!
+//     - B.2. syntax: ${=...} eg. ${='#'*100}
+//         - maybe allow support for the colon ";" before the last bracket
+//           eg. ${{{1: 2};}} <<< (this was buggy otherwise) or ${={1: 2};}
 
-interpolate: interpret_fstring
+interpolate: interpret_fstring // _END_STMT?
            | interpolate_string
 
 // A. alternative syntax - fstring template
@@ -28,7 +31,9 @@ interpolate_string: // empty string
                   | (template | str)+
 
 ?template: "${" template_ref "}"
-         | "${{" template_exp "}}"
+         | "${=" template_exp "}"              // B.1.
+      // | "${=" template_exp _END_STMT? "}"   // B.1. allow semicolons
+      // | "${{" template_exp "}}"             // B.2. DEPRICATED!
 template_ref: NAME ("." NAME)*
 template_exp: expr_stmt
 
@@ -36,6 +41,8 @@ template_exp: expr_stmt
 str: STR
 STR: /(.(?<!\$)(?!\{))+/
 
+// end of statement
+_END_STMT: ";"
 
 
 // ============================== //

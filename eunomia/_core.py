@@ -1,11 +1,15 @@
 from functools import wraps
-from eunomia._loader import ConfigLoader
-from eunomia.backend import Backend
 import pathlib
+from typing import Union
+
+from eunomia._loader import ConfigLoader
+from eunomia.backend import Backend, ConfigGroup, BackendConfigGroup, BackendYaml, BackendDict
 
 
 DEFAULT_CONFIG = 'configs'
 DEFAULT_ENTRYPOINT = 'default'
+
+ValidConfigTypes = Union[str, dict, ConfigGroup]
 
 
 # ========================================================================= #
@@ -13,7 +17,7 @@ DEFAULT_ENTRYPOINT = 'default'
 # ========================================================================= #
 
 
-def eunomia(config=DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia(config: ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     """
     The main eunomia decorator.
     Automatically detects which backend to use based on the first argument.
@@ -39,7 +43,7 @@ def eunomia_adv(backend: Backend, entrypoint=DEFAULT_ENTRYPOINT):
     return wrapper
 
 
-def eunomia_runner(func: callable, config=DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia_runner(func: callable, config: ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     """
     The non-decorator equivalent to @eunomia(...)
     """
@@ -64,7 +68,7 @@ def eunomia_runner_adv(func: callable, backend: Backend, entrypoint=DEFAULT_ENTR
 # ========================================================================= #
 
 
-def eunomia_load(config=DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia_load(config: ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     return eunomia_load_adv(
         backend=_eunomia_get_backend(config),
         entrypoint=entrypoint
@@ -81,16 +85,18 @@ def eunomia_load_adv(backend: Backend, entrypoint=DEFAULT_ENTRYPOINT):
 # ========================================================================= #
 
 
-def _eunomia_get_backend(config=DEFAULT_CONFIG):
+def _eunomia_get_backend(config: ValidConfigTypes = DEFAULT_CONFIG):
     if isinstance(config, (str, pathlib.Path)):
         # we assume the config is a path to the root folder for a YAML backend
         if isinstance(config, pathlib.Path):
-            config = config.absolute()
-        return DiskConfigLoader(config_root=config)
+            config = str(config.absolute())
+        return BackendYaml(root_folder=config)
     elif isinstance(config, dict):
-        # we assume that config is a dictionary for a Dictionary backend.
-        # TODO: merge with Group OR add separate group backend
-        return DictConfigLoader(data=config)
+        # we assume that the config is a dictionary
+        return BackendDict(root_dict=config)
+    elif isinstance(config, ConfigGroup):
+        # we assume that the config is a ConfigGroup with ConfigOptions
+        return BackendConfigGroup(root_group=config)
     else:
         raise TypeError(f'Unsupported config_root type: {config.__class__.__name__}')
 
@@ -98,55 +104,3 @@ def _eunomia_get_backend(config=DEFAULT_CONFIG):
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-
-
-
-
-# if __name__ == '__main__':
-#
-#     root = Group()
-#     root.add_option('default', {
-#         '_defaults_': {
-#             'group_a': 'conf_a1',
-#             'group_b': 'conf_b2',
-#         }
-#     })
-#
-#     group_a = root.new_subgroup('group_a')
-#     group_a.add_option('conf_a1', {'a_value': 1})
-#     group_a.add_option('conf_a2', {'a_value': 2})
-#
-#     group_b = root.new_subgroup('group_b')
-#     group_b.add_option('conf_b1', {'b_value': 1})
-#     group_b.add_option('conf_b2', {'b_value': 2})
-#
-#     print(root.default._defaults_)
-#
-#
-#     # root_group = dict(
-#     #     default={
-#     #         '_defaults_': {
-#     #             'group_a': 'conf_a1',
-#     #             'group_b': 'conf_b2',
-#     #         }
-#     #     },
-#     #     group_a=dict(
-#     #         conf_a1={
-#     #             'a_value': 1
-#     #         },
-#     #         conf_a2={
-#     #             'a_value': 2
-#     #         },
-#     #     ),
-#     #     group_b=dict(
-#     #         conf_b1={
-#     #             'b_value': 1
-#     #         },
-#     #         conf_b2={
-#     #             'b_value': 2
-#     #         },
-#     #     )
-#     # )
-#
-#     # import yaml
-#     # print(yaml.dump(eunomia(root, 'default')))

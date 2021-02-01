@@ -144,13 +144,14 @@ def is_valid_single_pkg_or_path_part(key: str) -> bool: pass
 # ========================================================================= #
 
 
-def _split_keys(keys: Union[str, list[str], tuple[str]], sep: str, desc: str) -> Union[list[str], tuple[str]]:
+def _split_keys(keys: Union[str, list[str], tuple[str]], sep: str, desc: str, allow_root_list=False) -> Union[list[str], tuple[str]]:
     if isinstance(keys, str):
         keys = keys.split(sep)
     if not isinstance(keys, (list, tuple)):
-        raise TypeError(f'{desc}: must be a str, list[str] or tuple[str]')
-    if not keys:
-        raise ValueError(f'{desc}: name must contain at least one group name')
+        raise TypeError(f'{desc}: {keys=} must be a str, list[str] or tuple[str]')
+    if not allow_root_list:
+        if not keys:
+            raise ValueError(f'{desc}: {keys=} name must contain at least one group name')
     return keys
 
 
@@ -162,7 +163,7 @@ def _assert_split_components_valid(keys: list[str], desc: str):
             raise e.__class__(f'{desc}: {repr(keys)} has invalid component: {repr(key)}\n{e}')
 
 
-def split_valid_value_package(keys: Union[str, list, tuple]):
+def split_valid_value_package(keys: Union[str, list, tuple], allow_root_list=False):
     """
     Checks if a value path listed in the _package_ node of a
     config group option is valid.
@@ -170,7 +171,7 @@ def split_valid_value_package(keys: Union[str, list, tuple]):
     - does not allow reserved eunomia keys to be used
     - a singular package directive can be used defined in: PKG_ALIAS_GROUP or PKG_ALIAS_ROOT
     """
-    keys = _split_keys(keys, SEP_PACKAGES, 'package')
+    keys = _split_keys(keys, SEP_PACKAGES, 'package', allow_root_list=allow_root_list)
     # exit early if equals alias
     if len(keys) == 1:
         if keys[0] in PKG_ALIASES_ALL:
@@ -179,7 +180,7 @@ def split_valid_value_package(keys: Union[str, list, tuple]):
     return keys
 
 
-def split_valid_value_path(keys: Union[str, list, tuple]):
+def split_valid_value_path(keys: Union[str, list, tuple], allow_root_list=False):
     """
     Checks if a path to a config group or config group option
     is valid.
@@ -187,7 +188,7 @@ def split_valid_value_path(keys: Union[str, list, tuple]):
     - does not allow reserved eunomia keys to be used
     - does not allow package aliases like split_eunomia_package(...)
     """
-    keys = _split_keys(keys, SEP_PATHS, 'path')
+    keys = _split_keys(keys, SEP_PATHS, 'path', allow_root_list=allow_root_list)
     _assert_split_components_valid(keys, 'path')
     return keys
 

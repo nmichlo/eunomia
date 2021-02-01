@@ -6,8 +6,9 @@ The backend effectively passes through the values as they
 are without any modifications.
 """
 
+
 from eunomia.backend._backend import Backend
-from eunomia.backend._config_objects import ConfigGroup
+from eunomia.backend._config_objects import ConfigGroup, ConfigOption
 
 
 # ========================================================================= #
@@ -15,15 +16,18 @@ from eunomia.backend._config_objects import ConfigGroup
 # ========================================================================= #
 
 
-class BackendInternal(Backend):
+class BackendDict(Backend):
 
-    def __init__(self, root_group: ConfigGroup):
-        if not isinstance(root_group, ConfigGroup):
-            raise TypeError(f'{root_group} must be an instance of {ConfigGroup.__name__}')
-        self._root_group = root_group
+    def __init__(self, root_dict: dict):
+        # check the root folder
+        if not isinstance(root_dict, dict):
+            raise TypeError(f'root_dict must be a dict')
+        self._root_dict = root_dict        # loading modes
 
-    def _load_root_group(self) -> ConfigGroup:
-        return self._root_group
+    def load_root_group(self) -> ConfigGroup:
+        # use _group_ tag to differentiate
+        # between groups and options
+        raise NotImplementedError('TODO: implement me')
 
 
 # ========================================================================= #

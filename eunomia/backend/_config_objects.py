@@ -21,11 +21,11 @@ https://hydra.cc/docs/terminology/
 """
 
 
-from typing import Union
+from typing import Union, Optional
 from eunomia._keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, KEYS_RESERVED_ALL, assert_valid_single_option_key
 from eunomia._keys import PKG_DEFAULT_ALIAS
 from eunomia._keys import assert_valid_value_package, assert_valid_value_path, assert_valid_single_key
-from eunomia._keys import join_valid_value_path, join_valid_value_package
+from eunomia._keys import join_valid_value_path, join_valid_value_package, split_valid_value_path
 from eunomia.backend._util_traverse import ContainerVisitor
 
 
@@ -49,6 +49,16 @@ class _ConfigObject(object):
     @property
     def has_parent(self):
         return self._key or self._parent
+
+    @property
+    def parent(self) -> Optional['_ConfigObject']:
+        assert not ((not self._key) ^ (not self._parent))
+        return self._parent
+
+    @property
+    def key(self) -> Optional[str]:
+        assert not ((not self._key) ^ (not self._parent))
+        return self._key
 
     @property
     def path(self):
@@ -110,8 +120,12 @@ class _ConfigObject(object):
     def get_child(self, key) -> Union['_ConfigObject']:
         return self._children[key]
 
+    def has_child(self, key) -> bool:
+        return key in self._children
+
     __setitem__ = add_child
     __getitem__ = get_child
+    __contains__ = has_child
 
     def __iter__(self):
         yield from self._children
@@ -129,7 +143,7 @@ class ConfigGroup(_ConfigObject):
         # add groups or options
         if option_or_group_nodes:
             for k, v in option_or_group_nodes.items():
-                self.add_child(k, v)
+                child = self.add_child(k, v)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Override                                                              #
@@ -169,26 +183,46 @@ class ConfigGroup(_ConfigObject):
 
     def get_subgroup(self, key: str) -> 'ConfigGroup':
         node = self.get_child(key)
-        if isinstance(node, ConfigGroup):
-            raise TypeError(f'node with key: {key} is not a {ConfigGroup.__name__}')
+        if not isinstance(node, ConfigGroup):
+            raise TypeError(f'node with key: {repr(key)} is not a {ConfigGroup.__name__}')
         return node
 
     def get_option(self, key: str) -> 'ConfigOption':
         node = self.get_child(key)
-        if isinstance(node, ConfigOption):
-            raise TypeError(f'node with key: {key} is not a {ConfigOption.__name__}')
+        if not isinstance(node, ConfigOption):
+            raise TypeError(f'node with key: {repr(key)} is not a {ConfigOption.__name__}')
         return node
 
     def add_subgroup(self, key: str, value: 'ConfigGroup') -> 'ConfigGroup':
-        assert isinstance(value, ConfigGroup)
+        if not isinstance(value, ConfigGroup):
+            raise TypeError(f'adding node with key: {repr(key)} is not a {ConfigGroup.__name__}')
         return self.add_child(key, value)
 
     def add_option(self, key: str, value: 'ConfigOption') -> 'ConfigOption':
-        assert isinstance(value, ConfigOption)
+        if not isinstance(value, ConfigOption):
+            raise TypeError(f'adding node with key: {repr(key)} is not a {ConfigOption.__name__}')
         return self.add_child(key, value)
 
     def new_subgroup(self, key: str) -> 'ConfigGroup':
         return self.add_subgroup(key, ConfigGroup())
+
+    def get_subgroups_recursive(self, keys: Union[str, list[str], tuple[str]], make_missing=False) -> 'ConfigGroup':
+        keys = split_valid_value_path(keys, allow_root_list=True)
+        def _recurse(group, old_keys):
+            if not old_keys:
+                return group
+            key, keys = old_keys[0], old_keys[1:]
+            if make_missing:
+                if not group.has_subgroup(key):
+                    return _recurse(group.new_subgroup(key), keys)
+            return _recurse(group.get_subgroup(key), keys)
+        return _recurse(self, keys)
+
+    def has_subgroup(self, key: str):
+        return (key in self._children) and isinstance(self._children[key], ConfigGroup)
+
+    def has_option(self, key: str):
+        return (key in self._children) and isinstance(self._children[key], ConfigOption)
 
     # we don't support new_option because we shouldn't
     # modify it after it is initialised
@@ -216,8 +250,6 @@ class ConfigOption(_ConfigObject):
     def __init__(self, raw_config: dict):
         super().__init__()
         self._raw_config = raw_config
-        # TODO: checks -- this needs to be cleaned up!
-        self.raw_config
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
@@ -226,37 +258,33 @@ class ConfigOption(_ConfigObject):
     @property
     def options(self) -> dict:
         options = self._raw_config.get(KEY_OPTIONS, {})
-        self._check_option_keys_and_values(options)
+        # self._check_option_keys_and_values(options)
         return dict(options)
 
     @property
     def package(self) -> str:
         package = self._raw_config.get(KEY_PACKAGE, PKG_DEFAULT_ALIAS)
-        self._check_package_values(package)
+        # self._check_package_values(package)
         return str(package)
 
     @property
     def plugins(self) -> dict:
         plugins = self._raw_config.get(KEY_PLUGINS, {})
-        self._check_plugins(plugins)
+        # self._check_plugins(plugins)
         return dict(plugins)
 
     @property
     def config(self) -> dict:
         raw = dict(self._raw_config)
-        for key in KEYS_RESERVED_ALL:
-            if key in raw:
-                del raw[key]
+        # for key in KEYS_RESERVED_ALL:
+        #     if key in raw:
+        #         del raw[key]
         return raw
 
     @property
     def raw_config(self) -> dict:
         raw = dict(self._raw_config)
-        self._check_raw_config(raw)
-        # TODO: checks -- this needs to be cleaned up!
-        self.options
-        self.package
-        self.plugins
+        # self._check_raw_config(raw)
         return raw
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -264,7 +292,7 @@ class ConfigOption(_ConfigObject):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def _check_option_keys_and_values(self, options: dict):
-        assert isinstance(options, dict), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {KEY_OPTIONS} must be a mapping!'
+        assert isinstance(options, dict), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {repr(KEY_OPTIONS)} must be a mapping!'
         # check that the chosen options are valid!
         # options can only be one item deep
         for k, v in options.items():
@@ -272,12 +300,12 @@ class ConfigOption(_ConfigObject):
             assert_valid_value_path([v])
 
     def _check_package_values(self, package: str):
-        assert isinstance(package, str), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {KEY_PACKAGE} must be a string!'
+        assert isinstance(package, str), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {repr(KEY_PACKAGE)} must be a string!'
         # check that the package is valid
         assert_valid_value_package(package)
 
     def _check_plugins(self, plugins: dict):
-        assert isinstance(plugins, dict), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {KEY_PLUGINS} must be a mapping!'
+        assert isinstance(plugins, dict), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {repr(KEY_PLUGINS)} must be a mapping!'
         # TODO: more checks?
 
     class _RawOptionConfigKeyChecker(ContainerVisitor):

@@ -1,4 +1,4 @@
-from eunomia.attrmap import AttrDict
+from eunomia._attrdict import AttrDict
 
 
 # ========================================================================= #

@@ -8,51 +8,33 @@ from eunomia.backend._config_objects import ConfigGroup
 
 class Backend(object):
 
-    def _load_root_group(self) -> ConfigGroup:
+    def load_root_group(self) -> ConfigGroup:
         raise NotImplementedError
+
+
+# ========================================================================= #
+# Internal Backend                                                          #
+# ========================================================================= #
+
+
+class BackendConfigGroup(Backend):
+    """
+    The most basic backend is the ConfigObject data structures
+    used by the core config loader.
+
+    The backend passes through the values as they
+    are without any modifications.
+    """
+
+    def __init__(self, root_group: ConfigGroup):
+        if not isinstance(root_group, ConfigGroup):
+            raise TypeError(f'{root_group} must be an instance of {ConfigGroup.__name__}')
+        self._root_group = root_group
+
+    def load_root_group(self) -> ConfigGroup:
+        return self._root_group
 
 
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-
-
-
-# class DiskConfigLoader(ConfigBackend):
-#
-#     def __init__(self, config_root):
-#         super().__init__()
-#         self._config_folder = config_root
-#
-#     def _get_config_data(self, keys: list[str]):
-#         # load the config file
-#         disk_path = conf_paths.add_extension(os.path.join(self._config_folder, *keys))
-#         config = yaml_load_file(disk_path)
-#         # split the config file
-#         return config
-
-
-# class DictConfigLoader(ConfigBackend):
-#
-#     def __init__(self, data: dict):
-#         super().__init__()
-#         self._data = data
-#
-#     def _get_config_data(self, keys: list[str]):
-#         config = conf_paths.recursive_get(self._data, keys)
-#         # TODO: some sort of check that we haven't gone too far into the config.
-#         #       maybe add group datatype, or config datatype
-#         # split the config file
-#         return config
-
-
-# class VirtualConfigLoader(ConfigBackend):
-#
-#     def __init__(self, data: dict):
-#         super().__init__()
-#         self._data = data
-#
-#     def _get_config_data(self, keys: list[str]):
-#         config_string = super()._get_config_data(keys)
-#         return yaml_load(config_string)
-#

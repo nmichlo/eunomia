@@ -1,4 +1,4 @@
-from eunomia.attrmap import SimpleAttrDict
+from eunomia.attrmap import AttrDict
 
 
 # ========================================================================= #
@@ -12,7 +12,7 @@ def check_dict_equal(a, b):
 
 
 def test_attrdict():
-    conf = SimpleAttrDict({'a': {'b': {'a': 1}}})
+    conf = AttrDict({'a': {'b': {'a': 1}}})
 
     check_dict_equal(conf, {'a': {'b': {'a': 1}}})
     conf.a.b.a = 2

@@ -36,6 +36,8 @@ KEY_GROUP   = '_group_'    # used for dictionaries to indicate that they are a g
 KEY_PACKAGE = '_package_'  # options node name to change the current package
 KEY_OPTIONS = '_options_'  # options node name to choose the option in a subgroup
 KEY_PLUGINS = '_plugins_'  # options node name to choose and adjust various settings for plugins
+# TODO: add support!
+KEY_MERGED_OPTIONS = '_merged_options_'  # used in the resulting merged config -- not allowed in groups or options
 
 
 # keys reserved for options only
@@ -44,11 +46,13 @@ KEYS_RESERVED_FOR_OPTION = {
     KEY_PACKAGE,
     KEY_OPTIONS,
     KEY_PLUGINS,
+    KEY_MERGED_OPTIONS,  # not allowed in both
 }
 # keys reserved for groups only
 #   !! these should not be allowed as keys in options
 KEYS_RESERVED_FOR_GROUP = {
     KEY_GROUP,
+    KEY_MERGED_OPTIONS,  # not allowed in both
 }
 # all reserved node keys
 KEYS_RESERVED_ALL = {
@@ -71,16 +75,16 @@ KEYS_NOT_ALLOWED = {
 
 
 def _overwrite_fn__false_on_error(func: callable, errors: tuple = (TypeError, ValueError)):
-    def wrapper(ignore_fn):
-        @wraps
-        def inner(*args, **kwargs):
+    def outer(ignore_fn):
+        @wraps(ignore_fn)
+        def wrapper(*args, **kwargs):
             try:
                 func(*args, **kwargs)
                 return True
             except errors:
                 return False
-        return inner
-    return wrapper
+        return wrapper
+    return outer
 
 
 # ========================================================================= #

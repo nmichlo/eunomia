@@ -1,7 +1,4 @@
-from pprint import pprint
-
 import pytest
-
 from eunomia import eunomia_load
 from eunomia.backend import ConfigGroup, ConfigOption
 
@@ -9,6 +6,7 @@ from eunomia.backend import ConfigGroup, ConfigOption
 # ========================================================================= #
 # Test Config Objects                                                       #
 # ========================================================================= #
+
 
 def _make_config_group(suboption='suboption1', suboption2=None) -> ConfigGroup:
     return ConfigGroup({

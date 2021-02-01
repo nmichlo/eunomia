@@ -28,6 +28,7 @@ https://hydra.cc/docs/terminology/
 
 from typing import Union
 from eunomia._keys import assert_valid_eunomia_key, split_eunomia_path, KEY_OPTIONS, KEY_PACKAGE, PACKAGE_DEFAULT
+from eunomia.backend._util import ContainerTransformer
 
 
 # ========================================================================= #
@@ -78,7 +79,7 @@ class Group(object):
         elif isinstance(value, Group):
             self._groups[key] = value
         else:
-            raise TypeError
+            raise TypeError(f'Group: key={repr(key)}, value={repr(value)} Can only set values on groups that are of the types: {Group.__name__} or {Option.__name__}')
         return value
 
     def __getitem__(self, key: str):
@@ -137,8 +138,11 @@ class Group(object):
 
     @classmethod
     def from_dict(cls, dct: dict):
-        # TODO: implement me
-        raise NotImplementedError
+        # TODO: maybe convert group to instance of dictionary?
+        group = cls()
+        for k, v in dct.items():
+            group[k] = v
+        return group
 
 
 # ========================================================================= #
@@ -174,4 +178,3 @@ class Option(object):
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-

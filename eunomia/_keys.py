@@ -7,12 +7,11 @@ from typing import Any, Union, NoReturn
 # ========================================================================= #
 
 
-# options node name to change the current package
-KEY_PACKAGE = '_package_'
-# options node name to choose the option in a subgroup
-KEY_OPTIONS = '_options_'
+KEY_PACKAGE = '_package_'  # options node name to change the current package
+KEY_OPTIONS = '_options_'  # options node name to choose the option in a subgroup
+KEY_PLUGINS = '_plugins_'  # options node name to choose and adjust various settings for plugins
 # all reserved node keys
-ALL_RESERVED_KEYS = {KEY_PACKAGE, KEY_OPTIONS}
+ALL_RESERVED_KEYS = {KEY_PACKAGE, KEY_OPTIONS, KEY_PLUGINS}
 # keys outright not allowed
 KEYS_NOT_ALLOWED = {
     # TODO: maybe lift this limitation? very restrictive.

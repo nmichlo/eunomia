@@ -1,5 +1,4 @@
-import json
-from eunomia._attrdict import AttrDict, attrhelp
+from eunomia._attrdict import AttrDict
 
 
 # ========================================================================= #
@@ -8,7 +7,7 @@ from eunomia._attrdict import AttrDict, attrhelp
 
 
 def check_dict_equal(a, b):
-    a, b = attrhelp.recursive_to_dict([a, b])
+    # a, b = attrhelp.recursive_to_dict([a, b])
     assert a == b
 
 

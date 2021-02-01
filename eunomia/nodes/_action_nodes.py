@@ -1,8 +1,7 @@
 from typing import Any, Union
 import lark
-from ruamel import yaml
-from eunomia._interpreter import interpret_expr
-from eunomia.grammar._lark import INTERPOLATE_PARSER, INTERPOLATE_RECONSTRUCTOR
+from eunomia.nodes._util_interpret import interpret_expr
+from eunomia.nodes._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
 
 
 # ========================================================================= #
@@ -10,18 +9,14 @@ from eunomia.grammar._lark import INTERPOLATE_PARSER, INTERPOLATE_RECONSTRUCTOR
 # ========================================================================= #
 
 
-class Node(object):
-
-    @property
-    def TAGS(self) -> tuple[str]:
-        raise NotImplementedError
+class ActionNode(object):
 
     @property
     def INSTANCE_OF(self) -> Union[type, tuple[type, ...]]:
         raise NotImplementedError
 
     def __init__(self, value: str):
-        assert isinstance(value, self.INSTANCE_OF), f'{value=} corresponding to {self.TAGS} must be instance of: {self.INSTANCE_OF}'
+        assert isinstance(value, self.INSTANCE_OF), f'{value=} corresponding to {self.__class__.__name__} must be instance of: {self.INSTANCE_OF}'
         self.raw_value = value
 
     def __repr__(self):
@@ -33,51 +28,22 @@ class Node(object):
     def get_config_value(self, merged_config: dict, merged_defaults: dict):
         raise NotImplementedError
 
-    @classmethod
-    def yaml_constructor(cls, loader: yaml.SafeLoader, node: yaml.Node):
-        raise NotImplementedError
-
 
 # ========================================================================= #
 # Basic Nodes                                                               #
 # ========================================================================= #
 
 
-class TupleNode(Node):
+class IgnoreNode(ActionNode):
 
-    TAGS = ('!tuple',)
-    INSTANCE_OF = (list, tuple)
-
-    def get_config_value(self, merged_config: dict, merged_defaults: dict):
-        return tuple(self.raw_value)
-
-    @classmethod
-    def yaml_constructor(cls, loader: yaml.SafeLoader, node: yaml.Node):
-        if not isinstance(node, yaml.SequenceNode):
-            raise yaml.YAMLError(f'{repr(node.tag)} {repr(node.value)} <<< must be a sequence/list')
-        return tuple(loader.construct_sequence(node))
-
-
-class IgnoreNode(Node):
-
-    TAGS = ('!str',)
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_defaults: dict):
         return self.raw_value
 
-    @classmethod
-    def yaml_constructor(cls, loader: yaml.SafeLoader, node: yaml.Node):
-        if isinstance(node, yaml.ScalarNode):
-            value = loader.construct_scalar(node)
-        else:
-            raise TypeError(f'{node.tag} for {IgnoreNode.__name__} is not compatible with node type: {node.__class__.__name__}')
-        return str(value)
 
+class RefNode(ActionNode):
 
-class RefNode(Node):
-
-    TAGS = ('!ref',)
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_defaults: dict) -> Any:
@@ -94,14 +60,9 @@ class RefNode(Node):
             value = value[key]
         return value
 
-    @classmethod
-    def yaml_constructor(cls, loader: yaml.SafeLoader, node: yaml.Node):
-        return RefNode(loader.construct_yaml_str(node))
 
+class EvalNode(ActionNode):
 
-class EvalNode(Node):
-
-    TAGS = ('!eval',)
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_defaults: dict):
@@ -112,21 +73,15 @@ class EvalNode(Node):
             'DEFAULTS': merged_defaults,
         })
 
-    @classmethod
-    def yaml_constructor(cls, loader: yaml.SafeLoader, node: yaml.Node):
-        return EvalNode(loader.construct_yaml_str(node))
-
 
 # ========================================================================= #
 # Interpolate Nodes                                                         #
 # ========================================================================= #
 
 
-class InterpolateNode(Node):
+class InterpolateNode(ActionNode):
 
-    TAGS = ('!interp',)
     INSTANCE_OF = (str, list)
-
     ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, EvalNode)
 
     def _check_subnodes(self, nodes: list):
@@ -151,28 +106,28 @@ class InterpolateNode(Node):
             return values[0]
         return ''.join(str(v) for v in values)
 
-    @classmethod
-    def yaml_constructor(cls, loader: yaml.SafeLoader, node: yaml.Node):
-        return InterpolateNode(loader.construct_yaml_str(node))
-
 
 def _string_to_interpolate_nodes(string):
     nodes = INTERPOLATE_PARSER.parse(string)
-    converted = InterpretLarkToConfNodesList().visit(nodes)
+    converted = _InterpretLarkToConfNodesList().visit(nodes)
     return converted
 
 
-class InterpretLarkToConfNodesList(lark.visitors.Interpreter):
+class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
 
-    def interpolate(self, tree) -> list[Node]:
+    """
+    This class walks a
+    """
+
+    def interpolate(self, tree) -> list[ActionNode]:
         if len(tree.children) != 1:
             raise RuntimeError('Malformed interpolate node. This should never happen!')
         return self.visit(tree.children[0])
 
-    def interpolate_string(self, tree) -> list[Node]:
+    def interpolate_string(self, tree) -> list[ActionNode]:
         return self.visit_children(tree)
 
-    def interpret_fstring(self, tree) -> list[Node]:
+    def interpret_fstring(self, tree) -> list[ActionNode]:
         # TODO: having to wrap in a list here might be a grammar mistake
         return [
             EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))

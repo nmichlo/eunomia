@@ -1,6 +1,6 @@
 import ruamel.yaml as yaml
 import sys
-from eunomia._config_nodes import TupleNode, IgnoreNode, RefNode, EvalNode, InterpolateNode
+from eunomia.nodes import IgnoreNode, RefNode, EvalNode, InterpolateNode
 
 
 # we need 3.6 or above for ordered dictionary support
@@ -29,16 +29,43 @@ class EunomiaSafeLoader(yaml.SafeLoader):
         return super().construct_scalar(node)
 
     @classmethod
-    def yaml_register_config_node(cls, class_):
-        for tag in class_.TAGS:
-            EunomiaSafeLoader.add_constructor(tag, class_.yaml_constructor)
+    def add_constructors(cls, tags: list, constructor):
+        for tag in tags:
+            cls.add_constructor(tag, constructor)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Custom Constructors                                                   #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def construct_custom_tuple(self, node: yaml.Node):
+        if not isinstance(node, yaml.SequenceNode):
+            raise yaml.YAMLError(f'tag {node.tag} for tuple(...) is not compatible with node: {node.__class__.__name__}. {repr(node.value)} must be a sequence/list')
+        return tuple(self.construct_sequence(node))
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Node Constructors                                                     #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def construct_node_ignore(self, node: yaml.Node):
+        if not isinstance(node, yaml.ScalarNode):
+            raise TypeError(f'tag {node.tag} for {IgnoreNode.__name__} is not compatible with node: {node.__class__.__name__}. {repr(node.value)} must be a scalar')
+        return IgnoreNode(self.construct_scalar(node))
+
+    def construct_node_ref(self, node: yaml.Node):
+        return RefNode(self.construct_yaml_str(node))
+
+    def construct_node_eval(self, node: yaml.Node):
+        return EvalNode(self.construct_yaml_str(node))
+
+    def construct_node_interpolate(self, node: yaml.Node):
+        return InterpolateNode(self.construct_yaml_str(node))
 
 
-EunomiaSafeLoader.yaml_register_config_node(TupleNode)
-EunomiaSafeLoader.yaml_register_config_node(IgnoreNode)
-EunomiaSafeLoader.yaml_register_config_node(RefNode)
-EunomiaSafeLoader.yaml_register_config_node(EvalNode)
-EunomiaSafeLoader.yaml_register_config_node(InterpolateNode)
+EunomiaSafeLoader.add_constructors(['!tuple'], EunomiaSafeLoader.construct_custom_tuple)
+EunomiaSafeLoader.add_constructors(['!str'], EunomiaSafeLoader.construct_node_ignore)
+EunomiaSafeLoader.add_constructors(['!ref'], EunomiaSafeLoader.construct_node_ref)
+EunomiaSafeLoader.add_constructors(['!eval'], EunomiaSafeLoader.construct_node_eval)
+EunomiaSafeLoader.add_constructors(['!interp'], EunomiaSafeLoader.construct_node_interpolate)
 
 
 # NOTE: unknown tags can be parsed

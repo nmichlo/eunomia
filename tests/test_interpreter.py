@@ -1,7 +1,8 @@
 from typing import Callable, Any
 import pytest
 import ast
-from eunomia._interpreter import Interpreter, BasicInterpreter, UnsupportedLanguageFeatureError, DisabledLanguageFeatureError
+from eunomia.nodes._util_interpret import Interpreter, BasicInterpreter
+from eunomia.nodes._util_interpret import UnsupportedLanguageFeatureError, DisabledLanguageFeatureError
 
 
 # ========================================================================= #
@@ -126,7 +127,8 @@ def test_interpret_comparisons(interpret):
 
 def test_interpret_comparisons_chained(interpret, interpret_nonstrict):
     with pytest.raises(DisabledLanguageFeatureError):
-        interpret('1 <= 2 <= 4')
+        BasicInterpreter(allow_chained_comparisons=False).interpret('1 <= 2 <= 4')
+    assert interpret('1 <= 2 <= 4') == (1 <= 2 <= 4)
     assert interpret_nonstrict('1 <= 2 <= 4') == (1 <= 2 <= 4)
     assert interpret_nonstrict('1 <= 4 <= 2') == (1 <= 4 <= 2)
 

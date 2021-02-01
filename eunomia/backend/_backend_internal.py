@@ -27,8 +27,100 @@ https://hydra.cc/docs/terminology/
 
 
 from typing import Union
-from eunomia._keys import assert_valid_eunomia_key, split_eunomia_path, KEY_OPTIONS, KEY_PACKAGE, PACKAGE_DEFAULT
-from eunomia.backend._util import ContainerTransformer
+from eunomia._keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, ALL_RESERVED_KEYS
+from eunomia._keys import SEP_PATHS, SEP_PACKAGES, PACKAGE_DEFAULT
+from eunomia._keys import assert_valid_eunomia_package, assert_valid_eunomia_path, assert_valid_eunomia_key
+
+# ========================================================================= #
+# Config Node                                                               #
+# ========================================================================= #
+
+
+class _ConfigNode(object):
+
+    def __init__(self):
+        super().__init__()
+        self._parent = None
+        self._key = None
+        self._children = {}
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Path                                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def has_parent(self):
+        return self._key or self._parent
+
+    @property
+    def path(self):
+        if not self.has_parent:
+            return None
+        path = SEP_PATHS.join(n.key for n in self._walk_from_root(visit_self=True, visit_root=False))
+        assert_valid_eunomia_path(path)
+        return path
+
+    @property
+    def package(self):
+        if not self.has_parent:
+            return None
+        pkg = SEP_PACKAGES.join(n.key for n in self._walk_from_root(visit_self=True, visit_root=False))
+        assert_valid_eunomia_package(pkg)
+        return pkg
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Walk                                                                  #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def _walk_to_root(self, visit_self=True, visit_root=False):
+        current = self
+        if visit_self:
+            yield current
+        while current.parent is not None:
+            current = current.parent
+            if current.parent is not None:
+                yield current
+        if visit_root:
+            yield current
+
+    def _walk_from_root(self, visit_self=True, visit_root=False):
+        yield from reversed(list(self._walk_to_root(
+            visit_self=visit_self,
+            visit_root=visit_root
+        )))
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Children                                                              #
+    # - for simplicity we do not allow attribute access to children.        #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def add_child(self, key: str, child: '_ConfigNode') -> '_ConfigNode':
+        assert_valid_eunomia_key(key)
+        # check the child node
+        if not isinstance(child, _ConfigNode):
+            raise TypeError(f'child must be an instance of {_ConfigNode.__name__}')
+        if child._parent or child._key:
+            raise ValueError(f'child has already has a parent, and cannot be added.')
+        if (not child._parent) ^ (not child._key):
+            raise ValueError('child node is malformed. Has a key or a parent, but not both.')
+        # check the parent node
+        if key in self._children:
+            raise KeyError(f'parent already has child with key: {key}')
+        # set details
+        child._parent = self
+        child._key = key
+        self._children[key] = child
+        # return the added value
+        return child
+
+    def get_child(self, key) -> Union['_ConfigNode']:
+        return self._children[key]
+
+    __setitem__ = add_child
+    __getitem__ = get_child
+
+    def __iter__(self):
+        yield from self._children
 
 
 # ========================================================================= #
@@ -36,113 +128,76 @@ from eunomia.backend._util import ContainerTransformer
 # ========================================================================= #
 
 
-class Group(object):
+class ConfigGroup(_ConfigNode):
 
-    def __init__(self):
+    def __init__(self, option_or_group_nodes: dict[str, Union['ConfigGroup', 'ConfigOption']] = None):
         super().__init__()
-        self._groups = {}
-        self._options = {}
+        # add groups or options
+        if option_or_group_nodes:
+            for k, v in option_or_group_nodes.items():
+                self.add_child(k, v)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Override                                                              #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def add_child(self, key: str, node: Union['ConfigGroup', 'ConfigOption']) -> Union['ConfigGroup', 'ConfigOption']:
+        # additional key checks - can only be one deep "group" not "group/subgroup" etc.
+        assert_valid_eunomia_path([key])
+        # check node types
+        if not isinstance(node, (ConfigGroup, ConfigOption)):
+            raise TypeError(f'Can only add {ConfigGroup.__name__} and {ConfigOption.__name__} nodes to {ConfigGroup.__name__}')
+        # add!
+        assert super().add_child(key, node) is node
+        # we dont return the above because of type warnings
+        return node
+
+    # override to yield in order
+    def __iter__(self):
+        yield from (k for k, v in self._children if isinstance(v, ConfigGroup))
+        yield from (k for k, v in self._children if isinstance(v, ConfigOption))
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Getters                                                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
-    def groups(self):
-        return dict(self._groups)
+    def groups(self) -> dict[str, 'ConfigGroup']:
+        return {k: v for k, v in self._children if isinstance(v, ConfigGroup)}
 
     @property
-    def options(self):
-        return dict(self._options)
+    def options(self) -> dict[str, 'ConfigOption']:
+        return {k: v for k, v in self._children if isinstance(v, ConfigOption)}
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Checks                                                                #
+    # Groups & Options                                                      #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def _check_get(self, key: str):
-        # asserting that it is a valid path to a group or config
-        # we only allow groups or configs to be inserted at a depth of 1.
-        keys = split_eunomia_path(key)
-        if len(keys) != 1:
-            raise ValueError(f'Group key must only have one level: {repr(key)}')
+    def get_subgroup(self, key: str) -> 'ConfigGroup':
+        node = self.get_child(key)
+        if isinstance(node, ConfigGroup):
+            raise TypeError(f'node with key: {key} is not a {ConfigGroup.__name__}')
+        return node
 
-    def _check_insert(self, key: str):
-        self._check_get(key)
-        # TODO: maybe relax limitation that groups and options should have different names?
-        if key in self._groups: raise KeyError(f'Group already has subgroup: {repr(key)}')
-        if key in self._options: raise KeyError(f'Group already has option: {repr(key)}')
+    def get_option(self, key: str) -> 'ConfigOption':
+        node = self.get_child(key)
+        if isinstance(node, ConfigOption):
+            raise TypeError(f'node with key: {key} is not a {ConfigOption.__name__}')
+        return node
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Getters, Setters                                                      #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    def add_subgroup(self, key: str, value: 'ConfigGroup') -> 'ConfigGroup':
+        assert isinstance(value, ConfigGroup)
+        return self.add_child(key, value)
 
-    def __setitem__(self, key: str, value: Union['Group', 'Option']):
-        self._check_insert(key)
-        if isinstance(value, Option):
-            self._options[key] = value
-        elif isinstance(value, Group):
-            self._groups[key] = value
-        else:
-            raise TypeError(f'Group: key={repr(key)}, value={repr(value)} Can only set values on groups that are of the types: {Group.__name__} or {Option.__name__}')
-        return value
+    def add_option(self, key: str, value: 'ConfigOption') -> 'ConfigOption':
+        assert isinstance(value, ConfigOption)
+        return self.add_child(key, value)
 
-    def __getitem__(self, key: str):
-        self._check_get(key)
-        if key in self._options:
-            return self._options[key]
-        elif key in self._groups:
-            return self._groups[key]
-        raise KeyError
+    def new_subgroup(self, key: str) -> 'ConfigGroup':
+        return self.add_subgroup(key, ConfigGroup())
 
-    def __getattr__(self, key: str):
-        try:
-            return self.__getitem__(key)
-        except KeyError:
-            return self.__getattribute__(key)
-
-    def __setattr__(self, key: str, value: Union['Group', 'Option']):
-        if isinstance(value, (Group, Option)):
-            self.__setitem__(key, value)
-        else:
-            # TODO: this could cause errors if not disabled.
-            super().__setattr__(key, value)
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Getters, Setters                                                      #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    get = __getitem__
-    set = __setitem__
-
-    def get_subgroup(self, key) -> 'Group':
-        self._check_get(key)
-        return self._groups[key]
-
-    def get_option(self, key) -> 'Option':
-        self._check_get(key)
-        return self._options[key]
-
-    def new_subgroup(self, key) -> 'Group':
-        return self.set_subgroup(key, Group())
-
-    def new_option(self, key) -> 'Option':
-        return self.set_option(key, Option())
-
-    def set_subgroup(self, key: str, value: 'Group') -> 'Group':
-        assert isinstance(value, Group)
-        return self.set(key, value)
-
-    def set_option(self, key: str, value: 'Option') -> 'Option':
-        assert isinstance(value, Option)
-        return self.set(key, value)
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Conversion                                                            #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    @classmethod
-    def from_dict(cls, dct: dict):
-        # TODO: maybe convert group to instance of dictionary?
-        group = cls()
-        for k, v in dct.items():
-            group[k] = v
-        return group
+    def new_option(self, key: str) -> 'ConfigOption':
+        return self.add_option(key, ConfigOption())
 
 
 # ========================================================================= #
@@ -150,29 +205,76 @@ class Group(object):
 # ========================================================================= #
 
 
-class Option(object):
+class ConfigOption(_ConfigNode):
 
-    def __init__(self, dct: dict, path: list[str]):
-        self.path = path
-        # extract various components from the config
-        self.defaults = self._config_pop_options(dct)
-        self.package = self._config_pop_package(dct)
-        self.dct = dct
+    def __init__(self, raw_config: dict):
+        super().__init__()
+        self._raw_config = raw_config
 
-    def _config_pop_options(self, data: dict) -> dict:
-        defaults = data.pop(KEY_OPTIONS, {})
-        assert isinstance(defaults, dict), f'Config: {self.path=} ERROR: defaults must be a mapping!'
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # getters                                                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def options(self) -> dict:
+        options = self._raw_config.get(KEY_OPTIONS, {})
+        self._check_options(options)
+        return dict(options)
+
+    @property
+    def package(self) -> str:
+        package = self._raw_config.get(KEY_PACKAGE, PACKAGE_DEFAULT)
+        self._check_package(package)
+        return str(package)
+
+    @property
+    def plugins(self) -> dict:
+        plugins = self._raw_config.get(KEY_PLUGINS, {})
+        self._check_plugins(plugins)
+        return dict(plugins)
+
+    @property
+    def config(self) -> dict:
+        raw = dict(self._raw_config)
+        for key in ALL_RESERVED_KEYS:
+            if key in raw:
+                del raw[key]
+        return raw
+
+    @property
+    def raw_config(self) -> dict:
+        return dict(self._raw_config)
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Checks                                                                #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def _check_options(self, options: dict):
+        assert isinstance(options, dict), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {KEY_OPTIONS} must be a mapping!'
         # check that the chosen options are valid!
-        for k, v in defaults.items():
-            assert_valid_eunomia_key(k)
-            if not isinstance(v, str):
-                raise TypeError(f'Config: {self.path=} values in chosen options must be strings.')
-        return defaults
+        # options can only be one item deep
+        for k, v in options.items():
+            assert_valid_eunomia_path([k])
+            assert_valid_eunomia_path([v])
 
-    def _config_pop_package(self, data: dict) -> str:
-        package = data.pop(KEY_PACKAGE, PACKAGE_DEFAULT)
-        assert isinstance(package, str), f'Config: {self.path=} ERROR: package must be a string!'
-        return package
+    def _check_package(self, package: str):
+        assert isinstance(package, str), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {KEY_PACKAGE} must be a string!'
+        # check that the package is valid
+        assert_valid_eunomia_package(package)
+
+    def _check_plugins(self, plugins: dict):
+        assert isinstance(plugins, dict), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {KEY_PLUGINS} must be a mapping!'
+        # TODO: more checks?
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Children - disabled for the option node                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    add_child   = None
+    get_child   = None
+    __setitem__ = None
+    __getitem__ = None
+    __iter__    = None
 
 
 # ========================================================================= #

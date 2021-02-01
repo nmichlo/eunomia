@@ -1,6 +1,6 @@
 import os as os
 from typing import NamedTuple, Iterator
-from eunomia.backend import ConfigBackend
+from eunomia.backend import Backend
 
 
 # ========================================================================= #
@@ -12,7 +12,7 @@ class ConfigLoader(object):
 
     class ConfigInfo(NamedTuple):
         # values
-        config: GroupOption
+        config: 'GroupOption'
         # paths
         subgroups: list[str]
         subconfig: str
@@ -21,7 +21,7 @@ class ConfigLoader(object):
         def get_defaults_key(self):
             return os.path.join(*self.subgroups) if self.subgroups else None
 
-    def __init__(self, storage_backend: ConfigBackend):
+    def __init__(self, storage_backend: Backend):
         self._backend = storage_backend
 
     def _traverse(self, config_name) -> Iterator[ConfigInfo]:

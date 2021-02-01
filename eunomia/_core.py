@@ -1,6 +1,6 @@
 from functools import wraps
 from eunomia._loader import ConfigLoader
-from eunomia.backend import ConfigBackend, DiskConfigLoader, DictConfigLoader
+from eunomia.backend import Backend
 import pathlib
 
 
@@ -26,7 +26,7 @@ def eunomia(config=DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     return wrapper
 
 
-def eunomia_adv(backend: ConfigBackend, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia_adv(backend: Backend, entrypoint=DEFAULT_ENTRYPOINT):
     """
     The main eunomia decorator.
     Use this decorator if you want to instantiate the backend manually.
@@ -50,7 +50,7 @@ def eunomia_runner(func: callable, config=DEFAULT_CONFIG, entrypoint=DEFAULT_ENT
     )
 
 
-def eunomia_runner_adv(func: callable, backend: ConfigBackend, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia_runner_adv(func: callable, backend: Backend, entrypoint=DEFAULT_ENTRYPOINT):
     """
     The non-decorator equivalent to @eunomia_adv(...)
     - This function is the core of eunomia, calling the relevant plugins, creating
@@ -71,7 +71,7 @@ def eunomia_load(config=DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     )
 
 
-def eunomia_load_adv(backend: ConfigBackend, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia_load_adv(backend: Backend, entrypoint=DEFAULT_ENTRYPOINT):
     loader = ConfigLoader(backend)
     return loader.load_config(entrypoint)
 

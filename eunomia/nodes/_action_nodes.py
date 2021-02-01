@@ -8,7 +8,7 @@ from eunomia.nodes.helper import interpret_expr, INTERPOLATE_PARSER, INTERPOLATE
 # ========================================================================= #
 
 
-class Node(object):
+class ActionNode(object):
 
     @property
     def INSTANCE_OF(self) -> Union[type, tuple[type, ...]]:
@@ -33,7 +33,7 @@ class Node(object):
 # ========================================================================= #
 
 
-class IgnoreNode(Node):
+class IgnoreNode(ActionNode):
 
     INSTANCE_OF = str
 
@@ -41,7 +41,7 @@ class IgnoreNode(Node):
         return self.raw_value
 
 
-class RefNode(Node):
+class RefNode(ActionNode):
 
     INSTANCE_OF = str
 
@@ -60,7 +60,7 @@ class RefNode(Node):
         return value
 
 
-class EvalNode(Node):
+class EvalNode(ActionNode):
 
     INSTANCE_OF = str
 
@@ -78,7 +78,7 @@ class EvalNode(Node):
 # ========================================================================= #
 
 
-class InterpolateNode(Node):
+class InterpolateNode(ActionNode):
 
     INSTANCE_OF = (str, list)
     ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, EvalNode)
@@ -118,15 +118,15 @@ class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
     This class walks a
     """
 
-    def interpolate(self, tree) -> list[Node]:
+    def interpolate(self, tree) -> list[ActionNode]:
         if len(tree.children) != 1:
             raise RuntimeError('Malformed interpolate node. This should never happen!')
         return self.visit(tree.children[0])
 
-    def interpolate_string(self, tree) -> list[Node]:
+    def interpolate_string(self, tree) -> list[ActionNode]:
         return self.visit_children(tree)
 
-    def interpret_fstring(self, tree) -> list[Node]:
+    def interpret_fstring(self, tree) -> list[ActionNode]:
         # TODO: having to wrap in a list here might be a grammar mistake
         return [
             EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))

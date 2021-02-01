@@ -1,3 +1,6 @@
 
-from ._backend import ConfigBackend
-from ._backend import DiskConfigLoader, DictConfigLoader, VirtualConfigLoader
+from ._config_objects import ConfigGroup, ConfigOption
+
+from ._backend import Backend
+from ._backend_internal import BackendInternal
+

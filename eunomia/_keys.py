@@ -1,31 +1,26 @@
 import keyword
-from typing import Any, Union, NoReturn
+from functools import wraps
+from typing import Union, NoReturn
 
 
 # ========================================================================= #
-# Eunomia Variables                                                         #
+# VALUES: Eunomia Paths & Packages                                          #
 # ========================================================================= #
 
 
-KEY_PACKAGE = '_package_'  # options node name to change the current package
-KEY_OPTIONS = '_options_'  # options node name to choose the option in a subgroup
-KEY_PLUGINS = '_plugins_'  # options node name to choose and adjust various settings for plugins
-# all reserved node keys
-ALL_RESERVED_KEYS = {KEY_PACKAGE, KEY_OPTIONS, KEY_PLUGINS}
-# keys outright not allowed
-KEYS_NOT_ALLOWED = {
-    # TODO: maybe lift this limitation? very restrictive.
-    #       "keys", "items" & "values" are popular names
-    *dir(dict)
-}
+PKG_ALIAS_GROUP = '_path_'  # make current option package equal to the path for the group it is in
+PKG_ALIAS_ROOT  = '_root_'  # makes the current option package the root
 
-PACKAGE_GROUP = '_group_'  # make current option package equal to the path for the group it is in
-PACKAGE_ROOT = '_root_'    # makes the current option package the root
 # which of the above is the default
-PACKAGE_DEFAULT = PACKAGE_GROUP
-# a list of special packages
-ALL_PACKAGE_DIRECTIVES = {PACKAGE_GROUP, PACKAGE_ROOT}
-# packages are all separated by "." in the name
+PKG_DEFAULT_ALIAS = PKG_ALIAS_GROUP
+
+# A list of special packages:
+#   !! these should only be allowed as the values for
+#      the KEY_PACKAGE key, not as keys themselves
+PKG_ALIASES_ALL = {
+    PKG_ALIAS_GROUP,
+    PKG_ALIAS_ROOT,
+}
 
 # separators
 SEP_PATHS = '/'
@@ -33,144 +28,206 @@ SEP_PACKAGES = '.'
 
 
 # ========================================================================= #
-# Eunomia Option Keys                                                       #
+# KEYS: Eunomia Config Keys                                                 #
 # ========================================================================= #
 
 
-def assert_valid_eunomia_key(key: Any) -> NoReturn:
+KEY_GROUP   = '_group_'    # used for dictionaries to indicate that they are a group
+KEY_PACKAGE = '_package_'  # options node name to change the current package
+KEY_OPTIONS = '_options_'  # options node name to choose the option in a subgroup
+KEY_PLUGINS = '_plugins_'  # options node name to choose and adjust various settings for plugins
+
+
+# keys reserved for options only
+#   !! these should not be allowed as keys in groups
+KEYS_RESERVED_FOR_OPTION = {
+    KEY_PACKAGE,
+    KEY_OPTIONS,
+    KEY_PLUGINS,
+}
+# keys reserved for groups only
+#   !! these should not be allowed as keys in options
+KEYS_RESERVED_FOR_GROUP = {
+    KEY_GROUP,
+}
+# all reserved node keys
+KEYS_RESERVED_ALL = {
+    *KEYS_RESERVED_FOR_OPTION,
+    *KEYS_RESERVED_FOR_GROUP,
+}
+
+
+# keys outright not allowed
+# TODO: maybe lift these limitations? They are very restrictive. "keys", "items"
+#       & "values" are popular names. Also package directives names could be useful.
+KEYS_NOT_ALLOWED = {
+    *PKG_ALIASES_ALL,
+    *dir(dict)
+}
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Helper                                                                    #
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+
+def _overwrite_fn__false_on_error(func: callable, errors: tuple = (TypeError, ValueError)):
+    def wrapper(ignore_fn):
+        @wraps
+        def inner(*args, **kwargs):
+            try:
+                func(*args, **kwargs)
+                return True
+            except errors:
+                return False
+        return inner
+    return wrapper
+
+
+# ========================================================================= #
+# KEYS: Single Eunomia Keys                                                 #
+# ========================================================================= #
+
+
+def assert_valid_single_key(key: str) -> NoReturn:
     # check the types, that the key is a valid identifier,
     # and that it does not conflict with python.
     if not isinstance(key, str):
         raise TypeError(f'keys must be strings: {repr(key)}')
     if not str.isidentifier(key):
-        raise ValueError(f'keys must be valid identifiers: {repr(key)}')
+        raise ValueError(f'keys must be valid python identifiers: {repr(key)}')
     if keyword.iskeyword(key):
         raise ValueError(f'keys cannot be python keywords: {repr(key)}')
 
-    # check that the key does not conflict with any eunomia reserved keywords
-    # and that they key is not "private"
-    # if key in KEYS_RESERVED_EUNOMIA:
-    #     raise ValueError(f'keys cannot be a eunomia reserved word: {repr(key)}')
-
-    if key in ALL_PACKAGE_DIRECTIVES:
-        raise ValueError(f'key is a special package directive and is not allowed: {repr(key)}')
+    # check that we do not conflict with reserved keys
+    if key in PKG_ALIASES_ALL:
+        raise ValueError(f'key is a special package alias and is not allowed: {repr(key)}')
     if key in KEYS_NOT_ALLOWED:
         raise ValueError(f'key is not allowed: {repr(key)}')
 
 
-def is_valid_eunomia_key(key: Any) -> bool:
-    try:
-        assert_valid_eunomia_key(key)
-        return True
-    except:
-        return False
+def assert_valid_single_option_key(key: str) -> NoReturn:
+    # standard checks
+    assert_valid_single_key(key)
+    # make sure we don't contain any group keys
+    if key in KEYS_RESERVED_FOR_GROUP:
+        raise ValueError(f'key reserved for groups is not allowed in an option: {repr(key)}')
+
+
+def assert_valid_single_group_key(key: str) -> NoReturn:
+    # standard checks
+    assert_valid_single_key(key)
+    # make sure we don't contain any group keys
+    if key in KEYS_RESERVED_FOR_OPTION:
+        raise ValueError(f'key reserved for options is not allowed in a group: {repr(key)}')
+
+
+def assert_valid_single_pkg_or_path_part(key: str) -> NoReturn:
+    # standard checks
+    assert_valid_single_key(key)
+    # make sure we don't contain any group keys
+    if key in KEYS_RESERVED_ALL:
+        raise ValueError(f'key reserved for options or groups is not allowed as a package or path name: {repr(key)}')
+
+
+@_overwrite_fn__false_on_error(assert_valid_single_key)
+def is_valid_single_key(key: str) -> bool: pass
+@_overwrite_fn__false_on_error(assert_valid_single_option_key)
+def is_valid_single_option_key(key: str) -> bool: pass
+@_overwrite_fn__false_on_error(assert_valid_single_group_key)
+def is_valid_single_group_key(key: str) -> bool: pass
+@_overwrite_fn__false_on_error(assert_valid_single_pkg_or_path_part)
+def is_valid_single_pkg_or_path_part(key: str) -> bool: pass
 
 
 # ========================================================================= #
-# Eunomia Packages                                                          #
+# KEYS in VALUES: Eunomia Packages & Paths - Split                          #
 # ========================================================================= #
 
 
-def _split_keys(keys: Union[str, list, tuple], is_path: bool):
-    # perform checks!
+def _split_keys(keys: Union[str, list[str], tuple[str]], sep: str, desc: str) -> Union[list[str], tuple[str]]:
     if isinstance(keys, str):
-        keys = keys.split(SEP_PATHS if is_path else SEP_PACKAGES)
+        keys = keys.split(sep)
     if not isinstance(keys, (list, tuple)):
-        raise TypeError(f'{"path" if is_path else "package"}: must be a str, list[str] or tuple[str]')
+        raise TypeError(f'{desc}: must be a str, list[str] or tuple[str]')
     if not keys:
-        raise ValueError(f'{"path" if is_path else "package"}: name must contain at least one group name')
-    # done
+        raise ValueError(f'{desc}: name must contain at least one group name')
     return keys
 
 
-def _split_and_assert_valid_eunomia_keys(keys: Union[str, list, tuple], is_path: bool) -> list[str]:
-    keys = _split_keys(keys, is_path=is_path)
-
-    # can only be a special package
-    # directive if the length is one
-    if not is_path:
-        if len(keys) == 1:
-            if keys[0] in ALL_PACKAGE_DIRECTIVES:
-                return keys
-
-    # test all keys in the package
+def _assert_split_components_valid(keys: list[str], desc: str):
     for key in keys:
-        if key in ALL_PACKAGE_DIRECTIVES:
-            raise ValueError(f'{"path" if is_path else "package"}: {repr(keys)} group name is package directive: {repr(key)}')
-        if key in ALL_RESERVED_KEYS:
-            raise ValueError(f'{"path" if is_path else "package"}: {repr(keys)} group name is a reserved key: {repr(key)}')
         try:
-            assert_valid_eunomia_key(key)
+            assert_valid_single_pkg_or_path_part(key)
         except Exception as e:
-            raise e.__class__(f'{"path" if is_path else "package"}: {repr(keys)} has invalid group name: {repr(key)}\n{e}')
-
-    return keys
+            raise e.__class__(f'{desc}: {repr(keys)} has invalid component: {repr(key)}\n{e}')
 
 
-def assert_valid_eunomia_package(package: Union[str, list, tuple]) -> NoReturn:
+def split_valid_value_package(keys: Union[str, list, tuple]):
     """
     Checks if a value path listed in the _package_ node of a
     config group option is valid.
     - paths are separated by "."
-    - a singular package directive can be used: _root_ or _group_
+    - does not allow reserved eunomia keys to be used
+    - a singular package directive can be used defined in: PKG_ALIAS_GROUP or PKG_ALIAS_ROOT
     """
-    split_eunomia_package(package)
+    keys = _split_keys(keys, SEP_PACKAGES, 'package')
+    # exit early if equals alias
+    if len(keys) == 1:
+        if keys[0] in PKG_ALIASES_ALL:
+            return keys
+    _assert_split_components_valid(keys, 'package')
+    return keys
 
 
-def is_valid_eunomia_package(package: Union[str, list, tuple]) -> bool:
-    try:
-        split_eunomia_package(package)
-        return True
-    except:
-        return False
-
-
-def split_eunomia_package(package: Union[str, list, tuple]) -> list[str]:
-    return _split_and_assert_valid_eunomia_keys(package, is_path=False)
-
-
-def join_eunomia_package(*keys: str):
-    package = SEP_PACKAGES.join(keys)
-    assert_valid_eunomia_path(package)
-    return package
-
-
-# ========================================================================= #
-# Paths                                                                     #
-# ========================================================================= #
-
-
-def assert_valid_eunomia_path(path: Union[str, list, tuple]) -> NoReturn:
+def split_valid_value_path(keys: Union[str, list, tuple]):
     """
     Checks if a path to a config group or config group option
     is valid.
     - paths are separated by "/"
-    - does not allow package directives to be used, otherwise
-      the same as assert_valid_eunomia_package
+    - does not allow reserved eunomia keys to be used
+    - does not allow package aliases like split_eunomia_package(...)
     """
-    split_eunomia_path(path)
+    keys = _split_keys(keys, SEP_PATHS, 'path')
+    _assert_split_components_valid(keys, 'path')
+    return keys
 
 
-def is_valid_eunomia_path(path: Union[str, list, tuple]) -> bool:
-    try:
-        split_eunomia_path(path)
-        return True
-    except:
-        return False
+# ========================================================================= #
+# KEYS in VALUES: Eunomia Packages & Paths                                  #
+# ========================================================================= #
 
 
-def split_eunomia_path(path: Union[str, list, tuple]) -> list[str]:
-    return _split_and_assert_valid_eunomia_keys(path, is_path=True)
+def assert_valid_value_package(package: Union[str, list, tuple]) -> NoReturn:
+    split_valid_value_package(package)
 
 
-def join_eunomia_path(*keys: str):
+def assert_valid_value_path(path: Union[str, list, tuple]) -> NoReturn:
+    split_valid_value_path(path)
+
+
+@_overwrite_fn__false_on_error(split_valid_value_package)
+def is_valid_value_package(path: Union[str, list, tuple]) -> bool: pass
+@_overwrite_fn__false_on_error(split_valid_value_path)
+def is_valid_value_path(path: Union[str, list, tuple]) -> bool: pass
+
+
+# ========================================================================= #
+# KEYS in VALUES: Joined Eunomia Keys                                       #
+# ========================================================================= #
+
+
+def join_valid_value_package(*keys: str):
+    assert_valid_value_package(keys)
+    package = SEP_PACKAGES.join(keys)
+    return package
+
+
+def join_valid_value_path(*keys: str):
+    assert_valid_value_path(keys)
     path = SEP_PATHS.join(keys)
-    assert_valid_eunomia_path(path)
     return path
 
 
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-
-

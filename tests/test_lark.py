@@ -1,65 +1,55 @@
-# from functools import partial
-#
-# import pytest
-# from eunomia._DEPRICATED._interpolation import _tokenize_string, TOKEN_STRING, TOKEN_INTERP, TokenizeError
-#
-#
-# def test_parse():
-#
-#     tokenize = partial(_tokenize_string, bgn_tok='${', end_tok='}$')
-#
-#     assert tokenize('ac') == ([(TOKEN_STRING, 'ac')], False)
-#     assert tokenize('${b}$') == ([(TOKEN_INTERP, 'b')], True)
-#     assert tokenize('${}$') == ([(TOKEN_INTERP, '')], True)
-#     assert tokenize('${b}$c') == ([(TOKEN_INTERP, 'b'), (TOKEN_STRING, 'c')], True)
-#     assert tokenize('a${b}$') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, 'b')], True)
-#     assert tokenize('a${b}$c') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, 'b'), (TOKEN_STRING, 'c')], True)
-#     assert tokenize('prefix${interp}$suffix') == ([(TOKEN_STRING, 'prefix'), (TOKEN_INTERP, 'interp'), (TOKEN_STRING, 'suffix')], True)
-#     assert tokenize('a${b}$c${d}$e') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, 'b'), (TOKEN_STRING, 'c'), (TOKEN_INTERP, 'd'), (TOKEN_STRING, 'e')], True)
-#     assert tokenize('a${b}$${d}$e') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, 'b'), (TOKEN_INTERP, 'd'), (TOKEN_STRING, 'e')], True)
-#     assert tokenize('a${}$${}$e') == ([(TOKEN_STRING, 'a'), (TOKEN_INTERP, ''), (TOKEN_INTERP, ''), (TOKEN_STRING, 'e')], True)
-#
-#     with pytest.raises(TokenizeError):
-#         tokenize('prefix${interp}suffix')
-#
-#     string = 'prefix{interp}$suffix'
-#     tokenize(string, strict_end=False)
-#     with pytest.raises(TokenizeError):
-#         tokenize(string, strict_end=True)
-#
-#     with pytest.raises(TokenizeError):
-#         assert tokenize('prefix${int${erp}$suffix') == 1
+import pytest
+from lark import UnexpectedToken, Tree, Token
+
+from eunomia.nodes._util_lark import INTERPOLATE_PARSER
 
 
+def test_lark_grammar():
 
-# interp_str('')
-# interp_str('asdf')
-# interp_str('asdf${a.b.c}fdaasd${a}${{1+2}}')
-# interp_str('as df${a.b.c}fdaa\tsd${a}${{1+2}}')
-# interp_str('as df${a.b.c}fdaansd${a}${{1+2}}')
-# interp_str('${a1.b2.c3}')
-# interp_str('${a1}${{+1}}${b2}')
-# interp_str('asdf${a1}${{+1}}${b2}')
-# interp_str('${{1 + 2}}')
-# interp_str('${{f"a{1}b{1+1}c"}}')
-# interp_str('f"1+2+3"')
-# interp_str("f'1+2+3={1+2+3}'")
-#
-#
-# # parse('fdsa')
-# # parse('asdf${f1.f2.f3}$')
-# # parse('asdf${f1.f2.f3}$fdsa')
-# # parse('asdf${eval:f1.f2.f3}$fdsa${eval:f1.f2.f3}$')
-# # parse('asdf${}$fdsa')
-# # parse('asdf${fdsa}$fdsa')
-# # parse('${eval:"asdf"}$')
-# # parse('${eval:set(c.asdf.fdsa)}$')
-# # parse('${eval:[1,2,3,4]}$')
-# # parse('${eval:  lambda: 3}$')
-# # parse('asdffds')
-# # parse(' ad ${asdf}$')
-# # parse(' ad ${asdf}$ fda')
-# # parse('${asdf}$ fda')
+    def interp(string):
+        tokens = INTERPOLATE_PARSER.parse(string)
+        print('- '*100)
+        print(string)
+        print(tokens)
+        return tokens
 
+    # TODO: str should match fstr
+    def exp(*args): return Tree('template_exp', list(args))
+    def str(string): return Tree('str', [Token('STR', string)])
+    def ref(*names): return Tree('template_ref', [Token('NAME', n) for n in names])
+    def root_str(*args): return Tree('interpolate', [Tree('interpolate_string', list(args))])
+    def root_fstr(string): return Tree('interpolate', [Tree('interpret_fstring', [Token('FSTRING', string)])])
 
+    expr_1_minus_1 = exp(Tree('arith_expr', [Tree('number', [Token('DEC_NUMBER', '1')]), Token('MINUS', '-'), Tree('number', [Token('DEC_NUMBER', '1')])]))
+    expr_1_plus_2 = exp(Tree('arith_expr', [Tree('number', [Token('DEC_NUMBER', '1')]), Token('PLUS', '+'), Tree('number', [Token('DEC_NUMBER', '2')])]))
+    expr_plus_1 = exp(Tree('factor', [Token('PLUS', '+'), Tree('number', [Token('DEC_NUMBER', '1')])]))
 
+    assert interp('')     == root_str()
+    assert interp('asdf') == root_str(str('asdf'))
+    assert interp('asdf${a.b.c}fdaasd${a}${{1+2}}')    == root_str(str('asdf'), ref('a', 'b', 'c'), str('fdaasd'), ref('a'), expr_1_plus_2)
+    assert interp('as df${a.b.c}fdaa\tsd${a}${{1+2}}') == root_str(str('as df'), ref('a', 'b', 'c'), str('fdaa\tsd'), ref('a'), expr_1_plus_2)
+
+    with pytest.raises(UnexpectedToken):
+        interp('as df${a.b.c}fdaa\nsd${a}${{1+2}}')
+
+    assert interp('${a1.b2.c3}')           == root_str(ref('a1', 'b2', 'c3'))
+    assert interp('${a1}${{+1}}${b2}')     == root_str(ref('a1'), expr_plus_1, ref('b2'))
+    assert interp('asdf${a1}${{+1}}${b2}') == root_str(str('asdf'), ref('a1'), expr_plus_1, ref('b2'))
+    assert interp('${{1 + 2}}')            == root_str(expr_1_plus_2)
+    assert interp('${{1 - 1}}')            == root_str(expr_1_minus_1)
+    assert interp('${{f"a{1}b{1-1}c"}}')   == root_str(Tree('template_exp', [Tree('string', [Token('STRING', 'f"a{1}b{1-1}c"')])]))
+    assert interp('f"1+2+3"')              == root_fstr('f"1+2+3"')
+    assert interp("f'1+2+3={1+2+3}'")      == root_fstr("f'1+2+3={1+2+3}'")
+
+    assert interp('${{[1]}}')            == root_str(exp( Tree('list', [Tree('number', [Token('DEC_NUMBER', '1')])]) ))
+    assert interp('${{{1} }}')           == root_str(exp( Tree('set', [Tree('set_comp', [Tree('number', [Token('DEC_NUMBER', '1')])])]) ))
+    assert interp('${{(1,)}}')           == root_str(exp( Tree('tuple', [Tree('tuplelist_comp', [Tree('number', [Token('DEC_NUMBER', '1')])])]) ))
+    assert interp('${{{1:2} }}')         == root_str(exp( Tree('dict', [Tree('dict_comp', [Tree('key_value', [Tree('number', [Token('DEC_NUMBER', '1')]), Tree('number', [Token('DEC_NUMBER', '2')])])])]) ))
+    assert interp('${{ {1:2} }}')        == root_str(exp( Tree('dict', [Tree('dict_comp', [Tree('key_value', [Tree('number', [Token('DEC_NUMBER', '1')]), Tree('number', [Token('DEC_NUMBER', '2')])])])]) ))
+    assert interp('${{{}}}')             == root_str(exp( Tree('dict', []) ))
+
+    # TODO: these are bugs that need to be fixed...
+    with pytest.raises(UnexpectedToken): interp('${{{1:2}}}')
+    with pytest.raises(UnexpectedToken): interp('${{ {1:2}}}')
+    with pytest.raises(UnexpectedToken): interp('${{{1}}}')
+    with pytest.raises(UnexpectedToken): interp('${{ {1}}}')

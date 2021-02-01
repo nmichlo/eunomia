@@ -26,7 +26,7 @@ from eunomia._keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, KEYS_RESERVED_A
 from eunomia._keys import PKG_DEFAULT_ALIAS
 from eunomia._keys import assert_valid_value_package, assert_valid_value_path, assert_valid_single_key
 from eunomia._keys import join_valid_value_path, join_valid_value_package
-from eunomia.backend._util import ContainerVisitor
+from eunomia.backend._util_traverse import ContainerVisitor
 
 
 # ========================================================================= #

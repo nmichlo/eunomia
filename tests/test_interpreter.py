@@ -1,8 +1,8 @@
 from typing import Callable, Any
 import pytest
 import ast
-from eunomia.nodes.helper import Interpreter, BasicInterpreter
-from eunomia.nodes.helper import UnsupportedLanguageFeatureError, DisabledLanguageFeatureError
+from eunomia.nodes._util_interpret import Interpreter, BasicInterpreter
+from eunomia.nodes._util_interpret import UnsupportedLanguageFeatureError, DisabledLanguageFeatureError
 
 
 # ========================================================================= #

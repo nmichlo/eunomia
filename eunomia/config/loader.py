@@ -84,15 +84,15 @@ class ConfigLoader(object):
         def _merge_options(option: ConfigOption):
             # get the path to the config - recursive version of whats listed in the _options_
             # maybe lift the non-recursive limitation in future?
-            group_path = option.parent.path_str
+            group_path = option.group_path
             # check that this is not a duplicate
             if group_path in merged_options:
-                prev_added_opt: ConfigOption = merged_options[group_path]
+                prev_added_path = merged_options[group_path]
                 raise KeyError(f'Group has duplicate entry: {repr(group_path)}. '
-                               f'Key previously added by: {repr(prev_added_opt.path)}. '
+                               f'Key previously added by: {repr(prev_added_path)}. '
                                f'Current config file is: {repr(option.path)}.')
             # merge the path!
-            merged_options[group_path] = option.key
+            merged_options[group_path] = option.path
 
         def _merge_config(option: ConfigOption):
             # merge the config into merged_config
@@ -101,7 +101,7 @@ class ConfigLoader(object):
             #       as soon as one is encountered and merged, they should
             #       be available for future values.
             dict_recursive_update(
-                left=dict_recursive_get(merged_config, option.package, make_missing=True),
+                left=dict_recursive_get(merged_config, option.package.keys, make_missing=True),
                 right=recursive_get_config_value_alt(
                     merged_config=merged_config,
                     merged_options=merged_options,

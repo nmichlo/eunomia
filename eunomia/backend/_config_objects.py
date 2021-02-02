@@ -22,11 +22,11 @@ https://hydra.cc/docs/terminology/
 
 
 from typing import Union, Optional
-from eunomia._keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, KEYS_RESERVED_ALL, assert_valid_single_option_key
+from eunomia._keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, assert_valid_single_option_key
 from eunomia._keys import PKG_DEFAULT_ALIAS
 from eunomia._keys import assert_valid_value_package, assert_valid_value_path, assert_valid_single_key
 from eunomia._keys import join_valid_value_path, join_valid_value_package, split_valid_value_path
-from eunomia.backend._util_traverse import ContainerVisitor
+from eunomia._util_traverse import PyVisitor
 
 
 # ========================================================================= #
@@ -308,7 +308,7 @@ class ConfigOption(_ConfigObject):
         assert isinstance(plugins, dict), f'{ConfigOption.__name__}: {repr(self.path)} ERROR: value for {repr(KEY_PLUGINS)} must be a mapping!'
         # TODO: more checks?
 
-    class _RawOptionConfigKeyChecker(ContainerVisitor):
+    class _RawOptionConfigKeyChecker(PyVisitor):
         def __default__(self, value):
             print(value)
             pass

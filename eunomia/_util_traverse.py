@@ -5,7 +5,7 @@
 # ========================================================================= #
 
 
-class ContainerTransformer(object):
+class PyTransformer(object):
 
     """
     Based off of the various transformers that
@@ -15,34 +15,34 @@ class ContainerTransformer(object):
     containers being traversed.
     """
 
-    def visit(self, value):
-        attr = f'_visit_{type(value).__name__}'
-        func = getattr(self, attr, self.__default__)
+    def transform(self, value):
+        attr = f'_transform_{type(value).__name__}'
+        func = getattr(self, attr, self.__transform_default__)
         return func(value)
 
-    def __default__(self, value):
+    def __transform_default__(self, value):
         raise NotImplementedError
 
-    def _visit_set(self, value):
-        return set(self.visit(v) for v in value)
+    def _transform_set(self, value):
+        return set(self.transform(v) for v in value)
 
-    def _visit_list(self, value):
-        return list(self.visit(v) for v in value)
+    def _transform_list(self, value):
+        return list(self.transform(v) for v in value)
 
-    def _visit_tuple(self, value):
-        return tuple(self.visit(v) for v in value)
+    def _transform_tuple(self, value):
+        return tuple(self.transform(v) for v in value)
 
-    def _visit_dict(self, value):
-        return {self._visit_dict_key(k): self._visit_dict_value(v) for k, v in value.items()}
+    def _transform_dict(self, value):
+        return {self._transform_dict_key(k): self._transform_dict_value(v) for k, v in value.items()}
 
-    def _visit_dict_key(self, key):
-        return self.visit(key)
+    def _transform_dict_key(self, key):
+        return self.transform(key)
 
-    def _visit_dict_value(self, value):
-        return self.visit(value)
+    def _transform_dict_value(self, value):
+        return self.transform(value)
 
 
-class ContainerVisitor(object):
+class PyVisitor(object):
 
     """
     Based off of the various visitors that
@@ -51,10 +51,10 @@ class ContainerVisitor(object):
 
     def visit(self, value):
         attr = f'_visit_{type(value).__name__}'
-        func = getattr(self, attr, self.__default__)
+        func = getattr(self, attr, self.__visit_default__)
         func(value)
 
-    def __default__(self, value):
+    def __visit_default__(self, value):
         raise NotImplementedError
 
     def _visit_set(self, value):

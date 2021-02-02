@@ -48,7 +48,7 @@ class EunomiaSafeLoader(yaml.SafeLoader):
 
     def construct_node_ignore(self, node: yaml.Node):
         if not isinstance(node, yaml.ScalarNode):
-            raise TypeError(f'tag {node.tag} for {IgnoreNode.__name__} is not compatible with node: {node.__class__.__name__}. {repr(node.value)} must be a scalar')
+            raise TypeError(f'tag {node.tag} for {IgnoreNode.__name__} is not compatible with node: {node.__class__.__name__} which is not a scalar.')
         return IgnoreNode(self.construct_scalar(node))
 
     def construct_node_ref(self, node: yaml.Node):

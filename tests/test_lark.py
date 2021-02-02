@@ -57,12 +57,17 @@ def test_lark_grammar():
     # parse strings
     assert parse('')                                  == root_str()
     assert parse('asdf')                              == root_str(str('asdf'))
+    assert parse('asdf   asdf')                       == root_str(str('asdf   asdf'))
+    assert parse('asdf   \t asdf')                    == root_str(str('asdf   \t asdf'))
+    assert parse('  \t asdf  \t  ')                   == root_str(str('  \t asdf  \t  '))
 
     # basic reference
     assert parse('${a1.b2.c3}')  == root_str(ref('a1.b2.c3'))
     assert parse('${a1}')        == root_str(ref('a1'))
     with pytest.raises(UnexpectedToken):
         parse('${}')
+    assert parse('     asdf   ${a}   ') == root_str(str('     asdf   '), ref('a'), str('   '))
+    assert parse('\t    asdf   ${a}\t') == root_str(str('\t    asdf   '), ref('a'), str('\t'))
 
     # basic expr
     assert parse('${= 1+2}')              == root_str(exp('1+2'))

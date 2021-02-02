@@ -1,5 +1,7 @@
 from typing import Any, Union
 import lark
+
+from eunomia._util_traverse import PyTransformer
 from eunomia.nodes._util_interpret import interpret_expr
 from eunomia.nodes._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
 
@@ -9,7 +11,7 @@ from eunomia.nodes._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARS
 # ========================================================================= #
 
 
-class ActionNode(object):
+class LazyValueNode(object):
 
     @property
     def INSTANCE_OF(self) -> Union[type, tuple[type, ...]]:
@@ -28,13 +30,57 @@ class ActionNode(object):
     def get_config_value(self, merged_config: dict, merged_defaults: dict):
         raise NotImplementedError
 
+    @classmethod
+    def recursive_transform_config_value(cls, merged_config: dict, merged_defaults: dict, value):
+        return _RecursiveGetConfigValue(merged_config, merged_defaults).transform(value)
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__): return False
+        if not isinstance(self, other.__class__): return False
+        return other.raw_value == self.raw_value
+
+    def __hash__(self):
+        return hash((self.__class__, self.raw_value))
+
+
+class _RecursiveGetConfigValue(PyTransformer):
+
+    def __init__(self, merged_config, merged_defaults):
+        self._merged_config = merged_config
+        self._merged_defaults = merged_defaults
+
+    def __transform_default__(self, value):
+        if isinstance(LazyValueNode, value):
+            return value.get_config_value()
+        return value
+
+
+# TODO: how much faster is this than the above?
+def _recursive_get_config_value(merged_config, merged_defaults, value):
+    if isinstance(value, LazyValueNode):
+        return value.get_config_value(merged_config, merged_defaults)
+    elif isinstance(value, list):
+        return list(_recursive_get_config_value(merged_config, merged_defaults, v) for v in value)
+    elif isinstance(value, tuple):
+        return tuple(_recursive_get_config_value(merged_config, merged_defaults, v) for v in value)
+    elif isinstance(value, set):
+        return set(_recursive_get_config_value(merged_config, merged_defaults, v) for v in value)
+    elif isinstance(value, dict):
+        return {
+            _recursive_get_config_value(merged_config, merged_defaults, k):
+                _recursive_get_config_value(merged_config, merged_defaults, v)
+            for k, v in value.items()
+        }
+    else:
+        return value
+
 
 # ========================================================================= #
 # Basic Nodes                                                               #
 # ========================================================================= #
 
 
-class IgnoreNode(ActionNode):
+class IgnoreNode(LazyValueNode):
 
     INSTANCE_OF = str
 
@@ -42,7 +88,7 @@ class IgnoreNode(ActionNode):
         return self.raw_value
 
 
-class RefNode(ActionNode):
+class RefNode(LazyValueNode):
 
     INSTANCE_OF = str
 
@@ -61,7 +107,7 @@ class RefNode(ActionNode):
         return value
 
 
-class EvalNode(ActionNode):
+class EvalNode(LazyValueNode):
 
     INSTANCE_OF = str
 
@@ -79,7 +125,7 @@ class EvalNode(ActionNode):
 # ========================================================================= #
 
 
-class InterpolateNode(ActionNode):
+class InterpolateNode(LazyValueNode):
 
     INSTANCE_OF = (str, list)
     ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, EvalNode)
@@ -91,17 +137,26 @@ class InterpolateNode(ActionNode):
 
     def get_config_value(self, merged_config: dict, merged_defaults: dict) -> str:
         nodes = self.raw_value
-        # convert string to nodes
+
+        # convert string to nodes if necessary using lark
+        # detects f-strings f"..." or f'...' and strings
+        # with placeholders ${...} and ${=...} defined in
+        # the lark grammar
         if isinstance(nodes, str):
             nodes = _string_to_interpolate_nodes(nodes)
         self._check_subnodes(nodes)
-        # combine values together
+
+        # concatenate strings and interpolated values
+        # obtained from calling this same function on
+        # nodes and child nodes
         values = []
         for subnode in nodes:
             if not isinstance(subnode, str):
-                subnode = subnode.get_config_value(merged_config, merged_defaults)
+                subnode = _recursive_get_config_value(merged_config, merged_defaults, subnode)
             values.append(subnode)
-        # get final result
+
+        # get final result -- return that actual value if its the
+        # only value in the list, instead of merging to a string
         if len(values) == 1:
             return values[0]
         return ''.join(str(v) for v in values)
@@ -114,20 +169,26 @@ def _string_to_interpolate_nodes(string):
 
 
 class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
-
     """
-    This class walks a
+    This class walks a lark.Tree and converts the lark nodes as
+    necessary to action nodes.
+    - RefNode
+    - EvalNode
+    - IgnoreNode
+
+    The lark nodes are defined in the interpolation grammar file.
+    grammar_interpolate.lark
     """
 
-    def interpolate(self, tree) -> list[ActionNode]:
+    def interpolate(self, tree) -> list[LazyValueNode]:
         if len(tree.children) != 1:
             raise RuntimeError('Malformed interpolate node. This should never happen!')
         return self.visit(tree.children[0])
 
-    def interpolate_string(self, tree) -> list[ActionNode]:
+    def interpolate_string(self, tree) -> list[LazyValueNode]:
         return self.visit_children(tree)
 
-    def interpret_fstring(self, tree) -> list[ActionNode]:
+    def interpret_fstring(self, tree) -> list[LazyValueNode]:
         # TODO: having to wrap in a list here might be a grammar mistake
         return [
             EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))

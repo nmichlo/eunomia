@@ -1,34 +1,136 @@
 import keyword
-from functools import wraps
-from typing import Union, NoReturn
+from typing import Union, Sequence
 
 
 # ========================================================================= #
-# VALUES: Eunomia Paths & Packages                                          #
+# KEY: Single Eunomia Key                                                   #
 # ========================================================================= #
 
 
-PKG_ALIAS_GROUP = '_path_'  # make current option package equal to the path for the group it is in
-PKG_ALIAS_ROOT  = '_root_'  # makes the current option package the root
+class _BaseKey(object):
 
-# which of the above is the default
-PKG_DEFAULT_ALIAS = PKG_ALIAS_GROUP
+    def __init__(self, key: Union[str, '_BaseKey']):
+        super().__init__()
+        # copy if a Key
+        if isinstance(key, _BaseKey):
+            key = key._key
+        if not isinstance(key, str):
+            raise TypeError(f'key: {repr(key)} must be a string or {self.__class__.__name__}')
+        self._key = key
+        self._assert_valid()
 
-# A list of special packages:
-#   !! these should only be allowed as the values for
-#      the KEY_PACKAGE key, not as keys themselves
-PKG_ALIASES_ALL = {
-    PKG_ALIAS_GROUP,
-    PKG_ALIAS_ROOT,
-}
+    @property
+    def key(self):
+        return self._key
 
-# separators
-SEP_PATHS = '/'
-SEP_PACKAGES = '.'
+    def _assert_valid(self):
+        # check the types, that the key is a valid identifier,
+        # and that it does not conflict with python.
+        if not isinstance(self._key, str):
+            raise TypeError(f'keys must be strings: {repr(self._key)}')
+        if not str.isidentifier(self._key):
+            raise ValueError(f'keys must be valid python identifiers: {repr(self._key)}')
+        if keyword.iskeyword(self._key):
+            raise ValueError(f'keys cannot be python keywords: {repr(self._key)}')
+
+    def __str__(self):
+        return self._key
+
+    def __repr__(self):
+        return 'k' + repr(self._key)
+        # return f'{self.__class__.__name__}({repr(self._key)})'
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self._key == other
+        if isinstance(other, _BaseKey):
+            return self._key == other._key
+        return False
+
+    def __hash__(self):
+        return hash(self._key)
+
+
+class Key(_BaseKey):
+    RESERVED_SET = {}
+    RESERVED_MESSAGE = 'key has been reserved'
+
+    # TODO: maybe lift these limitations? They are very restrictive. "keys", "items"
+    #       & "values" are popular names. Also package directives names could be useful.
+    _KEYS_NOT_ALLOWED = {*dir(dict)}
+
+    def _assert_valid(self):
+        super()._assert_valid()
+        # check that we do not conflict with reserved keys
+        if self._key in PkgPath.PKG_MAP_ALIAS_TO_PATH_FUNC:
+            raise ValueError(f'key is a special package alias and is not allowed: {repr(self._key)}')
+        if self._key in self._KEYS_NOT_ALLOWED:
+            raise ValueError(f'key is not allowed: {repr(self._key)}')
+        # reserved keys for this class
+        if self._key in self.RESERVED_SET:
+            raise ValueError(f'{self.RESERVED_MESSAGE}: {repr(self._key)}')
 
 
 # ========================================================================= #
-# KEYS: Eunomia Config Keys                                                 #
+# KEYS: Joined Eunomia Keys                                                 #
+# ========================================================================= #
+
+
+class Path(object):
+
+    _KEY_TYPE = Key
+    _ALLOW_ROOT = False
+    SEP_CHAR = '.'
+
+    def __init__(self, keys: Union[str, 'Path', Sequence[str], Sequence[_BaseKey]]):
+        # copy if a Keys object
+        if isinstance(keys, Path):
+            keys = keys._keys
+        # split if a string
+        if isinstance(keys, str):
+            keys = keys.split(self.SEP_CHAR) if keys else []
+        # check that keys is a sequence
+        if not isinstance(keys, Sequence):
+            raise TypeError('keys must be Sequence')
+        # convert to individual keys
+        self._keys = tuple(self._KEY_TYPE(key) for key in keys)
+        self._assert_valid()
+
+    @property
+    def keys(self):
+        return tuple(self._keys)
+
+    @property
+    def path(self):
+        return self.SEP_CHAR.join(key.key for key in self._keys)
+
+    def _assert_valid(self):
+        if not self._ALLOW_ROOT:
+            if not self._keys:
+                raise ValueError(f'Empty path for to root is not allowed: {repr(self)}')
+
+    def __str__(self):
+        return self.path
+
+    def __repr__(self):
+        return 'p' + repr(self.path)
+        # return f'{self.__class__.__name__}({repr(self.path)})'
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.path == other
+        elif isinstance(other, Sequence):
+            return self._keys == tuple(other)
+        elif isinstance(other, Path):
+            return self._keys == other._keys
+        return False
+
+    def __hash__(self):
+        return hash(self.path)
+
+
+# ========================================================================= #
+# Single Keys                                                               #
 # ========================================================================= #
 
 
@@ -36,201 +138,77 @@ KEY_GROUP   = '_group_'    # used for dictionaries to indicate that they are a g
 KEY_PACKAGE = '_package_'  # options node name to change the current package
 KEY_OPTIONS = '_options_'  # options node name to choose the option in a subgroup
 KEY_PLUGINS = '_plugins_'  # options node name to choose and adjust various settings for plugins
-# TODO: add support!
-KEY_MERGED_OPTIONS = '_merged_options_'  # used in the resulting merged config -- not allowed in groups or options
 
 
-# keys reserved for options only
-#   !! these should not be allowed as keys in groups
-KEYS_RESERVED_FOR_OPTION = {
-    KEY_PACKAGE,
-    KEY_OPTIONS,
-    KEY_PLUGINS,
-    KEY_MERGED_OPTIONS,  # not allowed in both
-}
-# keys reserved for groups only
-#   !! these should not be allowed as keys in options
-KEYS_RESERVED_FOR_GROUP = {
-    KEY_GROUP,
-    KEY_MERGED_OPTIONS,  # not allowed in both
-}
-# all reserved node keys
-KEYS_RESERVED_ALL = {
-    *KEYS_RESERVED_FOR_OPTION,
-    *KEYS_RESERVED_FOR_GROUP,
-}
+class InsideOptionKey(Key):
+    RESERVED_MESSAGE = 'key reserved for inside groups is not allowed in an option'
+    RESERVED_SET = {
+        KEY_GROUP,
+    }
 
 
-# keys outright not allowed
-# TODO: maybe lift these limitations? They are very restrictive. "keys", "items"
-#       & "values" are popular names. Also package directives names could be useful.
-KEYS_NOT_ALLOWED = {
-    *PKG_ALIASES_ALL,
-    *dir(dict)
-}
-
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-# Helper                                                                    #
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+class InsideGroupKey(Key):
+    RESERVED_MESSAGE = 'key reserved for inside options is not allowed in an group'
+    RESERVED_SET = {
+        KEY_PACKAGE,
+        KEY_OPTIONS,
+        KEY_PLUGINS,
+    }
 
 
-def _overwrite_fn__false_on_error(func: callable, errors: tuple = (TypeError, ValueError)):
-    def outer(ignore_fn):
-        @wraps(ignore_fn)
-        def wrapper(*args, **kwargs):
-            try:
-                func(*args, **kwargs)
-                return True
-            except errors:
-                return False
-        return wrapper
-    return outer
+class GroupKey(Key):
+    RESERVED_MESSAGE = 'key reserved for options or groups is not allowed as a path key'
+    RESERVED_SET = {
+        *InsideOptionKey.RESERVED_SET,
+        *InsideGroupKey.RESERVED_SET,
+    }
+
+
+class PkgKey(Key):
+    RESERVED_MESSAGE = 'key reserved for options or groups is not allowed as a package key'
+    RESERVED_SET = {
+        *InsideOptionKey.RESERVED_SET,
+        *InsideGroupKey.RESERVED_SET,
+    }
 
 
 # ========================================================================= #
-# KEYS: Single Eunomia Keys                                                 #
+# Joined Keys                                                               #
 # ========================================================================= #
 
 
-def assert_valid_single_key(key: str) -> NoReturn:
-    # check the types, that the key is a valid identifier,
-    # and that it does not conflict with python.
-    if not isinstance(key, str):
-        raise TypeError(f'keys must be strings: {repr(key)}')
-    if not str.isidentifier(key):
-        raise ValueError(f'keys must be valid python identifiers: {repr(key)}')
-    if keyword.iskeyword(key):
-        raise ValueError(f'keys cannot be python keywords: {repr(key)}')
-
-    # check that we do not conflict with reserved keys
-    if key in PKG_ALIASES_ALL:
-        raise ValueError(f'key is a special package alias and is not allowed: {repr(key)}')
-    if key in KEYS_NOT_ALLOWED:
-        raise ValueError(f'key is not allowed: {repr(key)}')
+class GroupPath(Path):
+    _KEY_TYPE = GroupKey
+    _ALLOW_ROOT = True
+    SEP_CHAR = '/'
 
 
-def assert_valid_single_option_key(key: str) -> NoReturn:
-    # standard checks
-    assert_valid_single_key(key)
-    # make sure we don't contain any group keys
-    if key in KEYS_RESERVED_FOR_GROUP:
-        raise ValueError(f'key reserved for groups is not allowed in an option: {repr(key)}')
+class PkgPath(Path):
+    # override
+    _KEY_TYPE = PkgKey
+    _ALLOW_ROOT = True
+    SEP_CHAR = '.'
 
+    @classmethod
+    def try_from_alias(cls, value: str, option: 'ConfigOption'):
+        if isinstance(value, str):
+            if value in cls.PKG_MAP_ALIAS_TO_PATH_FUNC:
+                func = cls.PKG_MAP_ALIAS_TO_PATH_FUNC[value]
+                value = func(option)
+        return PkgPath(value)
 
-def assert_valid_single_group_key(key: str) -> NoReturn:
-    # standard checks
-    assert_valid_single_key(key)
-    # make sure we don't contain any group keys
-    if key in KEYS_RESERVED_FOR_OPTION:
-        raise ValueError(f'key reserved for options is not allowed in a group: {repr(key)}')
+    # values
+    PKG_ALIAS_GROUP: str = '_group_'          # make current option package equal to the path for the group it is in
+    PKG_ALIAS_ROOT: str = '_root_'            # makes the current option package the root
+    PKG_DEFAULT_ALIAS: str = PKG_ALIAS_GROUP  # which of the above is the default
 
-
-def assert_valid_single_pkg_or_path_part(key: str) -> NoReturn:
-    # standard checks
-    assert_valid_single_key(key)
-    # make sure we don't contain any group keys
-    if key in KEYS_RESERVED_ALL:
-        raise ValueError(f'key reserved for options or groups is not allowed as a package or path name: {repr(key)}')
-
-
-@_overwrite_fn__false_on_error(assert_valid_single_key)
-def is_valid_single_key(key: str) -> bool: pass
-@_overwrite_fn__false_on_error(assert_valid_single_option_key)
-def is_valid_single_option_key(key: str) -> bool: pass
-@_overwrite_fn__false_on_error(assert_valid_single_group_key)
-def is_valid_single_group_key(key: str) -> bool: pass
-@_overwrite_fn__false_on_error(assert_valid_single_pkg_or_path_part)
-def is_valid_single_pkg_or_path_part(key: str) -> bool: pass
-
-
-# ========================================================================= #
-# KEYS in VALUES: Eunomia Packages & Paths - Split                          #
-# ========================================================================= #
-
-
-def _split_keys(keys: Union[str, list[str], tuple[str]], sep: str, desc: str, allow_root_list=False) -> Union[list[str], tuple[str]]:
-    if isinstance(keys, str):
-        keys = keys.split(sep)
-    if not isinstance(keys, (list, tuple)):
-        raise TypeError(f'{desc}: {keys=} must be a str, list[str] or tuple[str]')
-    if not allow_root_list:
-        if not keys:
-            raise ValueError(f'{desc}: {keys=} name must contain at least one group name')
-    return keys
-
-
-def _assert_split_components_valid(keys: list[str], desc: str):
-    for key in keys:
-        try:
-            assert_valid_single_pkg_or_path_part(key)
-        except Exception as e:
-            raise e.__class__(f'{desc}: {repr(keys)} has invalid component: {repr(key)}\n{e}')
-
-
-def split_valid_value_package(keys: Union[str, list, tuple], allow_root_list=False):
-    """
-    Checks if a value path listed in the _package_ node of a
-    config group option is valid.
-    - paths are separated by "."
-    - does not allow reserved eunomia keys to be used
-    - a singular package directive can be used defined in: PKG_ALIAS_GROUP or PKG_ALIAS_ROOT
-    """
-    keys = _split_keys(keys, SEP_PACKAGES, 'package', allow_root_list=allow_root_list)
-    # exit early if equals alias
-    if len(keys) == 1:
-        if keys[0] in PKG_ALIASES_ALL:
-            return keys
-    _assert_split_components_valid(keys, 'package')
-    return keys
-
-
-def split_valid_value_path(keys: Union[str, list, tuple], allow_root_list=False):
-    """
-    Checks if a path to a config group or config group option
-    is valid.
-    - paths are separated by "/"
-    - does not allow reserved eunomia keys to be used
-    - does not allow package aliases like split_eunomia_package(...)
-    """
-    keys = _split_keys(keys, SEP_PATHS, 'path', allow_root_list=allow_root_list)
-    _assert_split_components_valid(keys, 'path')
-    return keys
-
-
-# ========================================================================= #
-# KEYS in VALUES: Eunomia Packages & Paths                                  #
-# ========================================================================= #
-
-
-def assert_valid_value_package(package: Union[str, list, tuple]) -> NoReturn:
-    split_valid_value_package(package)
-
-
-def assert_valid_value_path(path: Union[str, list, tuple]) -> NoReturn:
-    split_valid_value_path(path)
-
-
-@_overwrite_fn__false_on_error(split_valid_value_package)
-def is_valid_value_package(path: Union[str, list, tuple]) -> bool: pass
-@_overwrite_fn__false_on_error(split_valid_value_path)
-def is_valid_value_path(path: Union[str, list, tuple]) -> bool: pass
-
-
-# ========================================================================= #
-# KEYS in VALUES: Joined Eunomia Keys                                       #
-# ========================================================================= #
-
-
-def join_valid_value_package(*keys: str):
-    assert_valid_value_package(keys)
-    package = SEP_PACKAGES.join(keys)
-    return package
-
-
-def join_valid_value_path(*keys: str):
-    assert_valid_value_path(keys)
-    path = SEP_PATHS.join(keys)
-    return path
+    # A list of special packages:
+    #   !! these should only be allowed as the values for
+    #      the KEY_PACKAGE key, not as keys themselves
+    PKG_MAP_ALIAS_TO_PATH_FUNC: dict = {
+        PKG_ALIAS_GROUP: lambda option: option.group_path.keys,
+        PKG_ALIAS_ROOT: lambda option: [],
+    }
 
 
 # ========================================================================= #

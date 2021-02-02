@@ -1,8 +1,9 @@
 import pytest
-from eunomia.config.keys import PKG_ALIAS_ROOT, PKG_ALIAS_GROUP, KEY_PACKAGE, KEY_OPTIONS
-from eunomia.config.keys import assert_valid_single_key, is_valid_single_key
-from eunomia.config.keys import assert_valid_value_package, is_valid_value_package, split_valid_value_package
-from eunomia.config.keys import assert_valid_value_path, is_valid_value_path, split_valid_value_path
+
+from eunomia.config import ConfigGroup, ConfigOption
+from eunomia.config.keys import KEY_GROUP, KEY_PACKAGE, KEY_OPTIONS, KEY_PLUGINS
+from eunomia.config.keys import Key, InsideGroupKey, InsideOptionKey, GroupKey, PkgKey
+from eunomia.config.keys import Path, PkgPath, GroupPath
 
 
 # ========================================================================= #
@@ -11,129 +12,147 @@ from eunomia.config.keys import assert_valid_value_path, is_valid_value_path, sp
 
 
 def test_eunomia_keys():
-    assert_valid_single_key('asdf')
-    assert_valid_single_key('_asdf')
-    assert_valid_single_key('_asdf_')
 
-    assert_valid_single_key(KEY_PACKAGE)
-    assert_valid_single_key(KEY_OPTIONS)
+    Key('asdf')
+    Key('_asdf')
+    Key('_asdf_')
+    Key(Key('_asdf_'))
 
-    # package directive check -- TODO: maybe remove?
-    with pytest.raises(ValueError): assert_valid_single_key(PKG_ALIAS_GROUP)
-    with pytest.raises(ValueError): assert_valid_single_key(PKG_ALIAS_ROOT)
+    Key(KEY_PACKAGE)
+    Key(KEY_OPTIONS)
+
+    # package directive check
+    with pytest.raises(ValueError): Key(PkgPath.PKG_ALIAS_GROUP)
+    with pytest.raises(ValueError): Key(PkgPath.PKG_ALIAS_ROOT)
 
     # type check
-    with pytest.raises(TypeError): assert_valid_single_key(123)
-    with pytest.raises(TypeError): assert_valid_single_key(['asdf'])
+    with pytest.raises(TypeError): Key(123)
+    with pytest.raises(TypeError): Key(['asdf'])
 
     # invalid names check
-    with pytest.raises(ValueError): assert_valid_single_key('asdf.fdsa')
-    with pytest.raises(ValueError): assert_valid_single_key('1234')
+    with pytest.raises(ValueError): Key('asdf.fdsa')
+    with pytest.raises(ValueError): Key('1234')
 
     # keywords check
-    with pytest.raises(ValueError): assert_valid_single_key('global')
-    with pytest.raises(ValueError): assert_valid_single_key('is')
+    with pytest.raises(ValueError): Key('global')
+    with pytest.raises(ValueError): Key('is')
 
     # dict check -- TODO: maybe remove? This is very limiting.
-    with pytest.raises(ValueError): assert_valid_single_key('items')
-    with pytest.raises(ValueError): assert_valid_single_key('update')
-    with pytest.raises(ValueError): assert_valid_single_key('values')
-    with pytest.raises(ValueError): assert_valid_single_key('keys')
-
-    assert is_valid_single_key('valid')
-    assert not is_valid_single_key('1nvalid')
+    with pytest.raises(ValueError): Key('items')
+    with pytest.raises(ValueError): Key('update')
+    with pytest.raises(ValueError): Key('values')
+    with pytest.raises(ValueError): Key('keys')
 
 
 def test_eunomia_packages():
-    assert_valid_value_package('asdf')
-    assert_valid_value_package('asdf.fdsa')
-    assert_valid_value_package(['asdf', 'fdsa'])
-    assert_valid_value_package(('asdf', 'fdsa'))
-    assert_valid_value_package('_asdf')
-    assert_valid_value_package('_asdf_')
 
-    # type check
-    with pytest.raises(TypeError): assert_valid_value_package(123)
-    with pytest.raises(TypeError): assert_valid_value_package([123])
-    with pytest.raises(TypeError): assert_valid_value_package({'asdf'})
+    # check instantiation
+    PkgPath('asdf')
+    PkgPath('asdf.fdsa')
+    PkgPath(['asdf', 'fdsa'])
+    PkgPath(('asdf', 'fdsa'))
+    PkgPath('_asdf')
+    PkgPath('_asdf_')
 
-    # test special packages
-    assert_valid_value_package(PKG_ALIAS_GROUP)
-    assert_valid_value_package(PKG_ALIAS_ROOT)
+    PkgPath('valid')
+    PkgPath('valid.valid')
 
-    assert not is_valid_value_package(PKG_ALIAS_GROUP + '.asdf')
-    assert not is_valid_value_package('asdf.' + PKG_ALIAS_ROOT)
+    with pytest.raises(ValueError): PkgPath('1invalid')
+    with pytest.raises(ValueError): PkgPath('valid.1invalid')
+    with pytest.raises(ValueError): PkgPath('1invalid.valid')
 
-    # keys are invalid
-    assert not is_valid_value_package(KEY_PACKAGE)
-    assert not is_valid_value_package(KEY_OPTIONS)
-    assert not is_valid_value_package(KEY_PACKAGE + '.asdf')
-    assert not is_valid_value_package('asdf.' + KEY_OPTIONS)
+    # instantiation type check
+    with pytest.raises(TypeError): PkgPath(123)
+    with pytest.raises(TypeError): PkgPath([123])
+    with pytest.raises(TypeError): PkgPath({'asdf'})  # not a sequence
 
-    # test reserved names
-    with pytest.raises(ValueError): assert_valid_value_package('global.asdf')
-    with pytest.raises(ValueError): assert_valid_value_package('')
-    with pytest.raises(ValueError): assert_valid_value_package([])
+    # pkg aliases are invalid everywhere
+    with pytest.raises(ValueError): PkgPath(PkgPath.PKG_ALIAS_GROUP + '.asdf')
+    with pytest.raises(ValueError): PkgPath('asdf.' + PkgPath.PKG_ALIAS_ROOT)
 
-    assert is_valid_value_package('valid')
-    assert is_valid_value_package('valid.valid')
+    # some keys are invalid
+    with pytest.raises(ValueError): PkgPath(KEY_PACKAGE)
+    with pytest.raises(ValueError): PkgPath(KEY_OPTIONS)
+    with pytest.raises(ValueError): PkgPath(KEY_PACKAGE + '.asdf')
+    with pytest.raises(ValueError): PkgPath('asdf.' + KEY_OPTIONS)
 
-    assert not is_valid_value_package('1invalid')
-    assert not is_valid_value_package('valid.1invalid')
-    assert not is_valid_value_package('1invalid.valid')
+    # test reserved names & root values
+    with pytest.raises(ValueError): PkgPath('global.asdf')
+    PkgPath('')
+    PkgPath([])
 
-    # test splitting
-    assert split_valid_value_package('a') == ['a']
-    assert split_valid_value_package('a.b.c') == ['a', 'b', 'c']
-    assert split_valid_value_package(['a', 'b', 'c']) == ['a', 'b', 'c']
+    with pytest.raises(ValueError): GroupPath('global.asdf')
+    GroupPath('')
+    GroupPath([])
 
+    # check instantiation
+    assert PkgPath('a.b.c') == 'a.b.c'
+    assert PkgPath(('a', 'b', 'c')) == 'a.b.c'
+    assert PkgPath(['a', 'b', 'c']) == 'a.b.c'
+    assert PkgPath(PkgPath('a.b.c')) == 'a.b.c'
 
-def test_eunomia_paths():
-    """
-    pretty much copy paste from above,
-    but package directives are not allowed:
-    PACKAGE_GROUP, PACKAGE_ROOT, etc.
-    """
+    # check equality
+    assert PkgPath('a') == 'a'
+    assert PkgPath('a.b.c') == 'a.b.c'
+    assert PkgPath('a.b.c') == ('a', 'b', 'c')
+    assert PkgPath('a.b.c') == ['a', 'b', 'c']
+    assert PkgPath('a.b.c') == PkgPath('a.b.c')
 
-    assert_valid_value_path('asdf')
-    assert_valid_value_path('asdf/fdsa')
-    assert_valid_value_path(['asdf', 'fdsa'])
-    assert_valid_value_path(('asdf', 'fdsa'))
-    assert_valid_value_path('_asdf')
-    assert_valid_value_path('_asdf_')
-
-    # type check
-    with pytest.raises(TypeError): assert_valid_value_path(123)
-    with pytest.raises(TypeError): assert_valid_value_path([123])
-    with pytest.raises(TypeError): assert_valid_value_path({'asdf'})
+    # check conversion
+    assert PkgPath(GroupPath('a/b/c')) == 'a.b.c'
+    assert PkgPath('a.b.c') == GroupPath('a/b/c')
+    assert GroupPath(PkgPath('a.b.c')) == 'a/b/c'
 
     # test special packages
-    assert not is_valid_value_path(PKG_ALIAS_GROUP)
-    assert not is_valid_value_path(PKG_ALIAS_ROOT)
+    with pytest.raises(ValueError): PkgPath(PkgPath.PKG_ALIAS_GROUP)
+    with pytest.raises(ValueError): PkgPath(PkgPath.PKG_ALIAS_ROOT)
 
-    assert not is_valid_value_path(PKG_ALIAS_GROUP + '/asdf')
-    assert not is_valid_value_path('asdf/' + PKG_ALIAS_ROOT)
 
-    # keys are invalid
-    assert not is_valid_value_path(KEY_PACKAGE)
-    assert not is_valid_value_path(KEY_OPTIONS)
-    assert not is_valid_value_path(KEY_PACKAGE + '/asdf')
-    assert not is_valid_value_path('asdf/' + KEY_OPTIONS)
+def test_config_group_paths():
+    # add new root groups to option and test that the path changes
+    option = ConfigOption({'asdf': 1})
+    assert option.path == ''
+    assert option.path == []
+    with pytest.raises(AssertionError): option.group_path
 
-    # test reserved names
-    with pytest.raises(ValueError): assert_valid_value_path('global/asdf')
-    with pytest.raises(ValueError): assert_valid_value_path('')
-    with pytest.raises(ValueError): assert_valid_value_path([])
+    # check path and group paths
+    ConfigGroup({'foo': option.root})
+    assert option.path == 'foo'
+    assert option.path == ['foo']
+    assert option.group_path == ''
+    assert option.group_path == []
 
-    assert is_valid_value_path('valid')
-    assert is_valid_value_path('valid/valid')
+    # check _group_ and _root_ aliases
+    assert PkgPath.try_from_alias(PkgPath.PKG_ALIAS_GROUP, option) == ''
+    assert PkgPath.try_from_alias(PkgPath.PKG_ALIAS_ROOT, option) == []
+    ConfigGroup({'bar': option.root})
+    assert PkgPath.try_from_alias(PkgPath.PKG_ALIAS_GROUP, option) == 'bar'
+    assert PkgPath.try_from_alias(PkgPath.PKG_ALIAS_ROOT, option) == []
+    ConfigGroup({'baz': option.root})
+    assert PkgPath.try_from_alias(PkgPath.PKG_ALIAS_GROUP, option) == 'baz.bar'
+    assert PkgPath.try_from_alias(PkgPath.PKG_ALIAS_ROOT, option) == []
+    ConfigGroup({'buzz': option.root})
+    assert PkgPath.try_from_alias(PkgPath.PKG_ALIAS_GROUP, option) == 'buzz.baz.bar'
+    assert PkgPath.try_from_alias(PkgPath.PKG_ALIAS_ROOT, option) == []
 
-    assert not is_valid_value_path('1invalid')
-    assert not is_valid_value_path('valid/1invalid')
-    assert not is_valid_value_path('1invalid/valid')
+    # check default alias
+    assert PkgPath.try_from_alias(PkgPath.PKG_DEFAULT_ALIAS, option) == 'buzz.baz.bar'
 
-    # test splitting
-    assert split_valid_value_path('a') == ['a']
-    assert split_valid_value_path('a/b/c') == ['a', 'b', 'c']
-    assert split_valid_value_path(['a', 'b', 'c']) == ['a', 'b', 'c']
 
+@pytest.mark.parametrize("KeyType", [
+    Key,
+    Path,
+    GroupKey,
+    PkgKey,
+    GroupPath,
+    PkgPath
+])
+def test_keys_in_dicts(KeyType):
+    assert {KeyType('foo'): 'bar'}['foo'] == 'bar'
+    assert {'foo': 'bar'}[KeyType('foo')] == 'bar'
+
+    assert {'foo', KeyType('foo')} == {'foo'}
+    assert {'foo', KeyType('foo')} == {KeyType('foo')}
+
+    assert {KeyType('foo'), 'foo'} == {'foo'}
+    assert {KeyType('foo'), 'foo'} == {KeyType('foo')}

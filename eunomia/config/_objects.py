@@ -21,11 +21,8 @@ https://hydra.cc/docs/terminology/
 """
 
 
-from typing import Union, Optional
-from eunomia.config.keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, assert_valid_single_option_key
-from eunomia.config.keys import PKG_DEFAULT_ALIAS
-from eunomia.config.keys import assert_valid_value_package, assert_valid_value_path, assert_valid_single_key
-from eunomia.config.keys import join_valid_value_path, join_valid_value_package, split_valid_value_path
+from typing import Union, Optional, Sequence
+from eunomia.config.keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, Path, Key, GroupKey, GroupPath, PkgPath
 from eunomia._util_traverse import PyVisitor
 
 
@@ -35,6 +32,10 @@ from eunomia._util_traverse import PyVisitor
 
 
 class _ConfigObject(object):
+
+    KeyType = Key
+    PathType = Path
+    KeyTypeHint = Union[str, KeyType]
 
     def __init__(self):
         super().__init__()
@@ -48,48 +49,44 @@ class _ConfigObject(object):
 
     @property
     def has_parent(self):
-        return self._key or self._parent
+        assert not ((not self._key) ^ (not self._parent))
+        return self._key and self._parent
 
     @property
-    def parent(self) -> Optional['_ConfigObject']:
-        assert not ((not self._key) ^ (not self._parent))
+    def parent(self) -> '_ConfigObject':
+        assert self.has_parent
         return self._parent
 
     @property
-    def key(self) -> Optional[str]:
-        assert not ((not self._key) ^ (not self._parent))
+    def key(self) -> KeyType:
+        assert self.has_parent
         return self._key
 
     @property
-    def path(self):
-        if not self.has_parent:
-            return None
-        return join_valid_value_path(*(n.key for n in self._walk_from_root(visit_self=True, visit_root=False)))
+    def path(self) -> PathType:
+        return self.PathType([n.key for n in self._walk_from_root(visit_root=False)])
 
     @property
-    def package(self):
-        if not self.has_parent:
-            return None
-        return join_valid_value_package(*(n.key for n in self._walk_from_root(visit_self=True, visit_root=False)))
+    def root(self) -> '_ConfigObject':
+        node = self
+        for node in self._walk_to_root(visit_root=True):
+            pass
+        return node
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def _walk_to_root(self, visit_self=True, visit_root=False):
+    def _walk_to_root(self, visit_root=False):
         current = self
-        if visit_self:
+        while current.has_parent:
             yield current
-        while current.parent is not None:
             current = current.parent
-            if current.parent is not None:
-                yield current
         if visit_root:
             yield current
 
-    def _walk_from_root(self, visit_self=True, visit_root=False):
+    def _walk_from_root(self, visit_root=False):
         yield from reversed(list(self._walk_to_root(
-            visit_self=visit_self,
             visit_root=visit_root
         )))
 
@@ -98,8 +95,8 @@ class _ConfigObject(object):
     # - for simplicity we do not allow attribute access to children.        #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def add_child(self, key: str, child: '_ConfigObject') -> '_ConfigObject':
-        assert_valid_single_key(key)
+    def add_child(self, key: KeyTypeHint, child: '_ConfigObject') -> '_ConfigObject':
+        key = self.KeyType(key)
         # check the child node
         if not isinstance(child, _ConfigObject):
             raise TypeError(f'child must be an instance of {_ConfigObject.__name__}')
@@ -117,10 +114,12 @@ class _ConfigObject(object):
         # return the added value
         return child
 
-    def get_child(self, key) -> Union['_ConfigObject']:
+    def get_child(self, key: KeyTypeHint) -> Union['_ConfigObject']:
+        key = self.KeyType(key)
         return self._children[key]
 
-    def has_child(self, key) -> bool:
+    def has_child(self, key: KeyTypeHint) -> bool:
+        key = self.KeyType(key)
         return key in self._children
 
     __setitem__ = add_child
@@ -138,7 +137,13 @@ class _ConfigObject(object):
 
 class ConfigGroup(_ConfigObject):
 
-    def __init__(self, option_or_group_nodes: dict[str, Union['ConfigGroup', 'ConfigOption']] = None):
+    KeyType = GroupKey
+    PathType = GroupPath
+    KeyTypeHint = Union[str, KeyType]
+    PathTypeHint = Union[str, Sequence[Union[str, KeyType]], PathType]
+    NodeTypeHint = Union['ConfigGroup', 'ConfigOption']
+
+    def __init__(self, option_or_group_nodes: dict[str, NodeTypeHint] = None):
         super().__init__()
         # add groups or options
         if option_or_group_nodes:
@@ -149,9 +154,7 @@ class ConfigGroup(_ConfigObject):
     # Override                                                              #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def add_child(self, key: str, node: Union['ConfigGroup', 'ConfigOption']) -> Union['ConfigGroup', 'ConfigOption']:
-        # additional key checks - can only be one deep "group" not "group/subgroup" etc.
-        assert_valid_value_path([key])
+    def add_child(self, key: KeyTypeHint, node: NodeTypeHint) -> NodeTypeHint:
         # check node types
         if not isinstance(node, (ConfigGroup, ConfigOption)):
             raise TypeError(f'Can only add {ConfigGroup.__name__} and {ConfigOption.__name__} nodes to {ConfigGroup.__name__}')
@@ -181,33 +184,33 @@ class ConfigGroup(_ConfigObject):
     # Groups & Options                                                      #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def get_subgroup(self, key: str) -> 'ConfigGroup':
+    def get_subgroup(self, key: KeyTypeHint) -> 'ConfigGroup':
         node = self.get_child(key)
         if not isinstance(node, ConfigGroup):
             raise TypeError(f'node with key: {repr(key)} is not a {ConfigGroup.__name__}')
         return node
 
-    def get_option(self, key: str) -> 'ConfigOption':
+    def get_option(self, key: KeyTypeHint) -> 'ConfigOption':
         node = self.get_child(key)
         if not isinstance(node, ConfigOption):
             raise TypeError(f'node with key: {repr(key)} is not a {ConfigOption.__name__}')
         return node
 
-    def add_subgroup(self, key: str, value: 'ConfigGroup') -> 'ConfigGroup':
+    def add_subgroup(self, key: KeyTypeHint, value: 'ConfigGroup') -> 'ConfigGroup':
         if not isinstance(value, ConfigGroup):
             raise TypeError(f'adding node with key: {repr(key)} is not a {ConfigGroup.__name__}')
         return self.add_child(key, value)
 
-    def add_option(self, key: str, value: 'ConfigOption') -> 'ConfigOption':
+    def add_option(self, key: KeyTypeHint, value: 'ConfigOption') -> 'ConfigOption':
         if not isinstance(value, ConfigOption):
             raise TypeError(f'adding node with key: {repr(key)} is not a {ConfigOption.__name__}')
         return self.add_child(key, value)
 
-    def new_subgroup(self, key: str) -> 'ConfigGroup':
+    def new_subgroup(self, key: KeyTypeHint) -> 'ConfigGroup':
         return self.add_subgroup(key, ConfigGroup())
 
-    def get_subgroups_recursive(self, keys: Union[str, list[str], tuple[str]], make_missing=False) -> 'ConfigGroup':
-        keys = split_valid_value_path(keys, allow_root_list=True)
+    def get_subgroups_recursive(self, path: PathTypeHint, make_missing=False) -> 'ConfigGroup':
+        keys = self.PathType(path).keys
         def _recurse(group, old_keys):
             if not old_keys:
                 return group
@@ -218,10 +221,12 @@ class ConfigGroup(_ConfigObject):
             return _recurse(group.get_subgroup(key), keys)
         return _recurse(self, keys)
 
-    def has_subgroup(self, key: str):
+    def has_subgroup(self, key: KeyTypeHint):
+        key = self.KeyType(key)
         return (key in self._children) and isinstance(self._children[key], ConfigGroup)
 
-    def has_option(self, key: str):
+    def has_option(self, key: KeyTypeHint):
+        key = self.KeyType(key)
         return (key in self._children) and isinstance(self._children[key], ConfigOption)
 
     # we don't support new_option because we shouldn't
@@ -247,9 +252,33 @@ class ConfigGroup(_ConfigObject):
 
 class ConfigOption(_ConfigObject):
 
+    KeyType = GroupKey
+    PathType = GroupPath
+    KeyTypeHint = Union[str, KeyType]
+
     def __init__(self, raw_config: dict):
         super().__init__()
         self._raw_config = raw_config
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # getters                                                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def group(self) -> ConfigGroup:
+        assert self.has_parent
+        g = self.parent
+        assert isinstance(g, ConfigGroup)
+        return g
+
+    @property
+    def group_path(self) -> GroupPath:
+        return GroupPath(self.group.path)
+
+    @property
+    def package(self) -> PkgPath:
+        package: str = self._raw_config.get(KEY_PACKAGE, PkgPath.PKG_DEFAULT_ALIAS)
+        return PkgPath.try_from_alias(package, self)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
@@ -262,13 +291,7 @@ class ConfigOption(_ConfigObject):
         return dict(options)
 
     @property
-    def package(self) -> str:
-        package = self._raw_config.get(KEY_PACKAGE, PKG_DEFAULT_ALIAS)
-        # self._check_package_values(package)
-        return str(package)
-
-    @property
-    def plugins(self) -> dict:
+    def plugins(self) -> Optional[dict]:
         plugins = self._raw_config.get(KEY_PLUGINS, {})
         # self._check_plugins(plugins)
         return dict(plugins)

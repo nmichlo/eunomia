@@ -27,12 +27,12 @@ class BaseValue(object):
     def __str__(self):
         return repr(self)
 
-    def get_config_value(self, merged_config: dict, merged_defaults: dict):
+    def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict):
         raise NotImplementedError
 
     @classmethod
-    def recursive_transform_config_value(cls, merged_config: dict, merged_defaults: dict, value):
-        return _RecursiveGetConfigValue(merged_config, merged_defaults).transform(value)
+    def recursive_transform_config_value(cls, merged_config: dict, merged_options: dict, value):
+        return RecursiveGetConfigValue(merged_config, merged_options).transform(value)
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return False
@@ -43,32 +43,37 @@ class BaseValue(object):
         return hash((self.__class__, self.raw_value))
 
 
-class _RecursiveGetConfigValue(PyTransformer):
+class RecursiveGetConfigValue(PyTransformer):
 
-    def __init__(self, merged_config, merged_defaults):
+    def __init__(self, merged_config: dict, merged_options: dict, current_config: dict):
         self._merged_config = merged_config
-        self._merged_defaults = merged_defaults
+        self._merged_options = merged_options
+        self._current_config = current_config
 
     def __transform_default__(self, value):
-        if isinstance(BaseValue, value):
-            return value.get_config_value()
+        if isinstance(value, BaseValue):
+            return value.get_config_value(self._merged_config, self._merged_options, self._current_config)
         return value
 
 
+def recursive_get_config_value_alt(merged_config: dict, merged_options: dict, current_config: dict, value: Any):
+    return RecursiveGetConfigValue(merged_config, merged_options, current_config).transform(value)
+
+
 # TODO: how much faster is this than the above?
-def _recursive_get_config_value(merged_config, merged_defaults, value):
+def recursive_get_config_value(merged_config: dict, merged_options: dict, current_config: dict, value: Any):
     if isinstance(value, BaseValue):
-        return value.get_config_value(merged_config, merged_defaults)
+        return value.get_config_value(merged_config, merged_options, current_config)
     elif isinstance(value, list):
-        return list(_recursive_get_config_value(merged_config, merged_defaults, v) for v in value)
+        return list(recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
     elif isinstance(value, tuple):
-        return tuple(_recursive_get_config_value(merged_config, merged_defaults, v) for v in value)
+        return tuple(recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
     elif isinstance(value, set):
-        return set(_recursive_get_config_value(merged_config, merged_defaults, v) for v in value)
+        return set(recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
     elif isinstance(value, dict):
         return {
-            _recursive_get_config_value(merged_config, merged_defaults, k):
-                _recursive_get_config_value(merged_config, merged_defaults, v)
+            recursive_get_config_value(merged_config, merged_options, current_config, k):
+                recursive_get_config_value(merged_config, merged_options, current_config, v)
             for k, v in value.items()
         }
     else:
@@ -84,7 +89,7 @@ class IgnoreValue(BaseValue):
 
     INSTANCE_OF = str
 
-    def get_config_value(self, merged_config: dict, merged_defaults: dict):
+    def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict):
         return self.raw_value
 
 
@@ -92,7 +97,7 @@ class RefValue(BaseValue):
 
     INSTANCE_OF = str
 
-    def get_config_value(self, merged_config: dict, merged_defaults: dict) -> Any:
+    def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
         path, keys = self.raw_value, self.raw_value.split('.')
         # check that the keys are valid python identifiers
         if not keys:
@@ -111,12 +116,11 @@ class EvalValue(BaseValue):
 
     INSTANCE_OF = str
 
-    def get_config_value(self, merged_config: dict, merged_defaults: dict):
+    def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict):
         return interpret_expr(self.raw_value, usersyms={
-            'C': merged_config,
-            'D': merged_defaults,
-            'CONFIG': merged_defaults,
-            'DEFAULTS': merged_defaults,
+            'this': current_config,
+            'conf': merged_config,
+            'opts': merged_options,
         })
 
 
@@ -135,7 +139,7 @@ class InterpolateValue(BaseValue):
             if not isinstance(subnode, self.ALLOWED_SUB_NODES):
                 raise TypeError(f'Malformed {InterpolateValue.__name__}, {subnode=} must be instance of: {self.ALLOWED_SUB_NODES}')
 
-    def get_config_value(self, merged_config: dict, merged_defaults: dict) -> str:
+    def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> str:
         nodes = self.raw_value
 
         # convert string to nodes if necessary using lark
@@ -152,7 +156,7 @@ class InterpolateValue(BaseValue):
         values = []
         for subnode in nodes:
             if not isinstance(subnode, str):
-                subnode = _recursive_get_config_value(merged_config, merged_defaults, subnode)
+                subnode = recursive_get_config_value(merged_config, merged_options, current_config, subnode)
             values.append(subnode)
 
         # get final result -- return that actual value if its the

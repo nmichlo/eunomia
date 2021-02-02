@@ -1,6 +1,6 @@
 import pytest
 from eunomia import eunomia_load
-from eunomia.backend import ConfigGroup, ConfigOption
+from eunomia.config import ConfigGroup, ConfigOption
 
 
 # ========================================================================= #

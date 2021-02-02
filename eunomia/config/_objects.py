@@ -22,10 +22,10 @@ https://hydra.cc/docs/terminology/
 
 
 from typing import Union, Optional
-from eunomia._keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, assert_valid_single_option_key
-from eunomia._keys import PKG_DEFAULT_ALIAS
-from eunomia._keys import assert_valid_value_package, assert_valid_value_path, assert_valid_single_key
-from eunomia._keys import join_valid_value_path, join_valid_value_package, split_valid_value_path
+from eunomia.config.keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, assert_valid_single_option_key
+from eunomia.config.keys import PKG_DEFAULT_ALIAS
+from eunomia.config.keys import assert_valid_value_package, assert_valid_value_path, assert_valid_single_key
+from eunomia.config.keys import join_valid_value_path, join_valid_value_package, split_valid_value_path
 from eunomia._util_traverse import PyVisitor
 
 

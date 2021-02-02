@@ -7,8 +7,8 @@ are without any modifications.
 """
 
 
+from eunomia.config import ConfigGroup
 from eunomia.backend._backend import Backend
-from eunomia.backend._config_objects import ConfigGroup, ConfigOption
 
 
 # ========================================================================= #

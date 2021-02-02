@@ -9,9 +9,9 @@ are without any modifications.
 from glob import glob
 import os
 
-from eunomia._keys import split_valid_value_path
+from eunomia.config import ConfigGroup, ConfigOption
+from eunomia.config.keys import split_valid_value_path
 from eunomia.backend._backend import Backend
-from eunomia.backend._config_objects import ConfigGroup, ConfigOption
 from eunomia.backend._util_yaml import yaml_load_file
 
 

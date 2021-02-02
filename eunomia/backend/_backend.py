@@ -1,4 +1,4 @@
-from eunomia.backend._config_objects import ConfigGroup
+from eunomia.config import ConfigGroup
 
 
 # ========================================================================= #

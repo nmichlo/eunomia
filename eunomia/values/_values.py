@@ -2,8 +2,8 @@ from typing import Any, Union
 import lark
 
 from eunomia._util_traverse import PyTransformer
-from eunomia.nodes._util_interpret import interpret_expr
-from eunomia.nodes._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
+from eunomia.values._util_interpret import interpret_expr
+from eunomia.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
 
 
 # ========================================================================= #
@@ -11,7 +11,7 @@ from eunomia.nodes._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARS
 # ========================================================================= #
 
 
-class LazyValueNode(object):
+class BaseValue(object):
 
     @property
     def INSTANCE_OF(self) -> Union[type, tuple[type, ...]]:
@@ -50,14 +50,14 @@ class _RecursiveGetConfigValue(PyTransformer):
         self._merged_defaults = merged_defaults
 
     def __transform_default__(self, value):
-        if isinstance(LazyValueNode, value):
+        if isinstance(BaseValue, value):
             return value.get_config_value()
         return value
 
 
 # TODO: how much faster is this than the above?
 def _recursive_get_config_value(merged_config, merged_defaults, value):
-    if isinstance(value, LazyValueNode):
+    if isinstance(value, BaseValue):
         return value.get_config_value(merged_config, merged_defaults)
     elif isinstance(value, list):
         return list(_recursive_get_config_value(merged_config, merged_defaults, v) for v in value)
@@ -80,7 +80,7 @@ def _recursive_get_config_value(merged_config, merged_defaults, value):
 # ========================================================================= #
 
 
-class IgnoreNode(LazyValueNode):
+class IgnoreValue(BaseValue):
 
     INSTANCE_OF = str
 
@@ -88,7 +88,7 @@ class IgnoreNode(LazyValueNode):
         return self.raw_value
 
 
-class RefNode(LazyValueNode):
+class RefValue(BaseValue):
 
     INSTANCE_OF = str
 
@@ -107,7 +107,7 @@ class RefNode(LazyValueNode):
         return value
 
 
-class EvalNode(LazyValueNode):
+class EvalValue(BaseValue):
 
     INSTANCE_OF = str
 
@@ -125,15 +125,15 @@ class EvalNode(LazyValueNode):
 # ========================================================================= #
 
 
-class InterpolateNode(LazyValueNode):
+class InterpolateValue(BaseValue):
 
     INSTANCE_OF = (str, list)
-    ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, EvalNode)
+    ALLOWED_SUB_NODES = (str, IgnoreValue, RefValue, EvalValue)
 
     def _check_subnodes(self, nodes: list):
         for subnode in nodes:
             if not isinstance(subnode, self.ALLOWED_SUB_NODES):
-                raise TypeError(f'Malformed {InterpolateNode.__name__}, {subnode=} must be instance of: {self.ALLOWED_SUB_NODES}')
+                raise TypeError(f'Malformed {InterpolateValue.__name__}, {subnode=} must be instance of: {self.ALLOWED_SUB_NODES}')
 
     def get_config_value(self, merged_config: dict, merged_defaults: dict) -> str:
         nodes = self.raw_value
@@ -180,23 +180,23 @@ class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
     grammar_interpolate.lark
     """
 
-    def interpolate(self, tree) -> list[LazyValueNode]:
+    def interpolate(self, tree) -> list[BaseValue]:
         if len(tree.children) != 1:
             raise RuntimeError('Malformed interpolate node. This should never happen!')
         return self.visit(tree.children[0])
 
-    def interpolate_string(self, tree) -> list[LazyValueNode]:
+    def interpolate_string(self, tree) -> list[BaseValue]:
         return self.visit_children(tree)
 
-    def interpret_fstring(self, tree) -> list[LazyValueNode]:
+    def interpret_fstring(self, tree) -> list[BaseValue]:
         # TODO: having to wrap in a list here might be a grammar mistake
         return [
-            EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
+            EvalValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
         ]
 
-    def template_ref(self, tree): return RefNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
-    def template_exp(self, tree): return EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
-    def str(self, node):          return IgnoreNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(node))
+    def template_ref(self, tree): return RefValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
+    def template_exp(self, tree): return EvalValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
+    def str(self, node):          return IgnoreValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(node))
 
     def __getattr__(self, item):
         raise RuntimeError(f'This should never happen! Unknown Interpolation Grammar Node Visited: {item}')

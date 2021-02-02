@@ -1,6 +1,6 @@
 import ruamel.yaml as yaml
 import sys
-from eunomia.nodes import IgnoreNode, RefNode, EvalNode, InterpolateNode
+from eunomia.values import IgnoreValue, RefValue, EvalValue, InterpolateValue
 
 
 # we need 3.6 or above for ordered dictionary support
@@ -24,7 +24,7 @@ class EunomiaSafeLoader(yaml.SafeLoader):
         if self._always_interpolate_strings:
             if node.tag == u'tag:yaml.org,2002:str':
                 assert isinstance(node.value, str), 'This should never happen!'
-                return InterpolateNode(node.value)
+                return InterpolateValue(node.value)
         # otherwise construct like usual
         return super().construct_scalar(node)
 
@@ -48,17 +48,17 @@ class EunomiaSafeLoader(yaml.SafeLoader):
 
     def construct_node_ignore(self, node: yaml.Node):
         if not isinstance(node, yaml.ScalarNode):
-            raise TypeError(f'tag {node.tag} for {IgnoreNode.__name__} is not compatible with node: {node.__class__.__name__} which is not a scalar.')
-        return IgnoreNode(self.construct_scalar(node))
+            raise TypeError(f'tag {node.tag} for {IgnoreValue.__name__} is not compatible with node: {node.__class__.__name__} which is not a scalar.')
+        return IgnoreValue(self.construct_scalar(node))
 
     def construct_node_ref(self, node: yaml.Node):
-        return RefNode(self.construct_yaml_str(node))
+        return RefValue(self.construct_yaml_str(node))
 
     def construct_node_eval(self, node: yaml.Node):
-        return EvalNode(self.construct_yaml_str(node))
+        return EvalValue(self.construct_yaml_str(node))
 
     def construct_node_interpolate(self, node: yaml.Node):
-        return InterpolateNode(self.construct_yaml_str(node))
+        return InterpolateValue(self.construct_yaml_str(node))
 
 
 EunomiaSafeLoader.add_constructors(['!tuple'], EunomiaSafeLoader.construct_custom_tuple)

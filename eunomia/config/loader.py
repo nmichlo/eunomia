@@ -1,5 +1,6 @@
 from typing import Iterator
-from eunomia.backend import Backend, ConfigOption, ConfigGroup
+from eunomia.backend import Backend
+from eunomia.config._objects import ConfigOption, ConfigGroup
 
 
 # ========================================================================= #

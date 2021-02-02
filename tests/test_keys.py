@@ -1,8 +1,8 @@
 import pytest
-from eunomia._keys import PKG_ALIASES_ALL, KEYS_RESERVED_ALL, PKG_ALIAS_ROOT, PKG_ALIAS_GROUP, KEY_PACKAGE, KEY_OPTIONS
-from eunomia._keys import assert_valid_single_key, is_valid_single_key
-from eunomia._keys import assert_valid_value_package, is_valid_value_package, split_valid_value_package
-from eunomia._keys import assert_valid_value_path, is_valid_value_path, split_valid_value_path
+from eunomia.config.keys import PKG_ALIAS_ROOT, PKG_ALIAS_GROUP, KEY_PACKAGE, KEY_OPTIONS
+from eunomia.config.keys import assert_valid_single_key, is_valid_single_key
+from eunomia.config.keys import assert_valid_value_package, is_valid_value_package, split_valid_value_package
+from eunomia.config.keys import assert_valid_value_path, is_valid_value_path, split_valid_value_path
 
 
 # ========================================================================= #

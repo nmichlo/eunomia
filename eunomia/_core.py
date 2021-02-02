@@ -2,8 +2,9 @@ from functools import wraps
 import pathlib
 from typing import Union
 
-from eunomia._loader import ConfigLoader
-from eunomia.backend import Backend, ConfigGroup, BackendConfigGroup, BackendYaml, BackendDict
+from eunomia.config import ConfigGroup
+from eunomia.config.loader import ConfigLoader
+from eunomia.backend import Backend, BackendConfigGroup, BackendYaml, BackendDict
 
 
 # ========================================================================= #

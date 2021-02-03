@@ -22,7 +22,8 @@ https://hydra.cc/docs/terminology/
 
 
 from typing import Union, Optional, Sequence
-from eunomia.config.keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, Path, Key, GroupKey, GroupPath, PkgPath
+from eunomia.config.keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, Path, Key, GroupKey, GroupPath, PkgPath, \
+    KEYS_RESERVED_ALL
 from eunomia._util_traverse import PyVisitor
 
 
@@ -299,9 +300,9 @@ class ConfigOption(_ConfigObject):
     @property
     def config(self) -> dict:
         raw = dict(self._raw_config)
-        # for key in KEYS_RESERVED_ALL:
-        #     if key in raw:
-        #         del raw[key]
+        for key in KEYS_RESERVED_ALL:
+            if key in raw:
+                del raw[key]
         return raw
 
     @property

@@ -22,9 +22,10 @@ https://hydra.cc/docs/terminology/
 
 
 from typing import Union, Optional, Sequence
-from eunomia.config.keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, Path, Key, GroupKey, GroupPath, PkgPath, \
-    KEYS_RESERVED_ALL
+from eunomia.config.keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, KEYS_RESERVED_ALL
+from eunomia.config.keys import Key, GroupKey, Path, GroupPath, PkgPath
 from eunomia._util_traverse import PyVisitor
+from eunomia.values import BaseValue
 
 
 # ========================================================================= #
@@ -276,26 +277,27 @@ class ConfigOption(_ConfigObject):
     def group_path(self) -> GroupPath:
         return GroupPath(self.group.path)
 
-    @property
-    def package(self) -> PkgPath:
-        package: str = self._raw_config.get(KEY_PACKAGE, PkgPath.PKG_DEFAULT_ALIAS)
-        return PkgPath.try_from_alias(package, self)
-
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+    def resolve_package(self, merged_config, merged_options, current_config) -> PkgPath:
+        package = self._raw_config.get(KEY_PACKAGE, PkgPath.PKG_DEFAULT_ALIAS)
+        if isinstance(package, BaseValue):
+            package = package.get_config_value(merged_config, merged_options, current_config)
+        return PkgPath.try_from_alias(package, self)
+
     @property
     def options(self) -> dict:
-        options = self._raw_config.get(KEY_OPTIONS, {})
+        options = self._raw_config.setdefault(KEY_OPTIONS, {})
         # self._check_option_keys_and_values(options)
-        return dict(options)
+        return options
 
     @property
     def plugins(self) -> Optional[dict]:
-        plugins = self._raw_config.get(KEY_PLUGINS, {})
+        plugins = self._raw_config.setdefault(KEY_PLUGINS, {})
         # self._check_plugins(plugins)
-        return dict(plugins)
+        return plugins
 
     @property
     def config(self) -> dict:
@@ -305,11 +307,11 @@ class ConfigOption(_ConfigObject):
                 del raw[key]
         return raw
 
-    @property
-    def raw_config(self) -> dict:
-        raw = dict(self._raw_config)
-        # self._check_raw_config(raw)
-        return raw
+    # @property
+    # def raw_config(self) -> dict:
+    #     raw = dict(self._raw_config)
+    #     # self._check_raw_config(raw)
+    #     return raw
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Checks                                                                #

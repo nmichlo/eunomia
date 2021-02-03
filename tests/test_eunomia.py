@@ -6,17 +6,18 @@ from eunomia.config import ConfigGroup, ConfigOption
 # ========================================================================= #
 # Test Config Objects                                                       #
 # ========================================================================= #
+from eunomia.values import InterpolateValue, EvalValue
 
 
-def _make_config_group(suboption='suboption1', suboption2=None) -> ConfigGroup:
+def _make_config_group(suboption='suboption1', suboption2=None, package1='_group_', package2='_group_') -> ConfigGroup:
     return ConfigGroup({
         'subgroup': ConfigGroup({
-            'suboption1': ConfigOption({'bar': 1}),
-            'suboption2': ConfigOption({'bar': 2}),
+            'suboption1': ConfigOption({'_package_': package1, 'bar': 1}),
+            'suboption2': ConfigOption({'_package_': package1, 'bar': 2}),
         }),
         'subgroup2': ConfigGroup({
-            'sub2option1': ConfigOption({'baz': 1}),
-            'sub2option2': ConfigOption({'baz': 2}),
+            'sub2option1': ConfigOption({'_package_': package2, 'baz': 1}),
+            'sub2option2': ConfigOption({'_package_': package2, 'baz': 2}),
         }),
         'default': ConfigOption({
             '_options_': {
@@ -40,9 +41,31 @@ def test_config_objects():
 
 
 def test_eunomia_loader():
-    assert eunomia_load(_make_config_group(suboption='suboption1')) == {'bar': 1, 'foo': 1}
-    assert eunomia_load(_make_config_group(suboption='suboption2')) == {'bar': 2, 'foo': 1}
+    # check no subgroups
+    assert eunomia_load(_make_config_group(suboption=None)) == {'foo': 1}
+
+    # test subgroup
+    assert eunomia_load(_make_config_group(suboption='suboption1')) == {'subgroup': {'bar': 1}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption='suboption2')) == {'subgroup': {'bar': 2}, 'foo': 1}
     with pytest.raises(Exception):
         eunomia_load(_make_config_group(suboption='invalid___'))
-    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='sub2option1')) == {'bar': 2, 'foo': 1}
-    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='sub2option2')) == {'bar': 2, 'foo': 1}
+
+    # test second subgroup
+    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='sub2option1')) == {'subgroup': {'bar': 2}, 'subgroup2': {'baz': 1}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='sub2option2')) == {'subgroup': {'bar': 2}, 'subgroup2': {'baz': 2}, 'foo': 1}
+
+    # test root package
+    assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='_root_')) == {'bar': 1, 'subgroup2': {'baz': 2}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption2='sub2option2', package2='_root_')) == {'subgroup': {'bar': 1}, 'baz': 2, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='_root_', package2='_root_')) == {'bar': 1, 'baz': 2, 'foo': 1}
+
+    # test custom package
+    assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2='fdsa.asdf')) == {'asdf': {'bar': 1}, 'fdsa': {'asdf': {'baz': 2}}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2='asdf.fdsa')) == {'asdf': {'bar': 1, 'fdsa': {'baz': 2}}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2=InterpolateValue('${="asdf"}.fdsa'))) == {'asdf': {'bar': 1, 'fdsa': {'baz': 2}}, 'foo': 1}
+
+    # test interpolation values
+    assert eunomia_load(_make_config_group(suboption=InterpolateValue('suboption${=1}'))) == {'subgroup': {'bar': 1}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption=InterpolateValue('f"suboption{1}"'))) == {'subgroup': {'bar': 1}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption=EvalValue('f"suboption{2}"'))) == {'subgroup': {'bar': 2}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption=InterpolateValue('suboption${foo}'))) == {'subgroup': {'bar': 1}, 'foo': 1}

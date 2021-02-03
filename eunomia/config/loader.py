@@ -1,12 +1,8 @@
-from collections import deque
-from pprint import pprint
-from typing import Iterator, Iterable, Any
-
-from eunomia._util_traverse import PyTransformer
+from typing import Iterable
 from eunomia.values import BaseValue
-from eunomia.backend import Backend, BackendConfigGroup
+from eunomia.backend import Backend
 from eunomia.config._objects import ConfigOption, ConfigGroup
-from eunomia.values._values import recursive_get_config_value_alt, recursive_get_config_value
+from eunomia.values._values import recursive_get_config_value
 
 
 # ========================================================================= #
@@ -90,11 +86,17 @@ class ConfigLoader(object):
             # 1. recursively merge the option config into the merged config
             # 2. recursively interpolate encountered values
             # get and make directories in the config according to the package
-            left = recursive_getitem(merged_config, option.package.keys, make_missing=True)
+            package = option.resolve_package(merged_config, merged_options, {})
+            left = recursive_getitem(merged_config, package.keys, make_missing=True)
             # get the actual option to merge
             right = option.config
             # perform the merge
             dict_recursive_update(left=left, right=right)
+
+        def _resolve_value(value):
+            if isinstance(value, BaseValue):
+                value = value.get_config_value(merged_config, merged_options, {})
+            return value
 
         def _dfs_option(option: ConfigOption):
             assert isinstance(option, ConfigOption)
@@ -103,7 +105,7 @@ class ConfigLoader(object):
             # process all sub_groups
             for subgroup_key, suboption_key in option.options.items():
                 subgroup = group.get_subgroup(subgroup_key)
-                suboption = subgroup.get_option(suboption_key)  # TODO: variable interpolation is not available here...
+                suboption = subgroup.get_option(_resolve_value(suboption_key))
                 _handle_option(suboption)
 
         def _handle_option(option: ConfigOption):
@@ -119,7 +121,7 @@ class ConfigLoader(object):
         # perform dfs & merging and finally resolve values
         _handle_option(entry_option)
         # TODO: this is incorrect
-        recursive_get_config_value(merged_config, merged_options, {}, value=merged_config)
+        merged_config = recursive_get_config_value(merged_config, merged_options, {}, value=merged_config)
 
         # done, return the result
         if return_merged_options:
@@ -130,36 +132,3 @@ class ConfigLoader(object):
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-
-
-if __name__ == '__main__':
-    def _make_config_group(suboption='suboption1', suboption2=None) -> ConfigGroup:
-        return ConfigGroup({
-            'subgroup': ConfigGroup({
-                'suboption1': ConfigOption({'bar': 1}),
-                'suboption2': ConfigOption({'bar': 2}),
-            }),
-            'subgroup2': ConfigGroup({
-                'sub2option1': ConfigOption({'baz': 1}),
-                'sub2option2': ConfigOption({'baz': 2}),
-            }),
-            'default': ConfigOption({
-                '_options_': {
-                    **({'subgroup': suboption} if suboption else {}),
-                    **({'subgroup2': suboption2} if suboption2 else {}),
-                },
-                'foo': 1
-            }),
-        })
-
-    loader = ConfigLoader(BackendConfigGroup(_make_config_group(
-        suboption='suboption1',
-        suboption2='sub2option1',
-    )))
-
-    conf, opts = loader.load_config('default', return_merged_options=True)
-    print('=======')
-    pprint(opts, sort_dicts=False)
-    print('=======')
-    pprint(conf, sort_dicts=False)
-

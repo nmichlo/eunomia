@@ -1,14 +1,14 @@
-site_name: 📜  Eunomia Docs
+site_name: Eunomia Docs
 repo_url: https://github.com/nmichlo/eunomia
 repo_name: nmichlo/eunomia
 theme:
   name: material
   palette:
     scheme: default
-    primary: deep purple
+    primary: purple
   icon:
     repo: fontawesome/brands/github
-    logo: material/library
+    logo: material/script-text
   favicon: images/favicon.png
 plugins:
   - search

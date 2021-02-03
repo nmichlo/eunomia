@@ -12,6 +12,7 @@ import os
 from eunomia.config import ConfigGroup, ConfigOption
 from eunomia.backend._backend import Backend
 from eunomia.backend._util_yaml import yaml_load_file
+from eunomia.config.keys import GroupPath
 
 
 # ========================================================================= #
@@ -36,13 +37,13 @@ class BackendYaml(Backend):
         # remove root folder from names
         paths = [os.path.relpath(path, self._root_folder) for path in paths]
         # sort paths by length, then alphabetically
-        paths = sorted(paths, key=lambda p: (len(s := p.split('/')), *s))
+        paths = sorted(paths, key=lambda p: (len(p.split('/')), *p.split('/')))
         # traverse group and add
         root = ConfigGroup()
         for path in paths:
             # strip yaml extension & split path into group
             assert path.endswith(ext)
-            (*subgroups, option_name) = split_valid_value_path(path[:-len(ext)])
+            (*subgroups, option_name) = GroupPath(path[:-len(ext)]).keys
             # add subgroups
             group = root.get_subgroups_recursive(subgroups, make_missing=True)
             # add option by loading file

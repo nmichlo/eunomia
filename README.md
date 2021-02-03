@@ -41,11 +41,11 @@ Options are dictionaries that at their root can contain various special keys:
         - `_root_` set the package as the root directory, ie. not placed in any key
         - `_group_` (default) set the package as the path to the current group that the option resides in.
 
-- `_options_`: (optional) `dict[str, str]` - A dictionary of `subgroups` to `suboptions` that should also be merged.
+- `_options_`: (optional) `Dict[str, str]` - A dictionary of `subgroups` to `suboptions` that should also be merged.
                The group that the current option is in must contain the subgroup, that
                subgroup itself must contain the chosen suboption
 
-- `_plugins_`: (optional) `dict[str, ?]` - Settings for various plugins. Can only be used if the package is `_root_`
+- `_plugins_`: (optional) `Dict[str, Any]` - Settings for various plugins. Can only be used if the package is `_root_`
 
 ### Merging
 

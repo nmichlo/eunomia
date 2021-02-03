@@ -24,9 +24,9 @@ class BackendYaml(Backend):
     def __init__(self, root_folder: str):
         # check the root folder
         if not isinstance(root_folder, str):
-            raise TypeError(f'{root_folder=} must be a string')
+            raise TypeError(f'root_folder={repr(root_folder)} must be a string')
         if not os.path.isdir(root_folder):
-            raise FileNotFoundError(f'{root_folder=} is not a valid directory.\n\tAre you sure the path is correct and not relative?\n\tCurrent working directory is: {repr(os.getcwdb().decode())}')
+            raise FileNotFoundError(f'root_folder={repr(root_folder)} is not a valid directory.\n\tAre you sure the path is correct and not relative?\n\tCurrent working directory is: {repr(os.getcwdb().decode())}')
         self._root_folder = root_folder        # loading modes
 
     def load_root_group(self) -> ConfigGroup:

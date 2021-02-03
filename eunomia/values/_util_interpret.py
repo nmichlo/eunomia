@@ -48,11 +48,11 @@ class BaseInterpreter(object):
 
     def _visit_disabled(self, node, *args, **kwargs):
         attr = self._get_visit_name(node)
-        raise DisabledLanguageFeatureError(f'Language feature has been disabled: {node=}\n method: {attr=} is None')
+        raise DisabledLanguageFeatureError(f'Language feature has been disabled: node={repr(node)}\n method: attr={repr(attr)} is None')
 
     def _visit_unknown(self, node, *args, **kwargs):
         attr = self._get_visit_name(node)
-        raise UnsupportedLanguageFeatureError(f'Language feature not supported: {node=}\nCould not find method: {attr=}')
+        raise UnsupportedLanguageFeatureError(f'Language feature not supported: node={repr(node)}\nCould not find method: attr={repr(attr)}')
 
     def interpret(self, node_or_string, strip_whitespace=True):
         """
@@ -419,7 +419,7 @@ class Interpreter(BasicInterpreter):
     #     # [i for i in [1, 2, 3] if i for j in [3, 4, 5] if j if j]
 
 
-def interpret_expr(string: str, usersyms: Optional[dict[str, Any]] = None):
+def interpret_expr(string: str, usersyms: Optional[Dict[str, Any]] = None):
     """
     Interpret the given expression with preset
     limitations on what is allowed.

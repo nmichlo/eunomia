@@ -21,7 +21,7 @@ https://hydra.cc/docs/terminology/
 """
 
 
-from typing import Union, Optional, Sequence
+from typing import Union, Optional, Sequence, Dict
 from eunomia.config.keys import KEY_OPTIONS, KEY_PACKAGE, KEY_PLUGINS, KEYS_RESERVED_ALL
 from eunomia.config.keys import Key, GroupKey, Path, GroupPath, PkgPath
 from eunomia._util_traverse import PyVisitor
@@ -145,7 +145,7 @@ class ConfigGroup(_ConfigObject):
     PathTypeHint = Union[str, Sequence[Union[str, KeyType]], PathType]
     NodeTypeHint = Union['ConfigGroup', 'ConfigOption']
 
-    def __init__(self, option_or_group_nodes: dict[str, NodeTypeHint] = None):
+    def __init__(self, option_or_group_nodes: Dict[str, NodeTypeHint] = None):
         super().__init__()
         # add groups or options
         if option_or_group_nodes:
@@ -175,11 +175,11 @@ class ConfigGroup(_ConfigObject):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
-    def groups(self) -> dict[str, 'ConfigGroup']:
+    def groups(self) -> Dict[str, 'ConfigGroup']:
         return {k: v for k, v in self._children if isinstance(v, ConfigGroup)}
 
     @property
-    def options(self) -> dict[str, 'ConfigOption']:
+    def options(self) -> Dict[str, 'ConfigOption']:
         return {k: v for k, v in self._children if isinstance(v, ConfigOption)}
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

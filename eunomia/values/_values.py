@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any, Union, List, Tuple
 import lark
 
 from eunomia._util_traverse import PyTransformer
@@ -15,11 +15,11 @@ from eunomia.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PAR
 class BaseValue(object):
 
     @property
-    def INSTANCE_OF(self) -> Union[type, tuple[type, ...]]:
+    def INSTANCE_OF(self) -> Union[type, Tuple[type, ...]]:
         raise NotImplementedError
 
     def __init__(self, value: str):
-        assert isinstance(value, self.INSTANCE_OF), f'{value=} corresponding to {self.__class__.__name__} must be instance of: {self.INSTANCE_OF}'
+        assert isinstance(value, self.INSTANCE_OF), f'value={repr(value)} corresponding to {self.__class__.__name__} must be instance of: {self.INSTANCE_OF}'
         self.raw_value = value
 
     def __repr__(self):
@@ -139,7 +139,7 @@ class InterpolateValue(BaseValue):
     def _check_subnodes(self, nodes: list):
         for subnode in nodes:
             if not isinstance(subnode, self.ALLOWED_SUB_NODES):
-                raise TypeError(f'Malformed {InterpolateValue.__name__}, {subnode=} must be instance of: {self.ALLOWED_SUB_NODES}')
+                raise TypeError(f'Malformed {InterpolateValue.__name__}, subnode={repr(subnode)} must be instance of: {self.ALLOWED_SUB_NODES}')
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> str:
         nodes = self.raw_value
@@ -186,15 +186,15 @@ class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
     grammar_interpolate.lark
     """
 
-    def interpolate(self, tree) -> list[BaseValue]:
+    def interpolate(self, tree) -> List[BaseValue]:
         if len(tree.children) != 1:
             raise RuntimeError('Malformed interpolate node. This should never happen!')
         return self.visit(tree.children[0])
 
-    def interpolate_string(self, tree) -> list[BaseValue]:
+    def interpolate_string(self, tree) -> List[BaseValue]:
         return self.visit_children(tree)
 
-    def interpret_fstring(self, tree) -> list[BaseValue]:
+    def interpret_fstring(self, tree) -> List[BaseValue]:
         # TODO: having to wrap in a list here might be a grammar mistake
         return [
             EvalValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))

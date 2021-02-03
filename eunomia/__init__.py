@@ -3,8 +3,6 @@ Eunomia config
 - Simple hydra config like configuration using yaml 1.2
 """
 
-__version__ = "0.0.1dev2"
-
 
 # ========================================================================= #
 # Export Core                                                               #

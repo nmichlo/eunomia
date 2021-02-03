@@ -139,6 +139,13 @@ KEY_PACKAGE = '_package_'  # options node name to change the current package
 KEY_OPTIONS = '_options_'  # options node name to choose the option in a subgroup
 KEY_PLUGINS = '_plugins_'  # options node name to choose and adjust various settings for plugins
 
+KEYS_RESERVED_ALL = {
+    KEY_GROUP,
+    KEY_PACKAGE,
+    KEY_OPTIONS,
+    KEY_PLUGINS,
+}
+
 
 class InsideOptionKey(Key):
     RESERVED_MESSAGE = 'key reserved for inside groups is not allowed in an option'
@@ -158,18 +165,12 @@ class InsideGroupKey(Key):
 
 class GroupKey(Key):
     RESERVED_MESSAGE = 'key reserved for options or groups is not allowed as a path key'
-    RESERVED_SET = {
-        *InsideOptionKey.RESERVED_SET,
-        *InsideGroupKey.RESERVED_SET,
-    }
+    RESERVED_SET = set(KEYS_RESERVED_ALL)
 
 
 class PkgKey(Key):
     RESERVED_MESSAGE = 'key reserved for options or groups is not allowed as a package key'
-    RESERVED_SET = {
-        *InsideOptionKey.RESERVED_SET,
-        *InsideGroupKey.RESERVED_SET,
-    }
+    RESERVED_SET = set(KEYS_RESERVED_ALL)
 
 
 # ========================================================================= #
@@ -209,6 +210,10 @@ class PkgPath(Path):
         PKG_ALIAS_GROUP: lambda option: option.group_path.keys,
         PKG_ALIAS_ROOT: lambda option: [],
     }
+
+
+class RefPath(PkgPath):
+    _ALLOW_ROOT = False
 
 
 # ========================================================================= #

@@ -1,11 +1,8 @@
-from pprint import pprint
-from typing import Iterator, Iterable
-
-from eunomia._util_traverse import PyTransformer
+from typing import Iterable
 from eunomia.values import BaseValue
-from eunomia.backend import Backend, BackendConfigGroup
+from eunomia.backend import Backend
 from eunomia.config._objects import ConfigOption, ConfigGroup
-from eunomia.values._values import recursive_get_config_value_alt
+from eunomia.values._values import recursive_get_config_value
 
 
 # ========================================================================= #
@@ -13,19 +10,19 @@ from eunomia.values._values import recursive_get_config_value_alt
 # ========================================================================= #
 
 
-def dict_recursive_get(dct, keys: Iterable[str], make_missing=False):
+def recursive_getitem(dct, keys: Iterable[str], make_missing=False):
     if not keys:
         return dct
     (key, *keys) = keys
     if make_missing:
         if key not in dct:
             dct[key] = {}
-    return dict_recursive_get(dct[key], keys, make_missing=make_missing)
+    return recursive_getitem(dct[key], keys, make_missing=make_missing)
 
 
-def dict_recursive_set(dct, keys: Iterable[str], value, make_missing=False):
+def recursive_setitem(dct, keys: Iterable[str], value, make_missing=False):
     (key, *keys) = keys
-    insert_at = dict_recursive_get(dct, keys, make_missing=make_missing)
+    insert_at = recursive_getitem(dct, keys, make_missing=make_missing)
     insert_at[key] = value
 
 
@@ -71,17 +68,7 @@ class ConfigLoader(object):
         merged_options = {}
         merged_config = {}
 
-        def _dfs_options(option: ConfigOption):
-            assert isinstance(option, ConfigOption)
-            group = option.parent
-            assert isinstance(group, ConfigGroup)
-            # process all sub_groups
-            for subgroup_key, suboption_key in option.options.items():
-                subgroup = group.get_subgroup(subgroup_key)
-                suboption = subgroup.get_option(suboption_key)  # TODO: variable interpolation is not available here...
-                _handle_option(suboption)
-
-        def _merge_options(option: ConfigOption):
+        def _mark_option_visited(option: ConfigOption):
             # get the path to the config - recursive version of whats listed in the _options_
             # maybe lift the non-recursive limitation in future?
             group_path = option.group_path
@@ -94,33 +81,47 @@ class ConfigLoader(object):
             # merge the path!
             merged_options[group_path] = option.path
 
-        def _merge_config(option: ConfigOption):
-            # merge the config into merged_config
-            # make sure that interpolated values are available
-            # TODO: dfs here should be synchronised with all values,
-            #       as soon as one is encountered and merged, they should
-            #       be available for future values.
-            dict_recursive_update(
-                left=dict_recursive_get(merged_config, option.package.keys, make_missing=True),
-                right=recursive_get_config_value_alt(
-                    merged_config=merged_config,
-                    merged_options=merged_options,
-                    current_config=option.config,
-                    value=option.config
-                )
-            )
+        def _merge_config_values(option: ConfigOption):
+            # This function needs to do two things
+            # 1. recursively merge the option config into the merged config
+            # 2. recursively interpolate encountered values
+            # get and make directories in the config according to the package
+            package = option.resolve_package(merged_config, merged_options, {})
+            left = recursive_getitem(merged_config, package.keys, make_missing=True)
+            # get the actual option to merge
+            right = option.config
+            # perform the merge
+            dict_recursive_update(left=left, right=right)
+
+        def _resolve_value(value):
+            if isinstance(value, BaseValue):
+                value = value.get_config_value(merged_config, merged_options, {})
+            return value
+
+        def _dfs_option(option: ConfigOption):
+            assert isinstance(option, ConfigOption)
+            group = option.parent
+            assert isinstance(group, ConfigGroup)
+            # process all sub_groups
+            for subgroup_key, suboption_key in option.options.items():
+                subgroup = group.get_subgroup(subgroup_key)
+                suboption = subgroup.get_option(_resolve_value(suboption_key))
+                _handle_option(suboption)
 
         def _handle_option(option: ConfigOption):
-            # TODO: fix resolving of variables
             # TODO: add _plugins_ support
-            _merge_options(option)
-            _merge_config(option)
-            _dfs_options(option)
+            _mark_option_visited(option)
+            _merge_config_values(option)
+            _dfs_option(option)
 
         # entry point for dfs
         root_group = self._backend.load_root_group()
         entry_option = root_group.get_option(config_name)
+
+        # perform dfs & merging and finally resolve values
         _handle_option(entry_option)
+        # TODO: this is incorrect
+        merged_config = recursive_get_config_value(merged_config, merged_options, {}, value=merged_config)
 
         # done, return the result
         if return_merged_options:
@@ -131,35 +132,3 @@ class ConfigLoader(object):
 # ========================================================================= #
 # End                                                                       #
 # ========================================================================= #
-
-
-if __name__ == '__main__':
-    def _make_config_group(suboption='suboption1', suboption2=None) -> ConfigGroup:
-        return ConfigGroup({
-            'subgroup': ConfigGroup({
-                'suboption1': ConfigOption({'bar': 1}),
-                'suboption2': ConfigOption({'bar': 2}),
-            }),
-            'subgroup2': ConfigGroup({
-                'sub2option1': ConfigOption({'baz': 1}),
-                'sub2option2': ConfigOption({'baz': 2}),
-            }),
-            'default': ConfigOption({
-                '_options_': {
-                    **({'subgroup': suboption} if suboption else {}),
-                    **({'subgroup2': suboption2} if suboption2 else {}),
-                },
-                'foo': 1
-            }),
-        })
-
-    loader = ConfigLoader(BackendConfigGroup(_make_config_group(
-        suboption='suboption1',
-        suboption2='sub2option1',
-    )))
-
-    conf, opts = loader.load_config('default', return_merged_options=True)
-    print('=======')
-    pprint(opts, sort_dicts=False)
-    print('=======')
-    pprint(conf, sort_dicts=False)

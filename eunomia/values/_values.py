@@ -2,6 +2,7 @@ from typing import Any, Union
 import lark
 
 from eunomia._util_traverse import PyTransformer
+from eunomia.config.keys import PkgPath, RefPath
 from eunomia.values._util_interpret import interpret_expr
 from eunomia.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
 
@@ -43,8 +44,12 @@ class BaseValue(object):
         return hash((self.__class__, self.raw_value))
 
 
-class RecursiveGetConfigValue(PyTransformer):
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+# Recursive Resolve                                                         #
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+
+class RecursiveGetConfigValue(PyTransformer):
     def __init__(self, merged_config: dict, merged_options: dict, current_config: dict):
         self._merged_config = merged_config
         self._merged_options = merged_options
@@ -98,17 +103,14 @@ class RefValue(BaseValue):
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
-        path, keys = self.raw_value, self.raw_value.split('.')
-        # check that the keys are valid python identifiers
-        if not keys:
-            raise RuntimeError(f'Malformed {path=}, must contain at least one key.')
-        for key in keys:
-            if not str.isidentifier(key):
-                raise RuntimeError(f'Malformed {key=} in {path=}, must be a valid identifier')
+        path = RefPath(self.raw_value)
         # walk to get value
         value = merged_config
-        for key in keys:
+        for key in path.keys:
             value = value[key]
+            # resolve
+            if isinstance(value, BaseValue):
+                value = value.get_config_value(merged_config, merged_options, current_config)
         return value
 
 

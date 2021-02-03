@@ -3,25 +3,20 @@ Eunomia config
 - Simple hydra config like configuration using yaml 1.2
 """
 
-__version__ = "0.0.1dev1"
+__version__ = "0.0.1dev2"
 
 
 # ========================================================================= #
-# Export                                                                    #
+# Export Core                                                               #
 # ========================================================================= #
 
 
-from eunomia._config import DiskConfigLoader, MemConfigLoader
-
-
-def eunomia(config_root='configs', config_name='default'):
-    if isinstance(config_root, str):
-        loader = DiskConfigLoader(config_root)
-    elif isinstance(config_root, dict):
-        loader = MemConfigLoader(config_root)
-    else:
-        raise TypeError(f'Unsupported config_root type: {config_root.__class__.__name__}')
-    return loader.load_config(config_name)
+# eunomia decorator
+from ._core import eunomia, eunomia_adv
+# eunomia runner
+from ._core import eunomia_runner, eunomia_runner_adv
+# eunomia simple loader - skips plugins and runners
+from ._core import eunomia_load, eunomia_load_adv
 
 
 # ========================================================================= #

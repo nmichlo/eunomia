@@ -17,7 +17,9 @@ classifiers = [
     "Topic :: Software Development :: Compilers",
 ]
 requires = [
-    "ruamel.yaml == 0.16"
+    "asteval == 0.9.21",
+    "lark == 0.9.21",
+    "ruamel.yaml == 0.16",
 ]
 
 [tool.flit.metadata.requires-extra]

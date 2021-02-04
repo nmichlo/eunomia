@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies,
 # then run tests over a variety of Python versions.
 
-name: Python package
+name: test
 
 on:
   push:
@@ -42,6 +42,5 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: true
-      # codecov automatically merges these
-      # make sure we only upload one codecov file
+      # codecov automatically merges all generated files
       # if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.9

@@ -1,3 +1,4 @@
+import sys
 from typing import Callable, Any
 import pytest
 import ast
@@ -342,8 +343,13 @@ def test_interpreter_call(name_sym_interp):
     assert name_sym_interp('name.taz(a=1, b=2)') == name.taz(a=1, b=2)
     assert name_sym_interp('name.taz(1, b=2)') == name.taz(1, b=2)
     # technically this should raise SyntaxError, only TypeError for kwargs
-    with pytest.raises(TypeError, match="got multiple values for keyword argument 'b'"):
-        name_sym_interp('name.taz(b=1, b=2)')
+    # this only works for python 3.9
+    if sys.version_info[:2] >= (3, 9):
+        with pytest.raises(TypeError, match="got multiple values for keyword argument 'b'"):
+            name_sym_interp('name.taz(b=1, b=2)')
+    else:
+        with pytest.raises(SyntaxError, match="keyword argument repeated"):
+            name_sym_interp('name.taz(b=1, b=2)')
 
 def test_interpreter_call_and_unpack(name_sym_interp):
     # CALL TESTS

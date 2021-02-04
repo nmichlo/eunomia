@@ -1,21 +1,24 @@
 # This workflow will install Python dependencies,
 # then run tests over a variety of Python versions.
 
-name: Python package
+name: test
 
 on:
   push:
     branches: [ main, dev ]
+    tags: [ '*' ]
   pull_request:
     branches: [ main, dev ]
 
 jobs:
   build:
 
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        os: [ubuntu-latest] # [ubuntu-latest, windows-latest, macos-latest]
         python-version: [3.6, 3.7, 3.8, 3.9]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v2
@@ -28,9 +31,16 @@ jobs:
     - name: Install dependencies
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install -r requirements.txt
         python3 -m pip install -r requirements-test.txt
+        python3 -m pip install -r requirements.txt
 
     - name: Test with pytest
       run: |
         python3 -m pytest --cov=eunomia tests/
+
+    - uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
+      # codecov automatically merges all generated files
+      # if: matrix.os == 'ubuntu-latest' && matrix.python-version == 3.9

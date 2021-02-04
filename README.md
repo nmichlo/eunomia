@@ -1,4 +1,9 @@
 # 📜 eunomia
+[![License](https://img.shields.io/github/license/nmichlo/eunomia?style=flat-square)](https://choosealicense.com/licenses/mit/)
+[![Version](https://img.shields.io/pypi/v/eunomia?style=flat-square)](https://pypi.org/project/eunomia)
+[![Python Versions](https://img.shields.io/pypi/pyversions/eunomia?style=flat-square)](https://pypi.org/project/eunomia)
+[![Tests Status](https://img.shields.io/github/workflow/status/nmichlo/eunomia/test?label=tests&style=flat-square)](https://github.com/nmichlo/eunomia/actions?query=workflow%3Atest)
+[![Code Coverage](https://img.shields.io/codecov/c/gh/nmichlo/eunomia?token=86IZK3J038&style=flat-square)](https://codecov.io/gh/nmichlo/eunomia/)
 
 > Eunomia, the Greek goddess of law and legislation. Directly translated as "good order" or "governance according to good laws"
 

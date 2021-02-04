@@ -1,4 +1,5 @@
 import ast
+import sys
 from typing import Optional, Dict, Any
 from asteval.astutils import UNSAFE_ATTRS, make_symbol_table, safe_mult, safe_add, safe_pow, safe_lshift
 
@@ -66,7 +67,11 @@ class BaseInterpreter(object):
                 # string.whitespace == ' \t\n\r\v\f'
                 # we dont want to strip special characters
                 node_or_string = node_or_string.strip(' \t')
-            node_or_string = ast.parse(node_or_string, mode='eval')
+            # just future proof things in case... only supported for 3.8 and above
+            if sys.version_info[:2] >= (3, 8):
+                node_or_string = ast.parse(node_or_string, mode='eval', feature_version=(3, 7))
+            else:
+                node_or_string = ast.parse(node_or_string, mode='eval')
         if isinstance(node_or_string, ast.Expression):
             node_or_string = node_or_string.body
         return self._visit(node_or_string)
@@ -101,6 +106,20 @@ class BasicInterpreter(BaseInterpreter):
             allow_numerical_unary_on_bool=self._allow_numerical_unary_on_bool,
             allow_chained_comparisons=self._allow_chained_comparisons,
         )
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Python 3.6 Support - Custom handling is required...                   #
+    # these nodes do not exist in python 3.9, not sure about 3.8? 3.7?      #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    # TODO: deprecated! old python language feature!
+    def visit_Str(self, node): return node.s
+    # TODO: deprecated! old python language feature!
+    def visit_Num(self, node): return node.n
+    # TODO: deprecated! old python language feature!
+    def visit_NameConstant(self, node): return node.value
+    # TODO: deprecated! old python language feature!
+    def visit_Bytes(self, node): return node.s
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Atoms ::= identifier | literal | enclosure                            #
@@ -216,7 +235,8 @@ class BasicInterpreter(BaseInterpreter):
                 raise DisabledLanguageFeatureError(f'Nested unary operators are not allowed, eg. ++1 or --1')
         if not self._allow_numerical_unary_on_bool:
             if not isinstance(node.op, ast.Not):
-                if isinstance(node.operand, ast.Constant) and isinstance(node.operand.value, bool):
+                # TODO: deprecated language feature ast.NameConstant, not used in python 3.9
+                if isinstance(node.operand, (ast.Constant, ast.NameConstant)) and isinstance(node.operand.value, bool):
                     raise DisabledLanguageFeatureError(f'Only the not unary operator is allowed on booleans, eg. not True')
         return self._visit(node.op, self._visit(node.operand))
 
@@ -379,6 +399,15 @@ class Interpreter(BasicInterpreter):
         slice = self._visit(node.slice)
         value = self._visit(node.value)
         return value[slice]
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Python 3.6 Support - Custom handling is required...                   #
+    # these nodes do not exist in python 3.9, not sure about 3.8? 3.7?      #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    # TODO: deprecated! old python language feature!
+    def visit_Index(self, node):
+        return self._visit(node.value)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # List Comprehension                                                    #

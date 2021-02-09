@@ -43,38 +43,10 @@ from eunomia.values._values import recursive_get_config_value
 #     _dict_recursive_update(left, right, [])
 
 
-import eunomia.config.scheme as s
-
 
 # ========================================================================= #
 # Config Loader                                                             #
 # ========================================================================= #
-
-
-def _get_group_option(group, name):
-    return group[s.KEY_SUBOPTIONS][name]
-
-
-class ConfigLoader(object):
-
-    def __init__(self, storage_backend: Backend):
-        self._backend = storage_backend
-        self._root_config = None
-
-    def load_config(self, config_name, return_merged_options=False):
-        config = self._backend.load_root_group()
-        option = _get_group_option(config, config_name)
-
-    def _visit_group(self, root_config, config):
-
-
-    def transform(self, config: dict):
-        config = s.VerboseGroup.validate(config)
-
-
-    def _visit_node(self, obj):
-        visit_fn = getattr(obj[s.KEY_TYPE], )
-
 
 
 # class ConfigLoader(object):

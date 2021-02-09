@@ -33,14 +33,12 @@ def _rename_fn(name, fn):
 
 # keys - all
 KEY_TYPE = '_type_'
-KEY_NAME = '_name_'
 # keys - options
 KEY_PKG = '_package_'
 KEY_OPTS = '_defaults_'
 KEY_DATA = '_data_'
 # keys - groups
-KEY_SUBGROUPS = '_subgroups_'
-KEY_SUBOPTIONS = '_suboptions_'
+KEY_CHILDREN = '_children_'
 
 # special types
 TYPE_OPTION = 'option'
@@ -60,14 +58,7 @@ DEFAULT_PKG = PKG_GROUP
 # - - - - - - - - - - - - - #
 
 
-ALL_KEYS = {KEY_TYPE, KEY_NAME, KEY_PKG, KEY_OPTS, KEY_DATA, KEY_SUBGROUPS, KEY_SUBOPTIONS}
-ALL_VALS = {TYPE_OPTION, TYPE_GROUP, TYPE_COMPACT_OPTION, TYPE_COMPACT_GROUP, PKG_ROOT, PKG_GROUP}
-
-ALL_GROUP_KEYS = {KEY_TYPE, KEY_NAME, KEY_SUBGROUPS, KEY_SUBOPTIONS}
-ALL_OPTION_KEYS = {KEY_TYPE, KEY_NAME, KEY_PKG, KEY_OPTS, KEY_DATA}
-
-ALL_COMPACT_GROUP_KEYS = {KEY_TYPE}
-ALL_COMPACT_OPTION_KEYS = {KEY_TYPE, KEY_PKG, KEY_OPTS}
+ALL_KEYS = {KEY_TYPE, KEY_PKG, KEY_OPTS, KEY_DATA, KEY_CHILDREN}
 
 
 # ========================================================================= #
@@ -87,11 +78,11 @@ Value._schema = _Or(
 
 Identifier = _Schema(_And(
     str,
-    _rename_fn('is_not_empty', lambda key: bool(key)),
-    _rename_fn('is_identifier', lambda key: str.isidentifier(key)),
-    _rename_fn('is_not_keyword', lambda key: not _keyword.iskeyword(key)),
+    _rename_fn('is_not_empty',       lambda key: bool(key)),
+    _rename_fn('is_identifier',      lambda key: str.isidentifier(key)),
+    _rename_fn('is_not_keyword',     lambda key: not _keyword.iskeyword(key)),
     _rename_fn('is_not_special_key', lambda key: key not in ALL_KEYS),
-    _rename_fn('is_not_reserved', lambda key: not (key.startswith('_') and key.endswith('_'))),
+    _rename_fn('is_not_reserved',    lambda key: not (key.startswith('_') and key.endswith('_'))),
 ), name='identifier')
 
 
@@ -139,24 +130,19 @@ DataValue = _Schema({_Optional(Value): Value}, name='data_value')
 
 VerboseOption = _Schema({}, name='verbose_option')
 VerboseOption.schema.update({
-    KEY_NAME: OptionNameValue,
     _Optional(KEY_TYPE): TYPE_OPTION,
     _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
-    _Optional(KEY_OPTS, default=dict):        OptsValue,
-    _Optional(KEY_DATA, default=dict):        DataValue,
-    # not allowed keys from other groups
-    _Forbidden(_Or(*(ALL_KEYS - ALL_OPTION_KEYS))): object,
+    _Optional(KEY_OPTS, default=dict):       OptsValue,
+    _Optional(KEY_DATA, default=dict):       DataValue,
 })
 
 VerboseGroup = _Schema({}, name='verbose_group')
 VerboseGroup.schema.update({
-    KEY_NAME: GroupNameValue,
     _Optional(KEY_TYPE): TYPE_GROUP,
-    # TODO: convert to children
-    _Optional(KEY_SUBGROUPS, default=list): [VerboseGroup],
-    _Optional(KEY_SUBOPTIONS, default=list): [VerboseOption],
-    # not allowed keys from other groups
-    _Forbidden(_Or(*(ALL_KEYS - ALL_GROUP_KEYS))): object,
+    _Optional(KEY_CHILDREN, default=list): {
+        _Optional(GroupNameValue):  VerboseGroup,
+        _Optional(OptionNameValue): VerboseOption,
+    },
 })
 
 
@@ -170,24 +156,20 @@ VerboseGroup.schema.update({
 # option
 CompactOption = _Schema(None, name='compact_option')
 CompactOption.schema.update({
-    _Optional(KEY_TYPE):                      TYPE_COMPACT_OPTION,
+    _Optional(KEY_TYPE):                     TYPE_COMPACT_OPTION,
     _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
-    _Optional(KEY_OPTS, default=dict):        OptsValue,
+    _Optional(KEY_OPTS, default=dict):       OptsValue,
     # _data_
     _Optional(OptionNameValue): Value,
-    # not allowed keys from other groups
-    _Forbidden(_Or(*(ALL_KEYS - ALL_COMPACT_OPTION_KEYS))): object,
 })
 
 # group
 CompactGroup = _Schema(None, name='compact_group')
 CompactGroup.schema.update({
         _Optional(KEY_TYPE): TYPE_COMPACT_GROUP,
-        # _subgroups_ & _suboptions_
-        _Optional(GroupNameValue): CompactGroup,
+        # children
+        _Optional(GroupNameValue):  CompactGroup,
         _Optional(OptionNameValue): CompactOption,
-        # not allowed keys from other groups
-        _Forbidden(_Or(*(ALL_KEYS - ALL_COMPACT_GROUP_KEYS))): object,
 })
 
 

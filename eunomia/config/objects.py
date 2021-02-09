@@ -1,17 +1,6 @@
 from typing import Dict, Union, List
-from eunomia.backend import BackendDict
+from eunomia.backend import BackendDict, Backend
 import eunomia.config.scheme as s
-
-
-# ========================================================================= #
-# Config Backend                                                            #
-# ========================================================================= #
-
-
-class BackendObj(BackendDict):
-
-    def __init__(self, root_group: 'Group'):
-        super().__init__(root_group.to_dict())
 
 
 # ========================================================================= #
@@ -110,11 +99,13 @@ class _Node(object):
     # Schema                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def to_dict(self):
-        raise NotImplementedError
+    @classmethod
+    def from_dict(cls, map: dict, validated=False): raise NotImplementedError
+    @classmethod
+    def from_compact_dict(cls, map: dict, validated=False): raise NotImplementedError
 
-    def to_compact_dict(self):
-        raise NotImplementedError
+    def to_dict(self, validate=True): raise NotImplementedError
+    def to_compact_dict(self, validate=True): raise NotImplementedError
 
     def is_valid_dict(self):
         try:
@@ -238,21 +229,53 @@ class Group(_Node):
     # Schema                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def to_dict(self):
-        return s.VerboseGroup({
-            s.KEY_NAME: self.key,
-            s.KEY_SUBGROUPS: [g.to_dict() for g in self.groups.values()],
-            s.KEY_SUBOPTIONS: [o.to_dict() for o in self.options.values()],
-        })
+    @classmethod
+    def from_dict(cls, raw_group: dict, validated=False):
+        if not validated:
+            raw_group = s.VerboseGroup.validate(raw_group)
+        group = Group()
+        for key, child in raw_group[s.KEY_CHILDREN].items():
+            if child[s.KEY_TYPE] == s.TYPE_GROUP:
+                group.add_subgroup(key, Group.from_dict(child, validated=True))
+            elif child[s.KEY_TYPE] == s.TYPE_OPTION:
+                group.add_option(key, Option.from_dict(child, validated=True))
+            else:
+                raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
+        return group
 
-    def to_compact_dict(self):
+    @classmethod
+    def from_compact_dict(cls, raw_group: dict, validated=False):
+        if not validated:
+            raw_group = s.VerboseGroup.validate(raw_group)
+        group = Group()
+        for key, child in raw_group.items():
+            if key in s.ALL_KEYS:
+                continue
+            elif child[s.KEY_TYPE] == s.TYPE_COMPACT_GROUP:
+                group.add_subgroup(key, Group.from_compact_dict(child, validated=True))
+            elif child[s.KEY_TYPE] == s.TYPE_COMPACT_GROUP:
+                group.add_option(key, Option.from_compact_dict(child, validated=True))
+            else:
+                raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
+        return group
+
+    def to_dict(self, validate=True):
+        group = {
+            s.KEY_TYPE: s.TYPE_GROUP,
+            s.KEY_CHILDREN: {k: self[k].to_dict(validate=False) for k in self}
+        }
+        return s.VerboseGroup(group) if validate else group
+
+    def to_compact_dict(self, validate=True):
         for k in self._children.keys():
             if k in s.ALL_KEYS:
                 raise ValueError(f'key is forbidden in data: {k}')
-        return s.CompactGroup({
-            **{k: g.to_compact_dict() for k, g in self.groups.items()},
-            **{k: o.to_compact_dict() for k, o in self.options.items()},
-        })
+        group = {
+            s.KEY_TYPE: s.TYPE_COMPACT_GROUP,
+            **{k: g.to_compact_dict(validate=False) for k, g in self.groups.items()},
+            **{k: o.to_compact_dict(validate=False) for k, o in self.options.items()},
+        }
+        return s.CompactGroup(group) if validate else group
 
 
 # ========================================================================= #
@@ -312,41 +335,46 @@ class Option(_Node):
     # schema                                                                #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    @staticmethod
-    def from_dict(option):
-        option = s.VerboseOption.validate(option)
+    @classmethod
+    def from_dict(cls, option, validated=False):
+        if not validated:
+            option = s.VerboseOption.validate(option)
         return Option(
             pkg=option[s.KEY_PKG],
             opts=option[s.KEY_OPTS],
             data=option[s.KEY_DATA],
         )
 
-    @staticmethod
-    def from_compact_dict(option):
-        option = s.VerboseOption.validate(option)
+    @classmethod
+    def from_compact_dict(cls, option, validated=False):
+        if not validated:
+            option = s.CompactOption.validate(option)
         return Option(
             pkg=option.pop(s.KEY_PKG),
             opts=option.pop(s.KEY_OPTS),
             data=option,
         )
 
-    def to_dict(self):
-        return s.VerboseOption.validate({
-            s.KEY_NAME: self.key,
+    def to_dict(self, validate=True):
+        option = {
+            s.KEY_TYPE: s.TYPE_OPTION,
             s.KEY_PKG: self._pkg,
             s.KEY_OPTS: self._opts,
             s.KEY_DATA: self._data,
-        })
+        }
+        return s.VerboseOption(option) if validate else option
 
-    def to_compact_dict(self):
+    def to_compact_dict(self, validate=True):
         for k in self._data.keys():
             if k in s.ALL_KEYS:
                 raise ValueError(f'key is forbidden in data: {k}')
-        return s.CompactOption.validate({
+        option = {
+            s.KEY_TYPE: s.TYPE_COMPACT_OPTION,
             s.KEY_PKG: self._pkg,
             s.KEY_OPTS: self._opts,
             **self._data
-        })
+        }
+        return s.CompactOption(option) if validate else option
 
 # ========================================================================= #
 # End                                                                       #

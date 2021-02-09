@@ -1,11 +1,6 @@
-from functools import wraps
-import pathlib
-from typing import Union
-
-from eunomia.config import ConfigGroup
 from eunomia.config.loader import ConfigLoader
-from eunomia.backend import Backend, BackendConfigGroup, BackendYaml, BackendDict
-
+from eunomia.backend import Backend, BackendObj, BackendYaml, BackendDict
+from eunomia.backend import ValidConfigTypes as _ValidConfigTypes, get_backend as _get_backend
 
 # ========================================================================= #
 # Variables                                                                 #
@@ -17,20 +12,19 @@ from eunomia.backend import Backend, BackendConfigGroup, BackendYaml, BackendDic
 DEFAULT_CONFIG = 'configs'
 DEFAULT_ENTRYPOINT = 'default'
 
-ValidConfigTypes = Union[str, dict, ConfigGroup]
-
 
 # ========================================================================= #
 # Decorators                                                                #
 # ========================================================================= #
 
 
-def eunomia(config: ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia(config: _ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     """
     The main eunomia decorator.
     Automatically detects which backend to use based on the first argument.
     """
     def wrapper(func):
+        from functools import wraps
         @wraps(func)
         def runner():
             return eunomia_runner(func=func, config=config, entrypoint=entrypoint)
@@ -44,6 +38,7 @@ def eunomia_adv(backend: Backend, entrypoint=DEFAULT_ENTRYPOINT):
     Use this decorator if you want to instantiate the backend manually.
     """
     def wrapper(func):
+        from functools import wraps
         @wraps(func)
         def runner():
             return eunomia_runner_adv(func=func, backend=backend, entrypoint=entrypoint)
@@ -51,13 +46,13 @@ def eunomia_adv(backend: Backend, entrypoint=DEFAULT_ENTRYPOINT):
     return wrapper
 
 
-def eunomia_runner(func: callable, config: ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia_runner(func: callable, config: _ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     """
     The non-decorator equivalent to @eunomia(...)
     """
     return eunomia_runner_adv(
         func=func,
-        backend=_eunomia_get_backend(config),
+        backend=_get_backend(config),
         entrypoint=entrypoint
     )
 
@@ -76,9 +71,9 @@ def eunomia_runner_adv(func: callable, backend: Backend, entrypoint=DEFAULT_ENTR
 # ========================================================================= #
 
 
-def eunomia_load(config: ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
+def eunomia_load(config: _ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     return eunomia_load_adv(
-        backend=_eunomia_get_backend(config),
+        backend=_get_backend(config),
         entrypoint=entrypoint
     )
 
@@ -86,27 +81,6 @@ def eunomia_load(config: ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_E
 def eunomia_load_adv(backend: Backend, entrypoint=DEFAULT_ENTRYPOINT):
     loader = ConfigLoader(backend)
     return loader.load_config(entrypoint)
-
-
-# ========================================================================= #
-# Util                                                                      #
-# ========================================================================= #
-
-
-def _eunomia_get_backend(config: ValidConfigTypes = DEFAULT_CONFIG):
-    if isinstance(config, (str, pathlib.Path)):
-        # we assume the config is a path to the root folder for a YAML backend
-        if isinstance(config, pathlib.Path):
-            config = str(config.absolute())
-        return BackendYaml(root_folder=config)
-    elif isinstance(config, dict):
-        # we assume that the config is a dictionary
-        return BackendDict(root_dict=config)
-    elif isinstance(config, ConfigGroup):
-        # we assume that the config is a ConfigGroup with ConfigOptions
-        return BackendConfigGroup(root_group=config)
-    else:
-        raise TypeError(f'Unsupported config_root type: {config.__class__.__name__}')
 
 
 # ========================================================================= #

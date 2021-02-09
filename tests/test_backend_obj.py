@@ -1,6 +1,6 @@
 import pytest
 from eunomia import eunomia_load
-from eunomia.config import ConfigGroup, ConfigOption
+from eunomia.config import Group, Option
 
 
 # ========================================================================= #
@@ -9,17 +9,17 @@ from eunomia.config import ConfigGroup, ConfigOption
 from eunomia.values import InterpolateValue, EvalValue
 
 
-def _make_config_group(suboption='suboption1', suboption2=None, package1='_group_', package2='_group_') -> ConfigGroup:
-    return ConfigGroup({
-        'subgroup': ConfigGroup({
-            'suboption1': ConfigOption({'_package_': package1, 'bar': 1}),
-            'suboption2': ConfigOption({'_package_': package1, 'bar': 2}),
+def _make_config_group(suboption='suboption1', suboption2=None, package1='_group_', package2='_group_') -> Group:
+    return Group({
+        'subgroup': Group({
+            'suboption1': Option({'_package_': package1, 'bar': 1}),
+            'suboption2': Option({'_package_': package1, 'bar': 2}),
         }),
-        'subgroup2': ConfigGroup({
-            'sub2option1': ConfigOption({'_package_': package2, 'baz': 1}),
-            'sub2option2': ConfigOption({'_package_': package2, 'baz': 2}),
+        'subgroup2': Group({
+            'sub2option1': Option({'_package_': package2, 'baz': 1}),
+            'sub2option2': Option({'_package_': package2, 'baz': 2}),
         }),
-        'default': ConfigOption({
+        'default': Option({
             '_options_': {
                 **({'subgroup': suboption} if suboption else {}),
                 **({'subgroup2': suboption2} if suboption2 else {}),

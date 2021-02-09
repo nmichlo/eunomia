@@ -3,7 +3,7 @@ import os
 import ruamel.yaml as yaml
 
 from eunomia.backend._backend import Backend
-from eunomia.backend._backend_objects import Group, Option
+from eunomia.config.objects import Group, Option
 from eunomia.values import IgnoreValue, RefValue, EvalValue, InterpolateValue
 
 
@@ -59,7 +59,7 @@ class BackendYaml(Backend):
         # sort paths by length, then alphabetically
         return sorted(paths, key=lambda p: (len(p[1]), *p[1]))
 
-    def _load_root_group(self):
+    def _load_root_group(self) -> Group:
         root = Group()
         for path, (*subgroups, option_name) in self._get_sorted_paths():
             # add subgroups
@@ -68,7 +68,7 @@ class BackendYaml(Backend):
             data = yaml_load_file(path)
             group.add_option(option_name, Option.from_compact_dict(data))
         # done!
-        return root.to_dict()
+        return root
 
 
 

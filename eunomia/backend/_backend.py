@@ -1,4 +1,5 @@
-from eunomia.config import ConfigGroup
+from schema import SchemaError
+from eunomia.config.scheme import VerboseGroup
 
 
 # ========================================================================= #
@@ -8,31 +9,15 @@ from eunomia.config import ConfigGroup
 
 class Backend(object):
 
-    def load_root_group(self) -> ConfigGroup:
+    def load_root_group(self):
+        root = self._load_root_group()
+        try:
+            return VerboseGroup.validate(root)
+        except SchemaError as e:
+            raise ValueError(f'Loaded schema is invalid for backend: {self.__class__.__name__}.\n{e}')
+
+    def _load_root_group(self):
         raise NotImplementedError
-
-
-# ========================================================================= #
-# Internal Backend                                                          #
-# ========================================================================= #
-
-
-class BackendConfigGroup(Backend):
-    """
-    The most basic backend is the ConfigObject data structures
-    used by the core config loader.
-
-    The backend passes through the values as they
-    are without any modifications.
-    """
-
-    def __init__(self, root_group: ConfigGroup):
-        if not isinstance(root_group, ConfigGroup):
-            raise TypeError(f'{root_group} must be an instance of {ConfigGroup.__name__}')
-        self._root_group = root_group
-
-    def load_root_group(self) -> ConfigGroup:
-        return self._root_group
 
 
 # ========================================================================= #

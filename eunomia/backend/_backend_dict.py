@@ -7,8 +7,8 @@ are without any modifications.
 """
 
 
-from eunomia.config import ConfigGroup
 from eunomia.backend._backend import Backend
+import eunomia.config.scheme as s
 
 
 # ========================================================================= #
@@ -17,17 +17,45 @@ from eunomia.backend._backend import Backend
 
 
 class BackendDict(Backend):
+    """
+    The most basic backend!
+    Just passes through the raw dictionary.
+    """
 
     def __init__(self, root_dict: dict):
         # check the root folder
         if not isinstance(root_dict, dict):
             raise TypeError(f'root_dict must be a dict')
-        self._root_dict = root_dict        # loading modes
+        # try validate everything, we don't use the result but want the errors now
+        s.VerboseGroup.validate(root_dict)
+        self._root_dict = root_dict
 
-    def load_root_group(self) -> ConfigGroup:
-        # use _group_ tag to differentiate
-        # between groups and options
-        raise NotImplementedError('TODO: implement me')
+    def _load_root_group(self):
+        return self._root_dict
+
+
+# ========================================================================= #
+# Compact Dictionary Backend                                                #
+# ========================================================================= #
+
+
+class BackendCompactDict(Backend):
+    """
+    The most basic backend!
+    Just passes through the raw dictionary.
+    """
+
+    def __init__(self, root_dict: dict):
+        # check the root folder
+        if not isinstance(root_dict, dict):
+            raise TypeError(f'root_dict must be a dict')
+        # try validate everything, we don't use the result but want the errors now
+        s.CompactGroup.validate(root_dict)
+        self._root_dict = root_dict
+
+    def _load_root_group(self):
+        # TODO: convert from VerboseGroup to CompactGroup
+        raise NotImplementedError('TODO: convert from VerboseGroup to CompactGroup')
 
 
 # ========================================================================= #

@@ -1,6 +1,5 @@
 from typing import Dict, Union, List
-from eunomia.backend import BackendDict, Backend
-import eunomia.config.scheme as s
+from eunomia.config import scheme as s
 
 
 # ========================================================================= #
@@ -159,11 +158,11 @@ class Group(_Node):
 
     @property
     def groups(self) -> Dict[str, 'Group']:
-        return {k: v for k, v in self._children if isinstance(v, Group)}
+        return {k: v for k, v in self._children.items() if isinstance(v, Group)}
 
     @property
     def options(self) -> Dict[str, 'Option']:
-        return {k: v for k, v in self._children if isinstance(v, Option)}
+        return {k: v for k, v in self._children.items() if isinstance(v, Option)}
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Groups & Options                                                      #
@@ -246,14 +245,14 @@ class Group(_Node):
     @classmethod
     def from_compact_dict(cls, raw_group: dict, validated=False):
         if not validated:
-            raw_group = s.VerboseGroup.validate(raw_group)
+            raw_group = s.CompactGroup.validate(raw_group)
         group = Group()
         for key, child in raw_group.items():
             if key in s.ALL_KEYS:
                 continue
             elif child[s.KEY_TYPE] == s.TYPE_COMPACT_GROUP:
                 group.add_subgroup(key, Group.from_compact_dict(child, validated=True))
-            elif child[s.KEY_TYPE] == s.TYPE_COMPACT_GROUP:
+            elif child[s.KEY_TYPE] == s.TYPE_COMPACT_OPTION:
                 group.add_option(key, Option.from_compact_dict(child, validated=True))
             else:
                 raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
@@ -264,7 +263,7 @@ class Group(_Node):
             s.KEY_TYPE: s.TYPE_GROUP,
             s.KEY_CHILDREN: {k: self[k].to_dict(validate=False) for k in self}
         }
-        return s.VerboseGroup(group) if validate else group
+        return s.VerboseGroup.validate(group) if validate else group
 
     def to_compact_dict(self, validate=True):
         for k in self._children.keys():
@@ -275,7 +274,7 @@ class Group(_Node):
             **{k: g.to_compact_dict(validate=False) for k, g in self.groups.items()},
             **{k: o.to_compact_dict(validate=False) for k, o in self.options.items()},
         }
-        return s.CompactGroup(group) if validate else group
+        return s.CompactGroup.validate(group) if validate else group
 
 
 # ========================================================================= #
@@ -310,6 +309,22 @@ class Option(_Node):
     @property
     def group_path(self) -> List[str]:
         return self.group.path
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # getters - data                                                        #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def options(self):
+        return self._opts
+
+    @property
+    def package(self):
+        return self._pkg
+
+    @property
+    def data(self):
+        return self._data
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Children - disabled for the option node                               #
@@ -349,11 +364,12 @@ class Option(_Node):
     def from_compact_dict(cls, option, validated=False):
         if not validated:
             option = s.CompactOption.validate(option)
-        return Option(
-            pkg=option.pop(s.KEY_PKG),
-            opts=option.pop(s.KEY_OPTS),
-            data=option,
-        )
+        pkg = option.pop(s.KEY_PKG)
+        opts = option.pop(s.KEY_OPTS)
+        type = option.pop(s.KEY_TYPE)
+        if any(k in s.ALL_KEYS for k in option.keys()):
+            raise KeyError('This should not happen!')
+        return Option(pkg=pkg, opts=opts, data=option)
 
     def to_dict(self, validate=True):
         option = {
@@ -362,7 +378,7 @@ class Option(_Node):
             s.KEY_OPTS: self._opts,
             s.KEY_DATA: self._data,
         }
-        return s.VerboseOption(option) if validate else option
+        return s.VerboseOption.validate(option) if validate else option
 
     def to_compact_dict(self, validate=True):
         for k in self._data.keys():
@@ -374,7 +390,7 @@ class Option(_Node):
             s.KEY_OPTS: self._opts,
             **self._data
         }
-        return s.CompactOption(option) if validate else option
+        return s.CompactOption.validate(option) if validate else option
 
 # ========================================================================= #
 # End                                                                       #

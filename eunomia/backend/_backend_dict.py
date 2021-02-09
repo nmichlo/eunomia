@@ -1,5 +1,5 @@
-from eunomia.backend._backend import Backend
-from eunomia.config.objects import Group
+from eunomia.backend import Backend
+from eunomia.config import Group
 
 
 # ========================================================================= #

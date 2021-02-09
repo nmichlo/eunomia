@@ -2,7 +2,6 @@ from typing import Any, Union, List, Tuple
 import lark
 
 from eunomia._util_traverse import PyTransformer
-from eunomia.config.keys import PkgPath, RefPath
 from eunomia.values._util_interpret import interpret_expr
 from eunomia.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
 

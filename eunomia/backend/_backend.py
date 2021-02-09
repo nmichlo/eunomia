@@ -1,6 +1,5 @@
 from schema import SchemaError
-from eunomia.config.objects import Group
-from eunomia.config.scheme import VerboseGroup
+from eunomia.config import Group
 
 
 # ========================================================================= #

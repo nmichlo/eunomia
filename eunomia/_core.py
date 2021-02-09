@@ -1,6 +1,6 @@
-from eunomia.config.loader import ConfigLoader
+from eunomia.config import ConfigLoader
 from eunomia.backend import Backend, BackendObj, BackendYaml, BackendDict
-from eunomia.backend import ValidConfigTypes as _ValidConfigTypes, get_backend as _get_backend
+from eunomia.backend import ValidConfigTypes as _ValidConfigTypes, make_backend as _make_backend
 
 # ========================================================================= #
 # Variables                                                                 #
@@ -52,7 +52,7 @@ def eunomia_runner(func: callable, config: _ValidConfigTypes = DEFAULT_CONFIG, e
     """
     return eunomia_runner_adv(
         func=func,
-        backend=_get_backend(config),
+        backend=_make_backend(config),
         entrypoint=entrypoint
     )
 
@@ -73,7 +73,7 @@ def eunomia_runner_adv(func: callable, backend: Backend, entrypoint=DEFAULT_ENTR
 
 def eunomia_load(config: _ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT):
     return eunomia_load_adv(
-        backend=_get_backend(config),
+        backend=_make_backend(config),
         entrypoint=entrypoint
     )
 

@@ -1,7 +1,6 @@
 import keyword as _keyword
 from schema import Schema as _Schema
 from schema import Optional as _Optional
-from schema import Forbidden as _Forbidden
 from schema import And as _And
 from schema import Or as _Or
 from schema import Use as _Use
@@ -114,8 +113,7 @@ GroupPath = _Schema((
 # ========================================================================= #
 
 
-GroupNameValue  = _Schema(Identifier, name='group_name_value')
-OptionNameValue = _Schema(Identifier, name='group_name_value')
+NameValue  = _Schema(Identifier, name='name_value')
 
 PkgValue  = _Schema(_Or(PKG_ROOT, PKG_GROUP, PkgPath), name='pkg_value')
 OptsValue = _Schema({_Optional(GroupPath): Identifier}, name='opts_value')
@@ -140,8 +138,7 @@ VerboseGroup = _Schema({}, name='verbose_group')
 VerboseGroup.schema.update({
     _Optional(KEY_TYPE): TYPE_GROUP,
     _Optional(KEY_CHILDREN, default=list): {
-        _Optional(GroupNameValue):  VerboseGroup,
-        _Optional(OptionNameValue): VerboseOption,
+        _Optional(NameValue): _Or(VerboseOption, VerboseGroup),
     },
 })
 
@@ -154,22 +151,21 @@ VerboseGroup.schema.update({
 
 
 # option
-CompactOption = _Schema(None, name='compact_option')
+CompactOption = _Schema({}, name='compact_option')
 CompactOption.schema.update({
     _Optional(KEY_TYPE):                     TYPE_COMPACT_OPTION,
     _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
     _Optional(KEY_OPTS, default=dict):       OptsValue,
     # _data_
-    _Optional(OptionNameValue): Value,
+    _Optional(NameValue): Value,
 })
 
 # group
-CompactGroup = _Schema(None, name='compact_group')
+CompactGroup = _Schema({}, name='compact_group')
 CompactGroup.schema.update({
         _Optional(KEY_TYPE): TYPE_COMPACT_GROUP,
         # children
-        _Optional(GroupNameValue):  CompactGroup,
-        _Optional(OptionNameValue): CompactOption,
+        _Optional(NameValue): _Or(CompactOption, CompactGroup),
 })
 
 

@@ -2,8 +2,8 @@ from glob import glob
 import os
 import ruamel.yaml as yaml
 
-from eunomia.backend._backend import Backend
-from eunomia.config.objects import Group, Option
+from eunomia.backend import Backend
+from eunomia.config import Group, Option
 from eunomia.values import IgnoreValue, RefValue, EvalValue, InterpolateValue
 
 

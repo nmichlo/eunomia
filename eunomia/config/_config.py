@@ -158,7 +158,9 @@ class Group(_ConfigObject):
 
     @property
     def root(self) -> 'Group':
-        return super().root
+        g = super().root
+        assert isinstance(g, Group)
+        return g
 
     @property
     def groups(self) -> Dict[str, 'Group']:
@@ -202,12 +204,27 @@ class Group(_ConfigObject):
     # def new_option(self, key: str) -> 'Option':
     #     return self.add_option(key, Option())
 
+    def has_suboption(self, key):
+        if not self.has_child(key):
+            return False
+        if not isinstance(self.get_child(key), Option):
+            return False
+        return True
+
+    def has_subgroup(self, key):
+        if not self.has_child(key):
+            return False
+        if not isinstance(self.get_child(key), Group):
+            return False
+        return True
+
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def get_subgroups_recursive(self, keys: List[str], make_missing=False) -> 'Group':
-        def _recurse(group, old_keys):
+        def _recurse(group: Group, old_keys):
             if not old_keys:
                 return group
             key, keys = old_keys[0], old_keys[1:]
@@ -311,7 +328,7 @@ class Option(_ConfigObject):
             if isinstance(key, str):
                 return key
             elif isinstance(key, ConfigNode):
-                raise TypeError('keys in configs cannot be config nodes')
+                raise TypeError(f'keys in configs cannot be config nodes: {key}')
             return super()._transform_dict_key(key)
 
     def get_unresolved_options(self):

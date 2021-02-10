@@ -162,8 +162,8 @@ class ConfigLoader(object):
         if isinstance(value, ConfigNode):
             value = value.get_config_value(self._merged_config, self._merged_options, {})
         if isinstance(value, dict):
-            if s.KEY_NODE in value:
-                raise RuntimeError(f'{s.KEY_NODE} is not yet supported!')
+            if s.MARKER_KEY_NODE in value:
+                raise RuntimeError(f'{s.MARKER_KEY_NODE} is not yet supported!')
         return value
 
     def _resolve_package(self, option) -> Tuple[str]:

@@ -1,0 +1,3 @@
+# ./configs/dataset/shapes3d.yaml
+_target_: 'Shapes3D'
+folder: './data/shapes3d'

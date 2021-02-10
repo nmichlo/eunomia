@@ -1,4 +1,4 @@
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Tuple
 from eunomia.config import scheme as s
 
 
@@ -35,8 +35,8 @@ class _Node(object):
         return self._key
 
     @property
-    def path(self) -> List[str]:
-        return [n.key for n in self._walk_from_root(visit_root=False)]
+    def keys(self) -> Tuple[str]:
+        return tuple(n.key for n in self._walk_from_root(visit_root=False))
 
     @property
     def root(self) -> '_Node':
@@ -157,6 +157,10 @@ class Group(_Node):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
+    def root(self) -> 'Group':
+        return super().root
+
+    @property
     def groups(self) -> Dict[str, 'Group']:
         return {k: v for k, v in self._children.items() if isinstance(v, Group)}
 
@@ -197,6 +201,17 @@ class Group(_Node):
     # modify it after it is initialised
     # def new_option(self, key: str) -> 'Option':
     #     return self.add_option(key, Option())
+
+    def get_subgroups_recursive(self, keys: List[str], make_missing=False) -> 'Group':
+        def _recurse(group, old_keys):
+            if not old_keys:
+                return group
+            key, keys = old_keys[0], old_keys[1:]
+            if make_missing:
+                if not group.has_subgroup(key):
+                    return _recurse(group.new_subgroup(key), keys)
+            return _recurse(group.get_subgroup(key), keys)
+        return _recurse(self, keys)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Walk                                                                  #
@@ -294,10 +309,17 @@ class Option(_Node):
         self._data = data if data is not None else {}
         self._pkg = pkg if pkg is not None else s.DEFAULT_PKG
         self._opts = opts if opts is not None else {}
+        assert isinstance(self._pkg, str), f'{s.KEY_PKG} is not a string'
+        assert isinstance(self._data, dict), f'{s.KEY_DATA} is not a dictionary'
+        assert isinstance(self._opts, dict), f'{s.KEY_OPTS} is not a dicitonary'
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    @property
+    def root(self) -> 'Group':
+        return super().root
 
     @property
     def group(self) -> Group:
@@ -307,8 +329,8 @@ class Option(_Node):
         return g
 
     @property
-    def group_path(self) -> List[str]:
-        return self.group.path
+    def group_keys(self) -> Tuple[str]:
+        return self.group.keys
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters - data                                                        #
@@ -319,7 +341,7 @@ class Option(_Node):
         return self._opts
 
     @property
-    def package(self):
+    def package(self) -> str:
         return self._pkg
 
     @property

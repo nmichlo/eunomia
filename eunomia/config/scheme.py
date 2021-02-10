@@ -4,6 +4,8 @@ from schema import Optional as _Optional
 from schema import And as _And
 from schema import Or as _Or
 from schema import Use as _Use
+from schema import Const as _Const
+from schema import Regex as _Regex
 
 
 # ========================================================================= #
@@ -11,7 +13,7 @@ from schema import Use as _Use
 # ========================================================================= #
 
 
-def _rename_fn(name, fn):
+def _rename_fn(name, fn, debug=False):
     """
     Wraps a function in an instance of a class with __call__ defined.
     The new class has its __repr__ set to the passed name.
@@ -22,7 +24,18 @@ def _rename_fn(name, fn):
             return fn(*args, **kwargs)
         def __repr__(self):
             return f'{name}'
+    if debug:
+        return _debug_fn(wrap())
     return wrap()
+
+
+def _debug_fn(fn):
+    def wrap(*args, **kwargs):
+        print(f'{repr(fn)} called with: args={args}, kwargs={kwargs}')
+        result = fn(*args, **kwargs)
+        print(f'- result: {result}')
+        return result
+    return wrap
 
 
 # ========================================================================= #
@@ -38,6 +51,12 @@ KEY_OPTS = '_defaults_'
 KEY_DATA = '_data_'
 # keys - groups
 KEY_CHILDREN = '_children_'
+# keys - values
+KEY_NODE   = '_node_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+KEY_TARGET = '_target_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+KEY_ARGS   = '_args_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+KEY_KWARGS = '_kwargs_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+KEY_VALUE  = '_value_'   # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 
 # special types
 TYPE_OPTION = 'option'
@@ -49,6 +68,9 @@ TYPE_COMPACT_GROUP  = 'compact_group'
 PKG_ROOT = '<root>'
 PKG_GROUP = '<group>'
 
+# special options
+OPT_SELF = '<self>'
+
 # defaults
 DEFAULT_PKG = PKG_GROUP
 
@@ -57,7 +79,11 @@ DEFAULT_PKG = PKG_GROUP
 # - - - - - - - - - - - - - #
 
 
-ALL_KEYS = {KEY_TYPE, KEY_PKG, KEY_OPTS, KEY_DATA, KEY_CHILDREN}
+ALL_KEYS = {
+    KEY_TYPE, KEY_PKG, KEY_OPTS, KEY_DATA, KEY_CHILDREN,
+    # TODO: THESE ARE NOT IMPLEMENTED, JUST RESERVED
+    KEY_NODE, KEY_TARGET, KEY_ARGS, KEY_KWARGS, KEY_VALUE
+}
 
 
 # ========================================================================= #
@@ -84,27 +110,45 @@ Identifier = _Schema(_And(
     _rename_fn('is_not_reserved',    lambda key: not (key.startswith('_') and key.endswith('_'))),
 ), name='identifier')
 
+IdentifierList = _Schema([Identifier], name='identifier_list')
 
-def _make_path_list_schema(name, sep):
-    return _Schema(_And(
-        _Or(
-            [str],
-            _And(str, _Use(_rename_fn('can_split_pkg_path', lambda s: str.split(s, sep))))
-        ),
-        _Schema([Identifier])
-    ), name=name)
+
+def _split_path(path: str, sep: str):
+    # check and remove prefix
+    is_prefixed = False
+    if path.startswith(sep):
+        is_prefixed, path = True, path[len(sep):]
+    # split path
+    if path:
+        split = str.split(path, sep)
+    else:
+        split = []
+    # check identifiers
+    return IdentifierList.validate(split), is_prefixed
+
+
+def split_pkg_path(path: str):
+    if path in {PKG_GROUP, PKG_ROOT}:
+        raise RuntimeError('special package keys should be handled separately')
+    keys, is_relative = _split_path(path, '.')
+    return keys, is_relative
+
+
+def split_group_path(path: str):
+    keys, is_not_relative = _split_path(path, '/')
+    return keys, not is_not_relative
 
 
 PkgPath = _Schema(_Or(
     PKG_ROOT,
     PKG_GROUP,
     # sequentially convert and validate as a list of identifiers
-    _make_path_list_schema('package_conv_path', sep='.')
+    _And(str, _Const(split_pkg_path))
 ), name='package_path')
 
 GroupPath = _Schema((
     # sequentially convert and validate as a list of identifiers
-    _make_path_list_schema('group_conv_path', sep='/')
+    _And(str, _Const(split_group_path))
 ), name='group_path')
 
 
@@ -113,11 +157,14 @@ GroupPath = _Schema((
 # ========================================================================= #
 
 
-NameValue  = _Schema(Identifier, name='name_value')
+NameKey  = _Schema(Identifier, name='name_key')
 
-PkgValue  = _Schema(_Or(PKG_ROOT, PKG_GROUP, PkgPath), name='pkg_value')
-OptsValue = _Schema({_Optional(GroupPath): Identifier}, name='opts_value')
-DataValue = _Schema({_Optional(Value): Value}, name='data_value')
+PkgValue  = _Schema(_Or(PKG_ROOT, PKG_GROUP, PkgPath), name=KEY_PKG)
+DataValue = _Schema({_Optional(Value): Value}, name=KEY_DATA)
+OptsValue = _Schema({
+    _Optional(OPT_SELF, default=None): None,
+    _Optional(GroupPath): Identifier
+}, name=KEY_OPTS)
 
 
 # ========================================================================= #
@@ -138,7 +185,7 @@ VerboseGroup = _Schema({}, name='verbose_group')
 VerboseGroup.schema.update({
     _Optional(KEY_TYPE): TYPE_GROUP,
     _Optional(KEY_CHILDREN, default=list): {
-        _Optional(NameValue): _Or(VerboseOption, VerboseGroup),
+        _Optional(NameKey): _Or(VerboseOption, VerboseGroup),
     },
 })
 
@@ -153,11 +200,11 @@ VerboseGroup.schema.update({
 # option
 CompactOption = _Schema({}, name='compact_option')
 CompactOption.schema.update({
-    _Optional(KEY_TYPE):                     TYPE_COMPACT_OPTION,
+    _Optional(KEY_TYPE): TYPE_COMPACT_OPTION,
     _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
     _Optional(KEY_OPTS, default=dict):       OptsValue,
     # _data_
-    _Optional(NameValue): Value,
+    _Optional(NameKey): Value,
 })
 
 # group
@@ -165,7 +212,7 @@ CompactGroup = _Schema({}, name='compact_group')
 CompactGroup.schema.update({
         _Optional(KEY_TYPE): TYPE_COMPACT_GROUP,
         # children
-        _Optional(NameValue): _Or(CompactOption, CompactGroup),
+        _Optional(NameKey): _Or(CompactOption, CompactGroup),
 })
 
 

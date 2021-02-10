@@ -1,5 +1,5 @@
 import pytest
-from eunomia.backend._util_yaml import yaml_load
+from eunomia.backend._backend_yaml import yaml_load
 from eunomia.values import InterpolateValue, IgnoreValue
 
 

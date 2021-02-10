@@ -1,8 +1,6 @@
 import pytest
-from schema import SchemaUnexpectedTypeError, SchemaError
-
-from eunomia.config._schema import VerboseGroup, VerboseOption, CompactGroup, CompactOption, Identifier, PkgPath, \
-    GroupPath
+from schema import SchemaError
+from eunomia.config import scheme as s
 
 
 # ========================================================================= #
@@ -13,8 +11,7 @@ from eunomia.config._schema import VerboseGroup, VerboseOption, CompactGroup, Co
 def _do_identifier_tests(schema, prefix=''):
     # check simple valid
     schema.validate(prefix + 'valid_id')
-    with pytest.raises(SchemaError, match="is_not_empty"):          schema.validate(prefix + '')
-    with pytest.raises(SchemaError, match="is_not_special_key"):    schema.validate(prefix + '_name_')
+    with pytest.raises(SchemaError, match="is_not_special_key"):    schema.validate(prefix + '_type_')
     with pytest.raises(SchemaError, match="is_not_reserved"):       schema.validate(prefix + '_invalid_id_')
     with pytest.raises(SchemaError, match="is_identifier"):         schema.validate(prefix + '1234')
     with pytest.raises(SchemaError, match="is_not_keyword"):        schema.validate(prefix + 'with')
@@ -22,58 +19,86 @@ def _do_identifier_tests(schema, prefix=''):
 
 
 def test_identifier():
-    _do_identifier_tests(Identifier)
+    _do_identifier_tests(s.Identifier)
 
 
 def test_pkg_path():
+    # check - absolute
+    assert s.PkgPath.validate('') == ''
+    assert s.PkgPath.validate('valid1') == 'valid1'
+    assert s.PkgPath.validate('valid1.valid2') == 'valid1.valid2'
+    with pytest.raises(SchemaError): s.PkgPath.validate('valid1.')
+    # check - relative
+    assert s.PkgPath.validate('.') == '.'
+    assert s.PkgPath.validate('.valid1') == '.valid1'
+    assert s.PkgPath.validate('.valid1.valid2') == '.valid1.valid2'
+    with pytest.raises(SchemaError): s.PkgPath.validate('.valid1.')
+
+    # check splits - absolute
+    assert s.split_pkg_path('') == ([], False)
+    assert s.split_pkg_path('valid1') == (['valid1'], False)
+    assert s.split_pkg_path('valid1.valid2') == (['valid1', 'valid2'], False)
+    with pytest.raises(SchemaError): s.split_pkg_path('valid1.')
+    # check splits - relative
+    assert s.split_pkg_path('.') == ([], True)
+    assert s.split_pkg_path('.valid1') == (['valid1'], True)
+    assert s.split_pkg_path('.valid1.valid2') == (['valid1', 'valid2'], True)
+    with pytest.raises(SchemaError): s.split_pkg_path('.valid1.')
+
     # check identifiers, should be same as above
-    _do_identifier_tests(PkgPath)
-    _do_identifier_tests(PkgPath, prefix='valid1.')
-    with pytest.raises(SchemaError, match='is_not_reserved'): _do_identifier_tests(PkgPath, prefix='_invalid1_.')
-    with pytest.raises(SchemaError, match='is_not_empty'): _do_identifier_tests(PkgPath, prefix='.')
-    # check strings
-    assert PkgPath.validate('valid1') == ['valid1']
-    assert PkgPath.validate('valid1.valid2') == ['valid1', 'valid2']
-    assert PkgPath.validate('valid1.valid2.valid3') == ['valid1', 'valid2', 'valid3']
-    # check empty
-    with pytest.raises(SchemaError, match="is_not_empty"): PkgPath.validate('')
-    # check special keys
-    PkgPath.validate('<root>')
-    PkgPath.validate('<group>')
+    _do_identifier_tests(s.PkgPath)
+    _do_identifier_tests(s.PkgPath, prefix='valid1.')
+    with pytest.raises(SchemaError, match='is_not_reserved'):
+        _do_identifier_tests(s.PkgPath, prefix='_invalid1_.')
+
     # check group...
     with pytest.raises(SchemaError, match='is_identifier'):
-        PkgPath.validate('valid1/valid2/valid3')
+        s.PkgPath.validate('valid1/valid2/valid3')
+
+    # check special keys
+    s.PkgPath.validate('<root>')
+    s.PkgPath.validate('<group>')
+    # split special keys
+    with pytest.raises(RuntimeError): s.split_pkg_path('<root>')
+    with pytest.raises(RuntimeError): s.split_pkg_path('<group>')
 
 
 def test_group_path():
+    # check - relative
+    assert s.GroupPath.validate('') == ''
+    assert s.GroupPath.validate('valid1') == 'valid1'
+    assert s.GroupPath.validate('valid1/valid2') == 'valid1/valid2'
+    with pytest.raises(SchemaError): s.GroupPath.validate('valid1/')
+    # check - absolute
+    assert s.GroupPath.validate('/') == '/'
+    assert s.GroupPath.validate('/valid1') == '/valid1'
+    assert s.GroupPath.validate('/valid1/valid2') == '/valid1/valid2'
+    with pytest.raises(SchemaError): s.GroupPath.validate('/valid1/')
+
+    # check splits - relative
+    assert s.split_group_path('') == ([], True)
+    assert s.split_group_path('valid1') == (['valid1'], True)
+    assert s.split_group_path('valid1/valid2') == (['valid1', 'valid2'], True)
+    with pytest.raises(SchemaError): s.split_group_path('valid1/')
+    # check splits - absolute
+    assert s.split_group_path('/') == ([], False)
+    assert s.split_group_path('/valid1') == (['valid1'], False)
+    assert s.split_group_path('/valid1/valid2') == (['valid1', 'valid2'], False)
+    with pytest.raises(SchemaError): s.split_group_path('/valid1/')
+
     # check identifiers, should be same as above
-    _do_identifier_tests(GroupPath)
-    _do_identifier_tests(GroupPath, prefix='valid1/')
-    with pytest.raises(SchemaError, match='is_not_reserved'): _do_identifier_tests(GroupPath, prefix='_invalid1_.')
-    with pytest.raises(SchemaError, match='is_not_empty'): _do_identifier_tests(GroupPath, prefix='.')
-    # check strings
-    assert GroupPath.validate('valid1') == ['valid1']
-    assert GroupPath.validate('valid1/valid2') == ['valid1', 'valid2']
-    assert GroupPath.validate('valid1/valid2/valid3') == ['valid1', 'valid2', 'valid3']
-    # check empty
-    with pytest.raises(SchemaError, match="is_not_empty"): GroupPath.validate('')
-    # check special keys
-    with pytest.raises(SchemaError, match='is_identifier'): GroupPath.validate('<root>')
-    with pytest.raises(SchemaError, match='is_identifier'): GroupPath.validate('<group>')
-    # check package...
+    _do_identifier_tests(s.GroupPath)
+    _do_identifier_tests(s.GroupPath, prefix='valid1/')
+    with pytest.raises(SchemaError, match='is_not_reserved'):
+        _do_identifier_tests(s.GroupPath, prefix='_invalid1_/')
+
+    # check group...
     with pytest.raises(SchemaError, match='is_identifier'):
-        GroupPath.validate('valid1.valid2.valid3')
+        s.GroupPath.validate('valid1.valid2.valid3')
 
-
-def test_verbose_group():
-    VerboseGroup.validate({'_type_': 'group', '_name_': 'valid_id'})
-
-    # same tests as in identifier for _name_
-    with pytest.raises(SchemaError, match="is_not_empty"):          VerboseGroup.validate({'_type_': 'group', '_name_': ''})
-    with pytest.raises(SchemaError, match="is_not_special_key"):    VerboseGroup.validate({'_type_': 'group', '_name_': '_name_'})
-    with pytest.raises(SchemaError, match="is_not_reserved"):       VerboseGroup.validate({'_type_': 'group', '_name_': '_invalid_id_'})
-    with pytest.raises(SchemaError, match="is_identifier"):         VerboseGroup.validate({'_type_': 'group', '_name_': '1234'})
-    with pytest.raises(SchemaError, match="is_not_keyword"):        VerboseGroup.validate({'_type_': 'group', '_name_': 'with'})
-    with pytest.raises(SchemaError, match="should be instance of"): VerboseGroup.validate({'_type_': 'group', '_name_': 1234})
-
-
+    # check special keys
+    with pytest.raises(SchemaError): s.GroupPath.validate('<root>')
+    with pytest.raises(SchemaError): s.GroupPath.validate('<group>')
+    # split special keys
+    with pytest.raises(RuntimeError): s.split_pkg_path('<root>')
+    with pytest.raises(RuntimeError): s.split_pkg_path('<group>')

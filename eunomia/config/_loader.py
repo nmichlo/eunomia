@@ -1,13 +1,14 @@
-from typing import Iterable
-from eunomia.config import Option, Group
-from eunomia.values import BaseValue
+from typing import Iterable, Tuple
+from eunomia.config import Option
+from eunomia.config import scheme as s
 from eunomia.backend import Backend
-from eunomia.values._values import recursive_get_config_value
+from eunomia.values import BaseValue
 
 
 # ========================================================================= #
 # Helper                                                                    #
 # ========================================================================= #
+from eunomia.values._values import recursive_get_config_value
 
 
 def recursive_getitem(dct, keys: Iterable[str], make_missing=False):
@@ -53,6 +54,9 @@ class ConfigLoader(object):
 
     def __init__(self, storage_backend: Backend):
         self._backend = storage_backend
+        # merged items
+        self._merged_options = None
+        self._merged_config = None
 
     def load_config(self, config_name, return_merged_options=False):
         """
@@ -64,69 +68,128 @@ class ConfigLoader(object):
           being merged into the config.
             * Keys are not allowed to be interpolated values
         """
+        self._merged_options = {}
+        self._merged_config = {}
 
-        merged_options = {}
-        merged_config = {}
-
-        def _mark_option_visited(option: Option):
-            # get the path to the config - recursive version of whats listed in the _options_
-            # maybe lift the non-recursive limitation in future?
-            group_path = option.group_path
-            # check that this is not a duplicate
-            if group_path in merged_options:
-                prev_added_path = merged_options[group_path]
-                raise KeyError(f'Group has duplicate entry: {repr(group_path)}. '
-                               f'Key previously added by: {repr(prev_added_path)}. '
-                               f'Current config file is: {repr(option.path)}.')
-            # merge the path!
-            merged_options[group_path] = option.path
-
-        def _merge_config_values(option: Option):
-            # This function needs to do two things
-            # 1. recursively merge the option config into the merged config
-            # 2. recursively interpolate encountered values
-            # get and make directories in the config according to the package
-            package = option.resolve_package(merged_config, merged_options, {})
-            left = recursive_getitem(merged_config, package.keys, make_missing=True)
-            # get the actual option to merge
-            right = option.config
-            # perform the merge
-            dict_recursive_update(left=left, right=right)
-
-        def _resolve_value(value):
-            if isinstance(value, BaseValue):
-                value = value.get_config_value(merged_config, merged_options, {})
-            return value
-
-        def _dfs_option(option: Option):
-            assert isinstance(option, Option)
-            group = option.parent
-            assert isinstance(group, Group)
-            # process all sub_groups
-            for subgroup_key, suboption_key in option.options.items():
-                subgroup = group.get_subgroup(subgroup_key)
-                suboption = subgroup.get_option(_resolve_value(suboption_key))
-                _handle_option(suboption)
-
-        def _handle_option(option: Option):
-            # TODO: add _plugins_ support
-            _mark_option_visited(option)
-            _merge_config_values(option)
-            _dfs_option(option)
-
-        # entry point for dfs
+        # ===================== #
+        # 1. entry point for dfs, get initial option
         root_group = self._backend.load_root_group()
         entry_option = root_group.get_option(config_name)
-
-        # perform dfs & merging and finally resolve values
-        _handle_option(entry_option)
-        # TODO: this is incorrect
-        merged_config = recursive_get_config_value(merged_config, merged_options, {}, value=merged_config)
+        # ===================== #
+        # 2. perform dfs & merging and finally resolve values
+        self._visit_option(entry_option)
+        # ===================== #
+        # 3. finally resolve all the values in the config
+        self._resolve_all_values()
+        # ===================== #
 
         # done, return the result
         if return_merged_options:
-            return merged_config, merged_options
-        return merged_config
+            return self._merged_config, self._merged_options
+        return self._merged_config
+
+    def _visit_option(self, option: Option):
+        # ===================== #
+        # 1. check where to process self, and make sure self is in the options list
+        # by default we want to merge this before children so we can reference its values.
+        group_paths = list(option.options.keys())
+        if s.OPT_SELF not in group_paths:
+            # allow referencing parent values in children
+            group_paths = [s.OPT_SELF] + group_paths
+            # # allow parent overwriting children values
+            # group_paths = group_paths + [s.OPT_SELF]
+        # ===================== #
+        # 2. process options in order
+        for group_path in group_paths:
+            # handle different cases
+            if group_path == s.OPT_SELF:
+                # ===================== #
+                # 2.a if self is encountered, merge into config. We skip the
+                #     value of the option_name here as it is not needed.
+                self._merge_option(option)
+                # ===================== #
+            else:
+                option_name = option.options[group_path]
+                # ===================== #
+                # 2.b dfs through options
+                # TODO: handle keys and values if they are value interps
+                group_keys, is_relative = s.split_group_path(group_path)
+                # get the group corresponding to the path - must handle relative & root paths
+                root = (option.group if is_relative else option.root)
+                group = root.get_subgroups_recursive(group_keys)
+                # visit the next option
+                self._visit_option(group.get_option(option_name))
+                # ===================== #
+
+    def _merge_option(self, option: Option):
+        # 1. check that the group has not already been merged
+        # 2. check that the option has not already been merged
+        self._merge_option_mark_visited(option)
+        # 3. merged the data
+        self._merge_option_into_config(option)
+
+    def _merge_option_mark_visited(self, option: Option):
+        # TODO: this should have different modes
+        #       - do not allow from the same group to be merged
+        #       - allow from the same group to be merged
+        #       1. check that the group has not already been merged
+        #       2. check that the option has not already been merged
+        # get the path to the config - recursive version of whats listed in the _options_
+        # maybe lift the non-recursive limitation in future?
+        group_keys = option.group_keys
+        # check that this is not a duplicate
+        if group_keys in self._merged_options:
+            prev_added_keys = self._merged_options[group_keys]
+            raise KeyError(f'Group has duplicate entry: {repr(group_keys)}. '
+                           f'Key previously added by: {repr(prev_added_keys)}. '
+                           f'Current config file is: {repr(option.keys)}.')
+        # merge the path!
+        self._merged_options[group_keys] = option.keys
+
+    def _merge_option_into_config(self, option: Option):
+        # 1. get the package and handle special values
+        keys = self._resolve_package(option)
+        # 2. get the root config object according to the package
+        root = recursive_getitem(self._merged_config, keys, make_missing=True)
+        # 3. merge the option into the config
+        dict_recursive_update(left=root, right=option.data)
+
+    def _resolve_value(self, value):
+        # 1. allow interpolation of config objects
+        # 2. process dictionary syntax with _node_ keys
+        if isinstance(value, BaseValue):
+            value = value.get_config_value(self._merged_config, self._merged_options, {})
+        if isinstance(value, dict):
+            if s.KEY_NODE in value:
+                raise RuntimeError(f'{s.KEY_NODE} is not yet supported!')
+        return value
+
+    def _resolve_package(self, option) -> Tuple[str]:
+        path = self._resolve_value(option.package)
+        # check the type
+        if not isinstance(path, str):
+            raise TypeError(f'{s.KEY_PKG} must be a string')
+        # handle special values
+        if path == s.PKG_ROOT:
+            keys = ()
+        elif path == s.PKG_GROUP:
+            keys = option.group_keys
+        else:
+            keys, is_relative = s.split_pkg_path(path)
+            if is_relative:
+                keys = option.group_keys + keys
+        # return the keys
+        return keys
+
+    def _resolve_all_values(self):
+        # TODO: this is wrong!
+        # TODO: config is not mutated on the fly, cannot interpolate chains of values.
+        self._merged_config = recursive_get_config_value(
+            self._merged_config,
+            self._merged_options,
+            {},
+            self._merged_config
+        )
 
 
 # ========================================================================= #

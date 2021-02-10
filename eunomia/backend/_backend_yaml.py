@@ -4,7 +4,7 @@ import ruamel.yaml as yaml
 
 from eunomia.backend import Backend
 from eunomia.config import Group, Option
-from eunomia.values import IgnoreValue, RefValue, EvalValue, InterpolateValue
+from eunomia.config.values import IgnoreValue, RefValue, EvalValue, InterpolateValue
 
 
 # ========================================================================= #

@@ -7,7 +7,7 @@ from eunomia.config import scheme as s
 # ========================================================================= #
 
 
-class _Node(object):
+class _ConfigObject(object):
 
     def __init__(self):
         super().__init__()
@@ -25,7 +25,7 @@ class _Node(object):
         return self._key and self._parent
 
     @property
-    def parent(self) -> '_Node':
+    def parent(self) -> '_ConfigObject':
         assert self.has_parent
         return self._parent
 
@@ -39,7 +39,7 @@ class _Node(object):
         return tuple(n.key for n in self._walk_from_root(visit_root=False))
 
     @property
-    def root(self) -> '_Node':
+    def root(self) -> '_ConfigObject':
         node = self
         for node in self._walk_to_root(visit_root=True):
             pass
@@ -67,9 +67,9 @@ class _Node(object):
     # - for simplicity we do not allow attribute access to children.        #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def add_child(self, key: str, child: '_Node') -> '_Node':
-        if not isinstance(child, _Node):
-            raise TypeError(f'child must be an instance of {_Node.__name__}')
+    def add_child(self, key: str, child: '_ConfigObject') -> '_ConfigObject':
+        if not isinstance(child, _ConfigObject):
+            raise TypeError(f'child must be an instance of {_ConfigObject.__name__}')
         if child.has_parent:
             raise ValueError(f'child already has a parent, and cannot be added.')
         if key in self._children:
@@ -126,7 +126,7 @@ class _Node(object):
 # ========================================================================= #
 
 
-class Group(_Node):
+class Group(_ConfigObject):
 
     def __init__(self, named_nodes: Dict[str, Union['Group', 'Option']] = None):
         super().__init__()
@@ -297,7 +297,7 @@ class Group(_Node):
 # ========================================================================= #
 
 
-class Option(_Node):
+class Option(_ConfigObject):
 
     def __init__(
             self,

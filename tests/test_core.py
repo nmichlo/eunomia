@@ -1,7 +1,6 @@
 import pytest
 
 from eunomia import eunomia_load
-from eunomia.values import InterpolateValue
 from tests.test_backend_obj import _make_config_group
 
 

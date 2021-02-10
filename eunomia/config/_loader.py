@@ -2,7 +2,7 @@ from typing import Iterable, Tuple
 from eunomia.config import Option
 from eunomia.config import scheme as s
 from eunomia.backend import Backend
-from eunomia.values import BaseValue
+from eunomia.config.values import BaseValue
 
 
 # ========================================================================= #

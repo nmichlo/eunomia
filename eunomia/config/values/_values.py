@@ -1,7 +1,7 @@
 from typing import Any, Union, List, Tuple
 import lark
-from eunomia.values._util_interpret import interpret_expr
-from eunomia.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
+from eunomia.config.values._util_interpret import interpret_expr
+from eunomia.config.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
 
 
 # ========================================================================= #

@@ -9,9 +9,6 @@ class Transformer(object):
     """
     Based off of the various transformers that
     exist for traversing ASTs.
-
-    This one effectively makes copies of the
-    containers being traversed.
     """
 
     def transform(self, value):

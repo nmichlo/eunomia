@@ -36,7 +36,7 @@ jobs:
 
     - name: Test with pytest
       run: |
-        python3 -m pytest --cov=eunomia tests/
+        python3 -m pytest --tb=short --cov=eunomia tests/
 
     - uses: codecov/codecov-action@v1
       with:

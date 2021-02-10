@@ -102,26 +102,12 @@ class _ConfigObject(object):
     def from_dict(cls, mapping: dict, validate=True):
         raise NotImplementedError
 
-    @classmethod
-    def from_compact_dict(cls, mapping: dict, validate=True):
-        raise NotImplementedError
-
     def to_dict(self, validate=True):
-        raise NotImplementedError
-
-    def to_compact_dict(self, validate=True):
         raise NotImplementedError
 
     def is_valid_dict(self):
         try:
             self.to_dict()
-            return True
-        except:
-            return False
-
-    def is_valid_compact_dict(self):
-        try:
-            self.to_compact_dict()
             return True
         except:
             return False
@@ -256,39 +242,12 @@ class Group(_ConfigObject):
                 raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
         return group
 
-    @classmethod
-    def from_compact_dict(cls, raw_group: dict, validate=True):
-        if validate:
-            raw_group = s.CompactGroup.validate(raw_group)
-        group = Group()
-        for key, child in raw_group.items():
-            if key in s.ALL_KEYS:
-                continue
-            elif child[s.KEY_TYPE] == s.TYPE_COMPACT_GROUP:
-                group.add_subgroup(key, Group.from_compact_dict(child, validate=False))
-            elif child[s.KEY_TYPE] == s.TYPE_COMPACT_OPTION:
-                group.add_option(key, Option.from_compact_dict(child, validate=False))
-            else:
-                raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
-        return group
-
     def to_dict(self, validate=True):
         group = {
             s.KEY_TYPE: s.TYPE_GROUP,
             s.KEY_CHILDREN: {k: self[k].to_dict(validate=False) for k in self}
         }
         return s.VerboseGroup.validate(group) if validate else group
-
-    def to_compact_dict(self, validate=True):
-        for k in self._children.keys():
-            if k in s.ALL_KEYS:
-                raise ValueError(f'key is forbidden in data: {k}')
-        group = {
-            s.KEY_TYPE: s.TYPE_COMPACT_GROUP,
-            **{k: g.to_compact_dict(validate=False) for k, g in self.groups.items()},
-            **{k: o.to_compact_dict(validate=False) for k, o in self.options.items()},
-        }
-        return s.CompactGroup.validate(group) if validate else group
 
 
 # ========================================================================= #
@@ -309,7 +268,7 @@ class Option(_ConfigObject):
         self._data = data if data is not None else {}
         self._pkg = pkg if pkg is not None else s.DEFAULT_PKG
         self._opts = opts if opts is not None else {}
-        assert isinstance(self._pkg, str), f'{s.KEY_PKG} is not a string'
+        assert isinstance(self._pkg, (str, ConfigNode)), f'{s.KEY_PKG} is not a string or {ConfigNode.__name__}'
         assert isinstance(self._data, dict), f'{s.KEY_DATA} is not a dictionary'
         assert isinstance(self._opts, dict), f'{s.KEY_OPTS} is not a dicitonary'
         # check that we can convert to the schema
@@ -390,20 +349,6 @@ class Option(_ConfigObject):
             validate=False,
         )
 
-    @classmethod
-    def from_compact_dict(cls, option, validate=True):
-        if validate:
-            option = s.CompactOption.validate(option)
-        # pop all config values
-        pkg = option.pop(s.KEY_PKG)
-        opts = option.pop(s.KEY_OPTS)
-        type = option.pop(s.KEY_TYPE)
-        # check that we have nothing extra
-        if any(k in s.ALL_KEYS for k in option.keys()):
-            raise KeyError('This should not happen!')
-        # no need to validate because of above
-        return Option(pkg=pkg, opts=opts, data=option, validate=False)
-
     def to_dict(self, validate=True):
         option = {
             s.KEY_TYPE: s.TYPE_OPTION,
@@ -413,17 +358,6 @@ class Option(_ConfigObject):
         }
         return s.VerboseOption.validate(option) if validate else option
 
-    def to_compact_dict(self, validate=True):
-        for k in self._data.keys():
-            if k in s.ALL_KEYS:
-                raise ValueError(f'key is forbidden in data: {k}')
-        option = {
-            s.KEY_TYPE: s.TYPE_COMPACT_OPTION,
-            s.KEY_PKG: self._pkg,
-            s.KEY_OPTS: self._opts,
-            **self._data
-        }
-        return s.CompactOption.validate(option) if validate else option
 
 # ========================================================================= #
 # End                                                                       #

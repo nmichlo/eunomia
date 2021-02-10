@@ -54,11 +54,6 @@ def test_simple_config():
     g1 = Group.from_dict(d1)
     assert repr(g1) == repr(g)
 
-    # forward and backwards conversion!
-    d2 = g.to_compact_dict()
-    g2 = Group.from_compact_dict(d2)
-    assert repr(g2) == repr(g)
-
 
 def _make_config_group(suboption='suboption1', suboption2=None, package1='<group>', package2='<group>', check_cycle=False) -> Group:
     g = Group({
@@ -86,10 +81,6 @@ def _make_config_group(suboption='suboption1', suboption2=None, package1='<group
         d1 = g.to_dict()
         g1 = Group.from_dict(d1)
         assert repr(g1) == repr(g)
-        # forward and backwards conversion!
-        d2 = g.to_compact_dict()
-        g2 = Group.from_compact_dict(d2)
-        assert repr(g2) == repr(g)
 
     return g
 
@@ -109,10 +100,6 @@ def test_option_init():
     option = Option(data=data, opts=opts, pkg=pkg)
     # check circular conversion to_dict
     assert option.to_dict() == option.from_dict(option.to_dict()).to_dict()
-    assert option.to_dict() == option.from_compact_dict(option.to_compact_dict()).to_dict()
-    # check circular conversion to_compact_dict
-    assert option.to_compact_dict() == option.from_dict(option.to_dict()).to_compact_dict()
-    assert option.to_compact_dict() == option.from_compact_dict(option.to_compact_dict()).to_compact_dict()
 
 
 # ========================================================================= #

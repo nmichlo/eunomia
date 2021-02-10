@@ -62,8 +62,6 @@ KEY_VALUE  = '_value_'   # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 # special types
 TYPE_OPTION = 'option'
 TYPE_GROUP  = 'group'
-TYPE_COMPACT_OPTION = 'compact_option'
-TYPE_COMPACT_GROUP  = 'compact_group'
 
 # special packages
 PKG_ROOT = '<root>'
@@ -188,32 +186,6 @@ VerboseGroup.schema.update({
     _Optional(KEY_CHILDREN, default=list): {
         _Optional(NameKey): _Or(VerboseOption, VerboseGroup),
     },
-})
-
-
-# ========================================================================= #
-# COMPACT VERSIONS                                                          #
-# - these versions you can store data directly on the objects with          #
-#   your own keys. You do not need the _name_ tags                          #
-# ========================================================================= #
-
-
-# option
-CompactOption = _Schema({}, name='compact_option')
-CompactOption.schema.update({
-    _Optional(KEY_TYPE, default=TYPE_COMPACT_OPTION): TYPE_COMPACT_OPTION,
-    _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
-    _Optional(KEY_OPTS, default=dict):       OptsValue,
-    # _data_
-    _Optional(NameKey): Value,
-})
-
-# group
-CompactGroup = _Schema({}, name='compact_group')
-CompactGroup.schema.update({
-        _Optional(KEY_TYPE, default=TYPE_COMPACT_GROUP): TYPE_COMPACT_GROUP,
-        # children
-        _Optional(NameKey): _Or(CompactOption, CompactGroup),
 })
 
 

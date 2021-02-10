@@ -4,4 +4,4 @@ performed during the merging of the config itself.
 """
 
 from ._nodes import ConfigNode
-from ._nodes import IgnoreNode, RefNode, EvalNode, InterpolateNode
+from ._nodes import IgnoreNode, RefNode, EvalNode, SubNode

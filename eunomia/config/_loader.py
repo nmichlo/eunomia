@@ -63,9 +63,9 @@ class ConfigLoader(object):
         simultaneously merging the config
 
         - When config dictionaries are encountered, those are also
-          processed using DFS to obtain interpolated values, before
+          processed using DFS to obtain substituted values, before
           being merged into the config.
-            * Keys are not allowed to be interpolated values
+            * Keys are not allowed to be substituted values
         """
         self._merged_options = {}
         self._merged_config = {}
@@ -182,7 +182,7 @@ class ConfigLoader(object):
 
     def _resolve_all_values(self):
         # TODO: this is wrong!
-        # TODO: config is not mutated on the fly, cannot interpolate chains of values.
+        # TODO: config is not mutated on the fly, cannot substitute chains of values.
         self._merged_config = ConfigNode.recursive_get_config_value(
             self._merged_config,
             self._merged_options,

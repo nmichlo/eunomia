@@ -1,6 +1,7 @@
 import pytest
 
 from eunomia import eunomia_load
+from eunomia.config.nodes import SubNode, EvalNode
 from tests.test_backend_obj import _make_config_group
 
 

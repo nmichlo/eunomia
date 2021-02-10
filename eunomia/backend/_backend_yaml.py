@@ -4,7 +4,7 @@ import ruamel.yaml as yaml
 
 from eunomia.backend import Backend
 from eunomia.config import Group, Option
-from eunomia.config.nodes import IgnoreNode, RefNode, EvalNode, InterpolateNode
+from eunomia.config.nodes import IgnoreNode, RefNode, EvalNode, SubNode
 
 
 # ========================================================================= #
@@ -79,17 +79,17 @@ class BackendYaml(Backend):
 
 class EunomiaSafeLoader(yaml.SafeLoader):
 
-    def __init__(self, *args, always_interpolate_strings=True, **kwargs):
+    def __init__(self, *args, always_substitute_strings=True, **kwargs):
         super().__init__(*args, **kwargs)
         # custom config values
-        self._always_interpolate_strings = always_interpolate_strings
+        self._always_substitute_strings = always_substitute_strings
 
     def construct_scalar(self, node):
-        # we always want to interpolate strings!
-        if self._always_interpolate_strings:
+        # we always want to substitute strings!
+        if self._always_substitute_strings:
             if node.tag == u'tag:yaml.org,2002:str':
                 assert isinstance(node.value, str), 'This should never happen!'
-                return InterpolateNode(node.value)
+                return SubNode(node.value)
         # otherwise construct like usual
         return super().construct_scalar(node)
 
@@ -122,15 +122,15 @@ class EunomiaSafeLoader(yaml.SafeLoader):
     def construct_node_eval(self, node: yaml.Node):
         return EvalNode(self.construct_yaml_str(node))
 
-    def construct_node_interpolate(self, node: yaml.Node):
-        return InterpolateNode(self.construct_yaml_str(node))
+    def construct_node_sub(self, node: yaml.Node):
+        return SubNode(self.construct_yaml_str(node))
 
 
 EunomiaSafeLoader.add_constructors(['!tuple'], EunomiaSafeLoader.construct_custom_tuple)
 EunomiaSafeLoader.add_constructors(['!str'], EunomiaSafeLoader.construct_node_ignore)
 EunomiaSafeLoader.add_constructors(['!ref'], EunomiaSafeLoader.construct_node_ref)
 EunomiaSafeLoader.add_constructors(['!eval'], EunomiaSafeLoader.construct_node_eval)
-EunomiaSafeLoader.add_constructors(['!interp'], EunomiaSafeLoader.construct_node_interpolate)
+EunomiaSafeLoader.add_constructors(['!interp'], EunomiaSafeLoader.construct_node_sub)
 
 
 # NOTE: unknown tags can be parsed

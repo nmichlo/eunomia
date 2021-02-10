@@ -3,7 +3,7 @@
 // yaml string template language
 // ============================== //
 
-?start: interpolate
+?start: substitute
 
 // Two types of templates exist:
 // - reference templates
@@ -17,8 +17,8 @@
 //         - maybe allow support for the colon ";" before the last bracket
 //           eg. ${{{1: 2};}} <<< (this was buggy otherwise) or ${={1: 2};}
 
-interpolate: interpret_fstring // _END_STMT?
-           | interpolate_string
+substitute: interpret_fstring // _END_STMT?
+           | substitute_string
 
 // A. alternative syntax - fstring template
 // has higher priority than normal strings
@@ -27,7 +27,7 @@ FSTRING.10: /f".*"/
           | /f'.*'/
 
 // B. interpolation string - reference & interpret
-interpolate_string: // empty string
+substitute_string: // empty string
                   | (template | str)+
 
 ?template: "${" template_ref "}"

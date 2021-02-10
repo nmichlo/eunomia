@@ -1,5 +1,5 @@
 
-# TODO: asteval dependency can easily be removed from eunomia.values._util_interpret
+# TODO: asteval dependency can easily be removed
 asteval==0.9.21
 lark-parser==0.11.1
 ruamel.yaml==0.16.12

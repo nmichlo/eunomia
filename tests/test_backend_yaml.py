@@ -1,6 +1,6 @@
 import pytest
 from eunomia.backend._backend_yaml import yaml_load
-from eunomia.config.nodes import InterpolateNode, IgnoreNode
+from eunomia.config.nodes import SubNode, IgnoreNode
 
 
 # ========================================================================= #
@@ -12,7 +12,7 @@ def test_yaml_tags():
     assert yaml_load('1') == 1
     assert yaml_load('[1, 2, 3]') == [1, 2, 3]
     assert yaml_load('{1, 2, 3}') == {1: None, 2: None, 3: None}
-    assert yaml_load('value: 1') == {InterpolateNode(value='value'): 1}
+    assert yaml_load('value: 1') == {SubNode(value='value'): 1}
 
     # automatically add eval tag if string starts and ends like f-strings: f"..." or f'...'
     assert yaml_load('f""').get_config_value({}, {}, {}) == ''

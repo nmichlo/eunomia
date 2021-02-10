@@ -1,8 +1,8 @@
 from typing import Any, Union, List, Tuple
 import lark
 from eunomia.config.nodes._util_interpret import interpret_expr
-from eunomia.config.nodes._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
-
+from eunomia.config.nodes._util_lark import SUB_RECONSTRUCTOR, SUB_PARSER
+from eunomia.config import scheme as s
 
 # ========================================================================= #
 # Base Loaders                                                              #
@@ -78,10 +78,13 @@ class RefNode(ConfigNode):
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
-        path = RefPath(self.raw_value)
+        # TODO: add support for groups in the merged_options, prefix with /
+        keys, is_relative = s.split_pkg_path(self.raw_value)
+        if is_relative:
+            raise ValueError(f'reference cannot be a relative path, must be from root: {self.raw_value}')
         # walk to get value
         value = merged_config
-        for key in path.keys:
+        for key in keys:
             value = value[key]
             # resolve
             if isinstance(value, ConfigNode):
@@ -102,11 +105,11 @@ class EvalNode(ConfigNode):
 
 
 # ========================================================================= #
-# Interpolate Nodes                                                         #
+# Substitute Nodes                                                          #
 # ========================================================================= #
 
 
-class InterpolateNode(ConfigNode):
+class SubNode(ConfigNode):
 
     INSTANCE_OF = (str, list)
     ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, EvalNode)
@@ -114,7 +117,7 @@ class InterpolateNode(ConfigNode):
     def _check_subnodes(self, nodes: list):
         for subnode in nodes:
             if not isinstance(subnode, self.ALLOWED_SUB_NODES):
-                raise TypeError(f'Malformed {InterpolateNode.__name__}, subnode={repr(subnode)} must be instance of: {self.ALLOWED_SUB_NODES}')
+                raise TypeError(f'Malformed {SubNode.__name__}, subnode={repr(subnode)} must be instance of: {self.ALLOWED_SUB_NODES}')
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> str:
         nodes = self.raw_value
@@ -124,10 +127,10 @@ class InterpolateNode(ConfigNode):
         # with placeholders ${...} and ${=...} defined in
         # the lark grammar
         if isinstance(nodes, str):
-            nodes = _string_to_interpolate_nodes(nodes)
+            nodes = _string_to_sub_nodes(nodes)
         self._check_subnodes(nodes)
 
-        # concatenate strings and interpolated values
+        # concatenate strings and substituted values
         # obtained from calling this same function on
         # nodes and child nodes
         values = []
@@ -143,8 +146,8 @@ class InterpolateNode(ConfigNode):
         return ''.join(str(v) for v in values)
 
 
-def _string_to_interpolate_nodes(string):
-    nodes = INTERPOLATE_PARSER.parse(string)
+def _string_to_sub_nodes(string):
+    nodes = SUB_PARSER.parse(string)
     converted = _InterpretLarkToConfNodesList().visit(nodes)
     return converted
 
@@ -158,26 +161,26 @@ class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
     - IgnoreNode
 
     The lark nodes are defined in the interpolation grammar file.
-    grammar_interpolate.lark
+    grammar_substitute.lark
     """
 
-    def interpolate(self, tree) -> List[ConfigNode]:
+    def substitute(self, tree) -> List[ConfigNode]:
         if len(tree.children) != 1:
-            raise RuntimeError('Malformed interpolate node. This should never happen!')
+            raise RuntimeError('Malformed substitute node. This should never happen!')
         return self.visit(tree.children[0])
 
-    def interpolate_string(self, tree) -> List[ConfigNode]:
+    def substitute_string(self, tree) -> List[ConfigNode]:
         return self.visit_children(tree)
 
     def interpret_fstring(self, tree) -> List[ConfigNode]:
         # TODO: having to wrap in a list here might be a grammar mistake
         return [
-            EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
+            EvalNode(SUB_RECONSTRUCTOR.reconstruct(tree))
         ]
 
-    def template_ref(self, tree): return RefNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
-    def template_exp(self, tree): return EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
-    def str(self, node):          return IgnoreNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(node))
+    def template_ref(self, tree): return RefNode(SUB_RECONSTRUCTOR.reconstruct(tree))
+    def template_exp(self, tree): return EvalNode(SUB_RECONSTRUCTOR.reconstruct(tree))
+    def str(self, node):          return IgnoreNode(SUB_RECONSTRUCTOR.reconstruct(node))
 
     def __getattr__(self, item):
         raise RuntimeError(f'This should never happen! Unknown Interpolation Grammar Node Visited: {item}')

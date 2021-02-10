@@ -1,0 +1,6 @@
+# ./configs/default.yaml
+_defaults_:
+  framework: betavae
+  dataset: shapes3d
+trainer:
+  epochs: 100

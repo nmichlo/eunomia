@@ -52,12 +52,13 @@ KEY_OPTS = '_defaults_'
 KEY_DATA = '_data_'
 # keys - groups
 KEY_CHILDREN = '_children_'
-# keys - values
-KEY_NODE   = '_node_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
-KEY_TARGET = '_target_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
-KEY_ARGS   = '_args_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
-KEY_KWARGS = '_kwargs_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
-KEY_VALUE  = '_value_'   # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+
+# marker keys
+MARKER_KEY_NODE   = '_node_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+MARKER_KEY_TARGET = '_target_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+MARKER_KEY_ARGS   = '_args_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+MARKER_KEY_KWARGS = '_kwargs_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+MARKER_KEY_VALUE  = '_value_'   # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 
 # special types
 TYPE_OPTION = 'option'
@@ -77,13 +78,28 @@ DEFAULT_PKG = PKG_GROUP
 # all values                #
 # - - - - - - - - - - - - - #
 
-
-ALL_KEYS = {
-    KEY_TYPE, KEY_PKG, KEY_OPTS, KEY_DATA, KEY_CHILDREN,
-    # TODO: THESE ARE NOT IMPLEMENTED, JUST RESERVED
-    KEY_NODE, KEY_TARGET, KEY_ARGS, KEY_KWARGS, KEY_VALUE
+# these keys are allowed as values anywhere
+_MARKER_KEYS = {
+    MARKER_KEY_NODE,
+    MARKER_KEY_TARGET,
+    MARKER_KEY_ARGS,
+    MARKER_KEY_KWARGS,
+    MARKER_KEY_VALUE
 }
 
+_ALL_GROUP_KEYS = {
+    KEY_TYPE, KEY_PKG, KEY_OPTS, KEY_DATA,
+}
+
+_ALL_OPTION_KEYS = {
+    KEY_TYPE, KEY_CHILDREN,
+}
+
+ALL_KEYS = {
+    *_ALL_GROUP_KEYS,
+    *_ALL_OPTION_KEYS,
+    # *_MARKER_KEYS,
+}
 
 # ========================================================================= #
 # Helper Types                                                              #

@@ -1,0 +1,3 @@
+# ./configs/framework/betavae.yaml
+_target_: 'BetaVae'
+beta: 4

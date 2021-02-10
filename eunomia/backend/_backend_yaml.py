@@ -5,6 +5,7 @@ import ruamel.yaml as yaml
 from eunomia.backend import Backend
 from eunomia.config import Group, Option
 from eunomia.config.nodes import IgnoreNode, RefNode, EvalNode, SubNode
+from eunomia.config import scheme as s
 
 
 # ========================================================================= #
@@ -59,6 +60,20 @@ class BackendYaml(Backend):
         # sort paths by length, then alphabetically
         return sorted(paths, key=lambda p: (len(p[1]), *p[1]))
 
+    def _option_from_compact_dict(self, data):
+        if s.KEY_DATA in data:
+            return Option.from_dict(data)
+        else:
+            # pop all config values
+            pkg = data.pop(s.KEY_PKG, None)
+            opts = data.pop(s.KEY_OPTS, None)
+            type = data.pop(s.KEY_TYPE, None)
+            # check that we have nothing extra
+            if any(k in s.ALL_KEYS for k in data.keys()):
+                raise KeyError(f'A reserved key was found in a compact option dictionary: {list(k for k in data.keys() if k in s.ALL_KEYS)}')
+            # no need to validate because of above
+            return Option(pkg=pkg, opts=opts, data=data)
+
     def _load_root_group(self) -> Group:
         root = Group()
         for path, (*subgroups, option_name) in self._get_sorted_paths():
@@ -66,10 +81,9 @@ class BackendYaml(Backend):
             group = root.get_subgroups_recursive(subgroups, make_missing=True)
             # add option by loading file
             data = yaml_load_file(path)
-            group.add_option(option_name, Option.from_compact_dict(data))
+            group.add_option(option_name, self._option_from_compact_dict(data))
         # done!
         return root
-
 
 
 # ========================================================================= #
@@ -83,15 +97,6 @@ class EunomiaSafeLoader(yaml.SafeLoader):
         super().__init__(*args, **kwargs)
         # custom config values
         self._always_substitute_strings = always_substitute_strings
-
-    def construct_scalar(self, node):
-        # we always want to substitute strings!
-        if self._always_substitute_strings:
-            if node.tag == u'tag:yaml.org,2002:str':
-                assert isinstance(node.value, str), 'This should never happen!'
-                return SubNode(node.value)
-        # otherwise construct like usual
-        return super().construct_scalar(node)
 
     @classmethod
     def add_constructors(cls, tags: list, constructor):

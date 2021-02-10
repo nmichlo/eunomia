@@ -27,8 +27,9 @@ FSTRING.10: /f".*"/
           | /f'.*'/
 
 // B. interpolation string - reference & interpret
+//   whitespace > template > char -- fixes negative lookahead and ignore
 substitute_string: // empty string
-                  | (template | str)+
+                  | (WSSTR | template | CHAR)+
 
 ?template: "${" template_ref "}"
          | "${=" template_exp "}"              // B.1.
@@ -38,8 +39,11 @@ template_ref: NAME ("." NAME)*
 template_exp: expr_stmt
 
 // escaped string
-str: STR
-STR: /(.(?<!\$)(?!\{))+/
+// - this uses more memory, ie one token per character
+//   but it avoides the problem of ignored whitespace for the python expressions.
+//   it also means we dont need a negative lookahead because we are not matching strings.
+WSSTR: /[\t \f]+/
+CHAR: /./
 
 // end of statement
 _END_STMT: ";"

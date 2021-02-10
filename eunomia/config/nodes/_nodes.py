@@ -122,7 +122,7 @@ class SubNode(ConfigNode):
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> str:
         nodes = self.raw_value
 
-        # convert string to nodes if necessary using lark
+        # 1. convert string to nodes if necessary using lark
         # detects f-strings f"..." or f'...' and strings
         # with placeholders ${...} and ${=...} defined in
         # the lark grammar
@@ -130,7 +130,7 @@ class SubNode(ConfigNode):
             nodes = _string_to_sub_nodes(nodes)
         self._check_subnodes(nodes)
 
-        # concatenate strings and substituted values
+        # 2. concatenate strings and substituted values
         # obtained from calling this same function on
         # nodes and child nodes
         values = []
@@ -139,7 +139,7 @@ class SubNode(ConfigNode):
                 subnode = ConfigNode.recursive_get_config_value(merged_config, merged_options, current_config, subnode)
             values.append(subnode)
 
-        # get final result -- return that actual value if its the
+        # 3. get final result -- return that actual value if its the
         # only value in the list, instead of merging to a string
         if len(values) == 1:
             return values[0]
@@ -180,7 +180,9 @@ class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
 
     def template_ref(self, tree): return RefNode(SUB_RECONSTRUCTOR.reconstruct(tree))
     def template_exp(self, tree): return EvalNode(SUB_RECONSTRUCTOR.reconstruct(tree))
-    def str(self, node):          return IgnoreNode(SUB_RECONSTRUCTOR.reconstruct(node))
+
+    # we no longer handle this due to the grammar change for CHAR and WSSTR
+    # def str(self, node):        return IgnoreNode(SUB_RECONSTRUCTOR.reconstruct(node))
 
     def __getattr__(self, item):
         raise RuntimeError(f'This should never happen! Unknown Interpolation Grammar Node Visited: {item}')

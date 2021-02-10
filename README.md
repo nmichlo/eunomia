@@ -85,10 +85,10 @@ We can load the config by calling:
 ```python3
 # ./main.py
 from eunomia import eunomia_load
-import yaml
+from ruamel import yaml
 
 config = eunomia_load('./configs', 'default')
-print(yaml.safe_dump(config, sort_keys=False))
+print(yaml.round_trip_dump(config))  # does not sort keys
 ```
 
 The resulting output of the merged config in yaml format is:
@@ -116,9 +116,9 @@ following equivalent pythonic nested approach:
 # ./main.py
 from eunomia import eunomia_load
 from eunomia.config import Group, Option
-import yaml
+from ruamel import yaml
 
-config_root = Group({
+group = Group({
     'framework': Group({
         'betavae': Option({
             '_target_': 'BetaVae',
@@ -140,8 +140,8 @@ config_root = Group({
     )
 })
 
-config = eunomia_load(config_root, 'default')
-print(yaml.safe_dump(config, sort_keys=False))
+config = eunomia_load(group, 'default')
+print(yaml.round_trip_dump(config))  # does not sort keys
 ```
 
 The resulting output of the merged config in yaml format is:

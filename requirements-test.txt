@@ -5,3 +5,6 @@ pytest-cov==2.11.1
 # pytest-tldr == 0.2.2
 # pytest-sugar == 0.9.4
 # pytest-instafail == 0.4.2
+
+# maybe use for README.md example?
+# pyyaml==5.4.1

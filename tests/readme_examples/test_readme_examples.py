@@ -20,22 +20,21 @@ dataset:
 def test_readme_example_yaml():
     # ./main.py
     from eunomia import eunomia_load
-    import yaml
+    from ruamel import yaml
 
-    # replace configs './configs'
     config = eunomia_load(CONFIGS_DIR, 'default')
-    # print(yaml.safe_dump(config, sort_keys=False))
+    # print(yaml.round_trip_dump(config))  # does not sort keys
 
     # >>> RESULT
-    assert yaml.safe_dump(config, sort_keys=False) == OUTPUT
+    assert yaml.round_trip_dump(config) == OUTPUT
 
 
 def test_readme_example_pythonic():
     from eunomia import eunomia_load
     from eunomia.config import Group, Option
-    import yaml
+    from ruamel import yaml
 
-    config_root = Group({
+    group = Group({
         'framework': Group({
             'betavae': Option(data={
                 '_target_': 'BetaVae',
@@ -57,8 +56,8 @@ def test_readme_example_pythonic():
         )
     })
 
-    config = eunomia_load(config_root, 'default')
-    # print(yaml.safe_dump(config, sort_keys=False))
+    config = eunomia_load(group, 'default')
+    # print(yaml.round_trip_dump(config))  # does not sort keys
 
     # >>> RESULT
-    assert yaml.safe_dump(config, sort_keys=False) == OUTPUT
+    assert yaml.round_trip_dump(config) == OUTPUT

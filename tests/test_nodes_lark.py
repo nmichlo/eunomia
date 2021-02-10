@@ -2,7 +2,7 @@ import pytest
 from lark import UnexpectedToken, Tree, Token
 from lark.visitors import Transformer
 
-from eunomia.values._util_lark import INTERPOLATE_PARSER, INTERPOLATE_RECONSTRUCTOR
+from eunomia.config.nodes._util_lark import SUB_PARSER, SUB_RECONSTRUCTOR
 
 
 # ========================================================================= #
@@ -17,7 +17,7 @@ def parse(string) -> Tree:
     # them for easier testing
     class ExprTransformer(Transformer):
         def template_exp(self, children):
-            return ('exp', INTERPOLATE_RECONSTRUCTOR.reconstruct(Tree('template_exp', children)))
+            return ('exp', SUB_RECONSTRUCTOR.reconstruct(Tree('template_exp', children)))
         def template_ref(self, tokens):
             assert all(isinstance(tok, Token) for tok in tokens)
             return ('ref', '.'.join(str(tok) for tok in tokens) if tokens else None)
@@ -27,15 +27,15 @@ def parse(string) -> Tree:
             return ('str', str(tokens[0]))
 
     # assert that the first node of the
-    # tree is always 'interpolate' and contains one child
-    tree: Tree = INTERPOLATE_PARSER.parse(string)
-    assert tree.data == 'interpolate'
+    # tree is always 'substitute' and contains one child
+    tree: Tree = SUB_PARSER.parse(string)
+    assert tree.data == 'substitute'
     assert len(tree.children) == 1
     tree: Tree = tree.children[0]
 
     # assert that the second node of
     # the tree also only contains one child
-    assert tree.data in {'interpolate_string', 'interpret_fstring'}
+    assert tree.data in {'substitute_string', 'interpret_fstring'}
     return ExprTransformer().transform(tree)
 
 
@@ -51,7 +51,7 @@ def test_lark_grammar():
     def ref(string):       return ('ref', string)
     def exp(string):       return ('exp', string)
 
-    def root_str(*args):   return Tree('interpolate_string', list(args))
+    def root_str(*args):   return Tree('substitute_string', list(args))
     def root_fstr(string): return Tree('interpret_fstring', [Token('FSTRING', string)])
 
     # parse strings

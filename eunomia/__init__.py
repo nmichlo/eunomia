@@ -5,6 +5,16 @@ Eunomia config
 
 
 # ========================================================================= #
+# Check                                                                     #
+# ========================================================================= #
+
+
+from sys import version_info as _V
+# we need 3.6 or above for ordered dictionary support
+assert _V[0] == 3 and _V[1] >= 6, 'Python 3.6 or above is required for ordered dictionary support.'
+
+
+# ========================================================================= #
 # Export Core                                                               #
 # ========================================================================= #
 

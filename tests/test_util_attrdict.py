@@ -1,3 +1,5 @@
+import pytest
+
 from eunomia._util_attrdict import AttrDict
 
 
@@ -21,3 +23,14 @@ def test_attrdict():
     check_dict_equal(conf, {'a': {'b': {'a': 2, 'c': {'d': {'e': 3}}}}})
     conf.a.b.c.d.e = 4
     check_dict_equal(conf, {'a': {'b': {'a': 2, 'c': {'d': {'e': 4}}}}})
+
+    with pytest.raises(AttributeError):
+        invalid = conf.valid
+
+    conf.valid = 42
+    assert conf.valid == 42
+    assert conf['valid'] == 42
+
+    conf['valid'] = 7
+    assert conf.valid == 7
+    assert conf['valid'] == 7

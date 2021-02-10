@@ -8,7 +8,6 @@ from eunomia.values import BaseValue
 # ========================================================================= #
 # Helper                                                                    #
 # ========================================================================= #
-from eunomia.values._values import recursive_get_config_value
 
 
 def recursive_getitem(dct, keys: Iterable[str], make_missing=False):
@@ -184,7 +183,7 @@ class ConfigLoader(object):
     def _resolve_all_values(self):
         # TODO: this is wrong!
         # TODO: config is not mutated on the fly, cannot interpolate chains of values.
-        self._merged_config = recursive_get_config_value(
+        self._merged_config = BaseValue.recursive_get_config_value(
             self._merged_config,
             self._merged_options,
             {},

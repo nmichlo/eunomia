@@ -1,7 +1,5 @@
 from typing import Any, Union, List, Tuple
 import lark
-
-from eunomia._util_traverse import PyTransformer
 from eunomia.values._util_interpret import interpret_expr
 from eunomia.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
 
@@ -30,10 +28,6 @@ class BaseValue(object):
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict):
         raise NotImplementedError
 
-    @classmethod
-    def recursive_transform_config_value(cls, merged_config: dict, merged_options: dict, value):
-        return RecursiveGetConfigValue(merged_config, merged_options).transform(value)
-
     def __eq__(self, other):
         if not isinstance(other, self.__class__): return False
         if not isinstance(self, other.__class__): return False
@@ -42,46 +36,28 @@ class BaseValue(object):
     def __hash__(self):
         return hash((self.__class__, self.raw_value))
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Recursive Resolve                                                     #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-# Recursive Resolve                                                         #
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-
-class RecursiveGetConfigValue(PyTransformer):
-    def __init__(self, merged_config: dict, merged_options: dict, current_config: dict):
-        self._merged_config = merged_config
-        self._merged_options = merged_options
-        self._current_config = current_config
-
-    def __transform_default__(self, value):
+    @staticmethod
+    def recursive_get_config_value(merged_config: dict, merged_options: dict, current_config: dict, value: Any):
         if isinstance(value, BaseValue):
-            return value.get_config_value(self._merged_config, self._merged_options, self._current_config)
-        return value
-
-
-def recursive_get_config_value_alt(merged_config: dict, merged_options: dict, current_config: dict, value: Any):
-    return RecursiveGetConfigValue(merged_config, merged_options, current_config).transform(value)
-
-
-# TODO: how much faster is this than the above?
-def recursive_get_config_value(merged_config: dict, merged_options: dict, current_config: dict, value: Any):
-    if isinstance(value, BaseValue):
-        return value.get_config_value(merged_config, merged_options, current_config)
-    elif isinstance(value, list):
-        return list(recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
-    elif isinstance(value, tuple):
-        return tuple(recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
-    elif isinstance(value, set):
-        return set(recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
-    elif isinstance(value, dict):
-        return {
-            recursive_get_config_value(merged_config, merged_options, current_config, k):
-                recursive_get_config_value(merged_config, merged_options, current_config, v)
-            for k, v in value.items()
-        }
-    else:
-        return value
+            return value.get_config_value(merged_config, merged_options, current_config)
+        elif isinstance(value, list):
+            return list(BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
+        elif isinstance(value, tuple):
+            return tuple(BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
+        elif isinstance(value, set):
+            return set(BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
+        elif isinstance(value, dict):
+            return {
+                BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, k):
+                    BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, v)
+                for k, v in value.items()
+            }
+        else:
+            return value
 
 
 # ========================================================================= #
@@ -157,7 +133,7 @@ class InterpolateValue(BaseValue):
         values = []
         for subnode in nodes:
             if not isinstance(subnode, str):
-                subnode = recursive_get_config_value(merged_config, merged_options, current_config, subnode)
+                subnode = BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, subnode)
             values.append(subnode)
 
         # get final result -- return that actual value if its the

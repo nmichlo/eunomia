@@ -99,12 +99,18 @@ class _ConfigObject(object):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @classmethod
-    def from_dict(cls, map: dict, validated=False): raise NotImplementedError
-    @classmethod
-    def from_compact_dict(cls, map: dict, validated=False): raise NotImplementedError
+    def from_dict(cls, mapping: dict, validate=True):
+        raise NotImplementedError
 
-    def to_dict(self, validate=True): raise NotImplementedError
-    def to_compact_dict(self, validate=True): raise NotImplementedError
+    @classmethod
+    def from_compact_dict(cls, mapping: dict, validate=True):
+        raise NotImplementedError
+
+    def to_dict(self, validate=True):
+        raise NotImplementedError
+
+    def to_compact_dict(self, validate=True):
+        raise NotImplementedError
 
     def is_valid_dict(self):
         try:
@@ -202,17 +208,6 @@ class Group(_ConfigObject):
     # def new_option(self, key: str) -> 'Option':
     #     return self.add_option(key, Option())
 
-    def get_subgroups_recursive(self, keys: List[str], make_missing=False) -> 'Group':
-        def _recurse(group, old_keys):
-            if not old_keys:
-                return group
-            key, keys = old_keys[0], old_keys[1:]
-            if make_missing:
-                if not group.has_subgroup(key):
-                    return _recurse(group.new_subgroup(key), keys)
-            return _recurse(group.get_subgroup(key), keys)
-        return _recurse(self, keys)
-
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -226,7 +221,6 @@ class Group(_ConfigObject):
                 if not group.has_subgroup(key):
                     return _recurse(group.new_subgroup(key), keys)
             return _recurse(group.get_subgroup(key), keys)
-
         return _recurse(self, keys)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -244,31 +238,31 @@ class Group(_ConfigObject):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @classmethod
-    def from_dict(cls, raw_group: dict, validated=False):
-        if not validated:
+    def from_dict(cls, raw_group: dict, validate=True):
+        if validate:
             raw_group = s.VerboseGroup.validate(raw_group)
         group = Group()
         for key, child in raw_group[s.KEY_CHILDREN].items():
             if child[s.KEY_TYPE] == s.TYPE_GROUP:
-                group.add_subgroup(key, Group.from_dict(child, validated=True))
+                group.add_subgroup(key, Group.from_dict(child, validate=False))
             elif child[s.KEY_TYPE] == s.TYPE_OPTION:
-                group.add_option(key, Option.from_dict(child, validated=True))
+                group.add_option(key, Option.from_dict(child, validate=False))
             else:
                 raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
         return group
 
     @classmethod
-    def from_compact_dict(cls, raw_group: dict, validated=False):
-        if not validated:
+    def from_compact_dict(cls, raw_group: dict, validate=True):
+        if validate:
             raw_group = s.CompactGroup.validate(raw_group)
         group = Group()
         for key, child in raw_group.items():
             if key in s.ALL_KEYS:
                 continue
             elif child[s.KEY_TYPE] == s.TYPE_COMPACT_GROUP:
-                group.add_subgroup(key, Group.from_compact_dict(child, validated=True))
+                group.add_subgroup(key, Group.from_compact_dict(child, validate=False))
             elif child[s.KEY_TYPE] == s.TYPE_COMPACT_OPTION:
-                group.add_option(key, Option.from_compact_dict(child, validated=True))
+                group.add_option(key, Option.from_compact_dict(child, validate=False))
             else:
                 raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
         return group
@@ -319,7 +313,10 @@ class Option(_ConfigObject):
 
     @property
     def root(self) -> 'Group':
-        return super().root
+        assert self.has_parent
+        g = super().root
+        assert isinstance(g, Group)
+        return g
 
     @property
     def group(self) -> Group:
@@ -373,8 +370,8 @@ class Option(_ConfigObject):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @classmethod
-    def from_dict(cls, option, validated=False):
-        if not validated:
+    def from_dict(cls, option, validate=True):
+        if validate:
             option = s.VerboseOption.validate(option)
         return Option(
             pkg=option[s.KEY_PKG],
@@ -383,8 +380,8 @@ class Option(_ConfigObject):
         )
 
     @classmethod
-    def from_compact_dict(cls, option, validated=False):
-        if not validated:
+    def from_compact_dict(cls, option, validate=True):
+        if validate:
             option = s.CompactOption.validate(option)
         pkg = option.pop(s.KEY_PKG)
         opts = option.pop(s.KEY_OPTS)

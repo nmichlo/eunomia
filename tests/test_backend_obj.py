@@ -100,6 +100,21 @@ def test_config_objects():
     _make_config_group(suboption='invalid___', check_cycle=True)  # invalid but not an error
 
 
+def test_option_init():
+    # raw data in option
+    data = {'foo': 'bar'}
+    opts = {'/group1/group2': 'option2'}
+    pkg = s.PKG_ROOT
+    # make equivalent options
+    option = Option(data=data, opts=opts, pkg=pkg)
+    # check circular conversion to_dict
+    assert option.to_dict() == option.from_dict(option.to_dict()).to_dict()
+    assert option.to_dict() == option.from_compact_dict(option.to_compact_dict()).to_dict()
+    # check circular conversion to_compact_dict
+    assert option.to_compact_dict() == option.from_dict(option.to_dict()).to_compact_dict()
+    assert option.to_compact_dict() == option.from_compact_dict(option.to_compact_dict()).to_compact_dict()
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

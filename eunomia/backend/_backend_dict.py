@@ -10,7 +10,6 @@ from eunomia.config import Group
 class BackendDict(Backend):
 
     def __init__(self, root_dict: dict, mode='verbose'):
-        # check the root folder
         if not isinstance(root_dict, dict):
             raise TypeError(f'root_dict must be a dict')
         self._root_dict = root_dict

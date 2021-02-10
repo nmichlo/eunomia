@@ -175,7 +175,7 @@ OptsValue = _Schema({
 
 VerboseOption = _Schema({}, name='verbose_option')
 VerboseOption.schema.update({
-    _Optional(KEY_TYPE): TYPE_OPTION,
+    _Optional(KEY_TYPE, default=TYPE_OPTION): TYPE_OPTION,
     _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
     _Optional(KEY_OPTS, default=dict):       OptsValue,
     _Optional(KEY_DATA, default=dict):       DataValue,
@@ -183,7 +183,7 @@ VerboseOption.schema.update({
 
 VerboseGroup = _Schema({}, name='verbose_group')
 VerboseGroup.schema.update({
-    _Optional(KEY_TYPE): TYPE_GROUP,
+    _Optional(KEY_TYPE, default=TYPE_GROUP): TYPE_GROUP,
     _Optional(KEY_CHILDREN, default=list): {
         _Optional(NameKey): _Or(VerboseOption, VerboseGroup),
     },
@@ -200,7 +200,7 @@ VerboseGroup.schema.update({
 # option
 CompactOption = _Schema({}, name='compact_option')
 CompactOption.schema.update({
-    _Optional(KEY_TYPE): TYPE_COMPACT_OPTION,
+    _Optional(KEY_TYPE, default=TYPE_COMPACT_OPTION): TYPE_COMPACT_OPTION,
     _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
     _Optional(KEY_OPTS, default=dict):       OptsValue,
     # _data_
@@ -210,7 +210,7 @@ CompactOption.schema.update({
 # group
 CompactGroup = _Schema({}, name='compact_group')
 CompactGroup.schema.update({
-        _Optional(KEY_TYPE): TYPE_COMPACT_GROUP,
+        _Optional(KEY_TYPE, default=TYPE_COMPACT_GROUP): TYPE_COMPACT_GROUP,
         # children
         _Optional(NameKey): _Or(CompactOption, CompactGroup),
 })

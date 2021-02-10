@@ -4,7 +4,7 @@ import ruamel.yaml as yaml
 
 from eunomia.backend import Backend
 from eunomia.config import Group, Option
-from eunomia.config.values import IgnoreValue, RefValue, EvalValue, InterpolateValue
+from eunomia.config.nodes import IgnoreNode, RefNode, EvalNode, InterpolateNode
 
 
 # ========================================================================= #
@@ -89,7 +89,7 @@ class EunomiaSafeLoader(yaml.SafeLoader):
         if self._always_interpolate_strings:
             if node.tag == u'tag:yaml.org,2002:str':
                 assert isinstance(node.value, str), 'This should never happen!'
-                return InterpolateValue(node.value)
+                return InterpolateNode(node.value)
         # otherwise construct like usual
         return super().construct_scalar(node)
 
@@ -113,17 +113,17 @@ class EunomiaSafeLoader(yaml.SafeLoader):
 
     def construct_node_ignore(self, node: yaml.Node):
         if not isinstance(node, yaml.ScalarNode):
-            raise TypeError(f'tag {node.tag} for {IgnoreValue.__name__} is not compatible with node: {node.__class__.__name__} which is not a scalar.')
-        return IgnoreValue(self.construct_scalar(node))
+            raise TypeError(f'tag {node.tag} for {IgnoreNode.__name__} is not compatible with node: {node.__class__.__name__} which is not a scalar.')
+        return IgnoreNode(self.construct_scalar(node))
 
     def construct_node_ref(self, node: yaml.Node):
-        return RefValue(self.construct_yaml_str(node))
+        return RefNode(self.construct_yaml_str(node))
 
     def construct_node_eval(self, node: yaml.Node):
-        return EvalValue(self.construct_yaml_str(node))
+        return EvalNode(self.construct_yaml_str(node))
 
     def construct_node_interpolate(self, node: yaml.Node):
-        return InterpolateValue(self.construct_yaml_str(node))
+        return InterpolateNode(self.construct_yaml_str(node))
 
 
 EunomiaSafeLoader.add_constructors(['!tuple'], EunomiaSafeLoader.construct_custom_tuple)

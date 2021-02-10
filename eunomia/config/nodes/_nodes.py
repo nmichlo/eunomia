@@ -1,7 +1,7 @@
 from typing import Any, Union, List, Tuple
 import lark
-from eunomia.config.values._util_interpret import interpret_expr
-from eunomia.config.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
+from eunomia.config.nodes._util_interpret import interpret_expr
+from eunomia.config.nodes._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOLATE_PARSER
 
 
 # ========================================================================= #
@@ -9,7 +9,7 @@ from eunomia.config.values._util_lark import INTERPOLATE_RECONSTRUCTOR, INTERPOL
 # ========================================================================= #
 
 
-class BaseValue(object):
+class ConfigNode(object):
 
     @property
     def INSTANCE_OF(self) -> Union[type, Tuple[type, ...]]:
@@ -42,18 +42,18 @@ class BaseValue(object):
 
     @staticmethod
     def recursive_get_config_value(merged_config: dict, merged_options: dict, current_config: dict, value: Any):
-        if isinstance(value, BaseValue):
+        if isinstance(value, ConfigNode):
             return value.get_config_value(merged_config, merged_options, current_config)
         elif isinstance(value, list):
-            return list(BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
+            return list(ConfigNode.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
         elif isinstance(value, tuple):
-            return tuple(BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
+            return tuple(ConfigNode.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
         elif isinstance(value, set):
-            return set(BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
+            return set(ConfigNode.recursive_get_config_value(merged_config, merged_options, current_config, v) for v in value)
         elif isinstance(value, dict):
             return {
-                BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, k):
-                    BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, v)
+                ConfigNode.recursive_get_config_value(merged_config, merged_options, current_config, k):
+                    ConfigNode.recursive_get_config_value(merged_config, merged_options, current_config, v)
                 for k, v in value.items()
             }
         else:
@@ -65,7 +65,7 @@ class BaseValue(object):
 # ========================================================================= #
 
 
-class IgnoreValue(BaseValue):
+class IgnoreNode(ConfigNode):
 
     INSTANCE_OF = str
 
@@ -73,7 +73,7 @@ class IgnoreValue(BaseValue):
         return self.raw_value
 
 
-class RefValue(BaseValue):
+class RefNode(ConfigNode):
 
     INSTANCE_OF = str
 
@@ -84,12 +84,12 @@ class RefValue(BaseValue):
         for key in path.keys:
             value = value[key]
             # resolve
-            if isinstance(value, BaseValue):
+            if isinstance(value, ConfigNode):
                 value = value.get_config_value(merged_config, merged_options, current_config)
         return value
 
 
-class EvalValue(BaseValue):
+class EvalNode(ConfigNode):
 
     INSTANCE_OF = str
 
@@ -106,15 +106,15 @@ class EvalValue(BaseValue):
 # ========================================================================= #
 
 
-class InterpolateValue(BaseValue):
+class InterpolateNode(ConfigNode):
 
     INSTANCE_OF = (str, list)
-    ALLOWED_SUB_NODES = (str, IgnoreValue, RefValue, EvalValue)
+    ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, EvalNode)
 
     def _check_subnodes(self, nodes: list):
         for subnode in nodes:
             if not isinstance(subnode, self.ALLOWED_SUB_NODES):
-                raise TypeError(f'Malformed {InterpolateValue.__name__}, subnode={repr(subnode)} must be instance of: {self.ALLOWED_SUB_NODES}')
+                raise TypeError(f'Malformed {InterpolateNode.__name__}, subnode={repr(subnode)} must be instance of: {self.ALLOWED_SUB_NODES}')
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> str:
         nodes = self.raw_value
@@ -133,7 +133,7 @@ class InterpolateValue(BaseValue):
         values = []
         for subnode in nodes:
             if not isinstance(subnode, str):
-                subnode = BaseValue.recursive_get_config_value(merged_config, merged_options, current_config, subnode)
+                subnode = ConfigNode.recursive_get_config_value(merged_config, merged_options, current_config, subnode)
             values.append(subnode)
 
         # get final result -- return that actual value if its the
@@ -161,23 +161,23 @@ class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
     grammar_interpolate.lark
     """
 
-    def interpolate(self, tree) -> List[BaseValue]:
+    def interpolate(self, tree) -> List[ConfigNode]:
         if len(tree.children) != 1:
             raise RuntimeError('Malformed interpolate node. This should never happen!')
         return self.visit(tree.children[0])
 
-    def interpolate_string(self, tree) -> List[BaseValue]:
+    def interpolate_string(self, tree) -> List[ConfigNode]:
         return self.visit_children(tree)
 
-    def interpret_fstring(self, tree) -> List[BaseValue]:
+    def interpret_fstring(self, tree) -> List[ConfigNode]:
         # TODO: having to wrap in a list here might be a grammar mistake
         return [
-            EvalValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
+            EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
         ]
 
-    def template_ref(self, tree): return RefValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
-    def template_exp(self, tree): return EvalValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
-    def str(self, node):          return IgnoreValue(INTERPOLATE_RECONSTRUCTOR.reconstruct(node))
+    def template_ref(self, tree): return RefNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
+    def template_exp(self, tree): return EvalNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(tree))
+    def str(self, node):          return IgnoreNode(INTERPOLATE_RECONSTRUCTOR.reconstruct(node))
 
     def __getattr__(self, item):
         raise RuntimeError(f'This should never happen! Unknown Interpolation Grammar Node Visited: {item}')

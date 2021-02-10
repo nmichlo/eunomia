@@ -2,7 +2,7 @@ from typing import Iterable, Tuple
 from eunomia.config import Option
 from eunomia.config import scheme as s
 from eunomia.backend import Backend
-from eunomia.config.values import BaseValue
+from eunomia.config.nodes import ConfigNode
 
 
 # ========================================================================= #
@@ -156,7 +156,7 @@ class ConfigLoader(object):
     def _resolve_value(self, value):
         # 1. allow interpolation of config objects
         # 2. process dictionary syntax with _node_ keys
-        if isinstance(value, BaseValue):
+        if isinstance(value, ConfigNode):
             value = value.get_config_value(self._merged_config, self._merged_options, {})
         if isinstance(value, dict):
             if s.KEY_NODE in value:
@@ -183,7 +183,7 @@ class ConfigLoader(object):
     def _resolve_all_values(self):
         # TODO: this is wrong!
         # TODO: config is not mutated on the fly, cannot interpolate chains of values.
-        self._merged_config = BaseValue.recursive_get_config_value(
+        self._merged_config = ConfigNode.recursive_get_config_value(
             self._merged_config,
             self._merged_options,
             {},

@@ -2,7 +2,7 @@ import pytest
 from lark import UnexpectedToken, Tree, Token
 from lark.visitors import Transformer
 
-from eunomia.config.values._util_lark import INTERPOLATE_PARSER, INTERPOLATE_RECONSTRUCTOR
+from eunomia.config.nodes._util_lark import INTERPOLATE_PARSER, INTERPOLATE_RECONSTRUCTOR
 
 
 # ========================================================================= #

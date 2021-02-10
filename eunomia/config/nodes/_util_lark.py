@@ -13,15 +13,15 @@ def _read_relative_file(path):
         return f.read()
 
 
-def _get_lark_interpolate_parser():
+def _get_lark_substitute_parser():
     from lark import Lark
     grammar = _read_relative_file(GRAMMAR_FILE)
     return Lark(grammar, parser='lalr')
 
 
-GRAMMAR_FILE = 'grammar_interpolate.lark'
-INTERPOLATE_PARSER = _get_lark_interpolate_parser()
-INTERPOLATE_RECONSTRUCTOR = Reconstructor(INTERPOLATE_PARSER)
+GRAMMAR_FILE = 'grammar_substitute.lark'
+SUB_PARSER = _get_lark_substitute_parser()
+SUB_RECONSTRUCTOR = Reconstructor(SUB_PARSER)
 
 
 # ========================================================================= #

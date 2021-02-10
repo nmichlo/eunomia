@@ -8,7 +8,7 @@
 > Eunomia, the Greek goddess of law and legislation. Directly translated as "good order" or "governance according to good laws"
 
 Simple [hydra](https://github.com/facebookresearch/hydra) config like configuration
-library supporting custom backends and variable interpolation.
+library supporting custom backends and variable substitution.
 
 Configs are defined as nested groups of mutually exclusive options
 that can be selectively chosen.
@@ -85,11 +85,10 @@ We can load the config by calling:
 ```python3
 # ./main.py
 from eunomia import eunomia_load
-import yaml
+from ruamel import yaml
 
-if __name__ == '__main__':
-    config = eunomia_load('./configs', 'default')
-    print(yaml.safe_dump(config))
+config = eunomia_load('./configs', 'default')
+print(yaml.round_trip_dump(config))  # does not sort keys
 ```
 
 The resulting output of the merged config in yaml format is:
@@ -98,11 +97,11 @@ The resulting output of the merged config in yaml format is:
 trainer:
   epochs: 100
 framework:
-  _target_: 'BetaVae'
+  _target_: BetaVae
   beta: 4
 dataset:
-  _target_: 'Shapes3D'
-  folder: './data/shapes3d'
+  _target_: Shapes3D
+  folder: ./data/shapes3d
 ```
 
 ## Pythonic Example
@@ -110,58 +109,50 @@ dataset:
 The above yaml configuration generates the following representation behind
 the scenes using the yaml backend.
 
-If we would prefer to specify everything manually we can use the
+If you would prefer to specify everything manually we can use the
 following equivalent pythonic nested approach:
 
 ```python3
 # ./main.py
 from eunomia import eunomia_load
-from eunomia.config import ConfigGroup, ConfigOption
-from pprint import pprint
+from eunomia.config import Group, Option
+from ruamel import yaml
 
-config_root = ConfigGroup({
-    'framework': ConfigGroup({
-        'betavae': ConfigOption({
-              '_target_': 'BetaVae',
-              'beta': 4,
+group = Group({
+    'framework': Group({
+        'betavae': Option({
+            '_target_': 'BetaVae',
+            'beta': 4,
         })
     }),
-    'dataset': ConfigGroup({
-        'shapes3d': ConfigOption({
+    'dataset': Group({
+        'shapes3d': Option({
             '_target_': 'Shapes3D',
             'folder': './data/shapes3d',
         })
     }),
-    'default': ConfigOption({
-        '_options_': {
+    'default': Option(
+        {'trainer': {'epochs': 100}},
+        opts={
             'framework': 'betavae',
             'dataset': 'shapes3d',
-        },
-        'trainer': {
-            'epochs': 100,
         }
-    })
+    )
 })
 
-if __name__ == '__main__':
-    config = eunomia_load(config_root, 'default')
-    pprint(config)
+config = eunomia_load(group, 'default')
+print(yaml.round_trip_dump(config))  # does not sort keys
 ```
 
-The resulting output would be:
+The resulting output of the merged config in yaml format is:
 
-```python3
-{
-    'trainer': {
-        'epochs': 100,
-    },
-    'framework': {
-          '_target_': 'BetaVae',
-          'beta': 4,
-    },
-    'dataset': {
-        '_target_': 'Shapes3D',
-        'folder': './data/shapes3d',
-    }
-}
+```yaml
+trainer:
+  epochs: 100
+framework:
+  _target_: BetaVae
+  beta: 4
+dataset:
+  _target_: Shapes3D
+  folder: ./data/shapes3d
 ```

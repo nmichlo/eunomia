@@ -2,7 +2,7 @@ import pytest
 from lark import UnexpectedToken, Tree, Token
 from lark.visitors import Transformer
 
-from eunomia.values._util_lark import INTERPOLATE_PARSER, INTERPOLATE_RECONSTRUCTOR
+from eunomia.config.nodes._util_lark import SUB_PARSER, SUB_RECONSTRUCTOR
 
 
 # ========================================================================= #
@@ -17,26 +17,38 @@ def parse(string) -> Tree:
     # them for easier testing
     class ExprTransformer(Transformer):
         def template_exp(self, children):
-            return ('exp', INTERPOLATE_RECONSTRUCTOR.reconstruct(Tree('template_exp', children)))
+            return ('exp', SUB_RECONSTRUCTOR.reconstruct(Tree('template_exp', children)))
         def template_ref(self, tokens):
             assert all(isinstance(tok, Token) for tok in tokens)
             return ('ref', '.'.join(str(tok) for tok in tokens) if tokens else None)
-        def str(self, tokens):
-            assert all(isinstance(tok, Token) for tok in tokens)
-            assert len(tokens) == 1
-            return ('str', str(tokens[0]))
+        def substitute_string(self, tokens):
+            # this is a hack because of the grammer, just join
+            # repetative chars together to form a string. so its easier to test.
+            stack, str_stack = [], []
+            for t in tokens:
+                if isinstance(t, tuple):
+                    if str_stack:
+                        stack.append(''.join(str_stack))
+                        str_stack.clear()
+                    stack.append(t)
+                else:
+                    str_stack.append(t)
+            if str_stack:
+                stack.append(''.join(str_stack))
+            return Tree('substitute_string', stack)
 
     # assert that the first node of the
-    # tree is always 'interpolate' and contains one child
-    tree: Tree = INTERPOLATE_PARSER.parse(string)
-    assert tree.data == 'interpolate'
+    # tree is always 'substitute' and contains one child
+    tree: Tree = SUB_PARSER.parse(string)
+    assert tree.data == 'substitute'
     assert len(tree.children) == 1
     tree: Tree = tree.children[0]
 
     # assert that the second node of
     # the tree also only contains one child
-    assert tree.data in {'interpolate_string', 'interpret_fstring'}
-    return ExprTransformer().transform(tree)
+    assert tree.data in {'substitute_string', 'interpret_fstring'}
+    transformed = ExprTransformer().transform(tree)
+    return transformed
 
 
 # ========================================================================= #
@@ -47,19 +59,19 @@ def parse(string) -> Tree:
 def test_lark_grammar():
 
     # helpers for testing parsed & transformed nodes
-    def str(string):       return ('str', string)
+    def str(string):       return string
     def ref(string):       return ('ref', string)
     def exp(string):       return ('exp', string)
 
-    def root_str(*args):   return Tree('interpolate_string', list(args))
+    def root_str(*args):   return Tree('substitute_string', list(args))
     def root_fstr(string): return Tree('interpret_fstring', [Token('FSTRING', string)])
 
     # parse strings
-    assert parse('')                                  == root_str()
-    assert parse('asdf')                              == root_str(str('asdf'))
-    assert parse('asdf   asdf')                       == root_str(str('asdf   asdf'))
-    assert parse('asdf   \t asdf')                    == root_str(str('asdf   \t asdf'))
-    assert parse('  \t asdf  \t  ')                   == root_str(str('  \t asdf  \t  '))
+    assert parse('')                           == root_str()
+    assert parse('asdf')                       == root_str(str('asdf'))
+    assert parse('asdf   asdf')                == root_str(str('asdf   asdf'))
+    assert parse('asdf   \t asdf')             == root_str(str('asdf   \t asdf'))
+    assert parse('  \t asdf  \t  ')            == root_str(str('  \t asdf  \t  '))
 
     # basic reference
     assert parse('${a1.b2.c3}')  == root_str(ref('a1.b2.c3'))
@@ -108,3 +120,17 @@ def test_lark_grammar():
     with pytest.raises(UnexpectedToken): assert parse('${= {1: 2} ;}')       == root_str(exp('{1:2,}'))
     with pytest.raises(UnexpectedToken): assert parse('${={};}')             == root_str(exp('{}'))
     with pytest.raises(UnexpectedToken): assert parse('f"asdf";')            == root_fstr('f"asdf"')
+
+    # # check contained brackets
+    assert parse('{}') == root_str(str('{}'))
+    assert parse('a{}b') == root_str(str('a{}b'))
+    assert parse('a{123}b') == root_str(str('a{123}b'))
+    assert parse('a{123;}b') == root_str(str('a{123;}b'))
+    assert parse('a{=123}b') == root_str(str('a{=123}b'))
+    assert parse('a{=123;}b') == root_str(str('a{=123;}b'))
+    assert parse('{=}') == root_str(str('{=}'))
+    assert parse('{=1}') == root_str(str('{=1}'))
+    assert parse('a{{}}b') == root_str(str('a{{}}b'))
+    assert parse('a{{};}b') == root_str(str('a{{};}b'))
+    assert parse('a{={}}b') == root_str(str('a{={}}b'))
+    assert parse('a{={};}b') == root_str(str('a{={};}b'))

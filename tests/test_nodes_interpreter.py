@@ -2,8 +2,8 @@ import sys
 from typing import Callable, Any
 import pytest
 import ast
-from eunomia.values._util_interpret import Interpreter, BasicInterpreter
-from eunomia.values._util_interpret import UnsupportedLanguageFeatureError, DisabledLanguageFeatureError
+from eunomia.config.nodes._util_interpret import Interpreter, BasicInterpreter
+from eunomia.config.nodes._util_interpret import DisabledLanguageFeatureError
 
 
 # ========================================================================= #

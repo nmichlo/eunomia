@@ -19,24 +19,35 @@ class AttrDict(dict):
 
     def __init__(self, mapping=None):
         super(AttrDict, self).__init__()
+        # add all values to dictionary
         if mapping is not None:
             for key, value in mapping.items():
                 self.__setitem__(key, value)
 
     def __setitem__(self, key, value):
-        # TODO: convert sub-lists and dicts too!
+        # recursively convert dicts to attrdicts TODO: convert sub-lists and dicts too!
         if isinstance(value, dict):
             value = AttrDict(value)
+        # set item like usual
         super(AttrDict, self).__setitem__(key, value)
-        self.__dict__[key] = value  # for code completion in editors
+        # for code completion in editors
+        self.__dict__[key] = value
 
     def __getattr__(self, item):
         try:
             return self.__getitem__(item)
         except KeyError:
-            raise AttributeError(item)
+            raise AttributeError
 
     __setattr__ = __setitem__
+
+    # def __setattr__(self, key, value):
+    #     # allow double underscores to be assigned to the class itself
+    #     if str.startswith(key, f'_{self.__class__.__name__}__'):
+    #         super().__setattr__(key, value)
+    #     else:
+    #         return self.__setitem__(key, value)
+
 
 
 # ========================================================================= #

@@ -1,0 +1,16 @@
+
+[report]
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    # Have to re-enable the standard pragma
+    # - a comment with the following text placed after a statement
+    pragma: no cover
+    # debug code
+    if debug
+    if self.debug
+    if settings.DEBUG
+    # Don't complain about missing debug-only code:
+    def __repr__
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError

@@ -3,7 +3,7 @@
 // yaml string template language
 // ============================== //
 
-?start: interpolate
+?start: substitute
 
 // Two types of templates exist:
 // - reference templates
@@ -17,8 +17,8 @@
 //         - maybe allow support for the colon ";" before the last bracket
 //           eg. ${{{1: 2};}} <<< (this was buggy otherwise) or ${={1: 2};}
 
-interpolate: interpret_fstring // _END_STMT?
-           | interpolate_string
+substitute: interpret_fstring // _END_STMT?
+           | substitute_string
 
 // A. alternative syntax - fstring template
 // has higher priority than normal strings
@@ -27,8 +27,9 @@ FSTRING.10: /f".*"/
           | /f'.*'/
 
 // B. interpolation string - reference & interpret
-interpolate_string: // empty string
-                  | (template | str)+
+//   whitespace > template > char -- fixes negative lookahead and ignore
+substitute_string: // empty string
+                  | (WSSTR | template | CHAR)+
 
 ?template: "${" template_ref "}"
          | "${=" template_exp "}"              // B.1.
@@ -38,8 +39,11 @@ template_ref: NAME ("." NAME)*
 template_exp: expr_stmt
 
 // escaped string
-str: STR
-STR: /(.(?<!\$)(?!\{))+/
+// - this uses more memory, ie one token per character
+//   but it avoides the problem of ignored whitespace for the python expressions.
+//   it also means we dont need a negative lookahead because we are not matching strings.
+WSSTR: /[\t \f]+/
+CHAR: /./
 
 // end of statement
 _END_STMT: ";"

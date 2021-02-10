@@ -134,12 +134,17 @@ class _ConfigObject(object):
 
 class Group(_ConfigObject):
 
-    def __init__(self, named_nodes: Dict[str, Union['Group', 'Option']] = None):
+    def __init__(
+            self,
+            named_nodes: Dict[str, Union['Group', 'Option']] = None,
+    ):
         super().__init__()
         # add groups or options
         if named_nodes:
             for k, v in named_nodes.items():
                 self.add_child(k, v)
+            # we dont need to validate groups because we dont
+            # directly support conversion to them yet.
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Override                                                              #
@@ -298,6 +303,7 @@ class Option(_ConfigObject):
             data: dict = None,
             pkg: str = None,
             opts: Dict[str, str] = None,
+            validate=True,
     ):
         super().__init__()
         self._data = data if data is not None else {}
@@ -306,6 +312,9 @@ class Option(_ConfigObject):
         assert isinstance(self._pkg, str), f'{s.KEY_PKG} is not a string'
         assert isinstance(self._data, dict), f'{s.KEY_DATA} is not a dictionary'
         assert isinstance(self._opts, dict), f'{s.KEY_OPTS} is not a dicitonary'
+        # check that we can convert to the schema
+        if validate:
+            self.to_dict()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
@@ -377,18 +386,23 @@ class Option(_ConfigObject):
             pkg=option[s.KEY_PKG],
             opts=option[s.KEY_OPTS],
             data=option[s.KEY_DATA],
+            # no need to validate because of above
+            validate=False,
         )
 
     @classmethod
     def from_compact_dict(cls, option, validate=True):
         if validate:
             option = s.CompactOption.validate(option)
+        # pop all config values
         pkg = option.pop(s.KEY_PKG)
         opts = option.pop(s.KEY_OPTS)
         type = option.pop(s.KEY_TYPE)
+        # check that we have nothing extra
         if any(k in s.ALL_KEYS for k in option.keys()):
             raise KeyError('This should not happen!')
-        return Option(pkg=pkg, opts=opts, data=option)
+        # no need to validate because of above
+        return Option(pkg=pkg, opts=opts, data=option, validate=False)
 
     def to_dict(self, validate=True):
         option = {

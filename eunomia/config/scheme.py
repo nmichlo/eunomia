@@ -6,6 +6,7 @@ from schema import Or as _Or
 from schema import Use as _Use
 from schema import Const as _Const
 from schema import Regex as _Regex
+from schema import SchemaError as _SchemaError
 
 
 # ========================================================================= #

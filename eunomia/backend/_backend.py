@@ -10,12 +10,7 @@ from eunomia.config import Group
 class Backend(object):
 
     def load_root_group(self) -> Group:
-        root = self._load_root_group()
-        try:
-            root.to_dict()
-        except SchemaError as e:
-            raise ValueError(f'Invalid loaded config for backend: {self.__class__.__name__}.\n{e}')
-        return root
+        return self._load_root_group()
 
     def _load_root_group(self) -> Group:
         raise NotImplementedError

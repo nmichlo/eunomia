@@ -43,12 +43,12 @@ def test_eunomia_loader():
     assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2='asdf.fdsa')) == {'asdf': {'bar': 1, 'fdsa': {'baz': 2}}, 'foo': 1}
 
 
-# def test_eunomia_loader_interpolation():
-    # test custom packages with interpolation
-    # assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2=InterpolateValue('${="asdf"}.fdsa'))) == {'asdf': {'bar': 1, 'fdsa': {'baz': 2}}, 'foo': 1}
+def test_eunomia_loader_interpolation():
+    # test custom packages with substitution
+    assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2=SubNode('asdf.fdsa'))) == {'asdf': {'bar': 1, 'fdsa': {'baz': 2}}, 'foo': 1}
 
-    # # test interpolation values
-    # assert eunomia_load(_make_config_group(suboption=InterpolateValue('suboption${=1}'))) == {'subgroup': {'bar': 1}, 'foo': 1}
-    # assert eunomia_load(_make_config_group(suboption=InterpolateValue('f"suboption{1}"'))) == {'subgroup': {'bar': 1}, 'foo': 1}
-    # assert eunomia_load(_make_config_group(suboption=EvalValue('f"suboption{2}"'))) == {'subgroup': {'bar': 2}, 'foo': 1}
-    # assert eunomia_load(_make_config_group(suboption=InterpolateValue('suboption${foo}'))) == {'subgroup': {'bar': 1}, 'foo': 1}
+    # test interpolation values
+    assert eunomia_load(_make_config_group(suboption=SubNode('suboption${=1}'))) == {'subgroup': {'bar': 1}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption=SubNode('f"suboption{1}"'))) == {'subgroup': {'bar': 1}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption=EvalNode('f"suboption{2}"'))) == {'subgroup': {'bar': 2}, 'foo': 1}
+    assert eunomia_load(_make_config_group(suboption=SubNode('suboption${foo}'))) == {'subgroup': {'bar': 1}, 'foo': 1}

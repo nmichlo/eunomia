@@ -91,7 +91,8 @@ class ConfigLoader(object):
         # ===================== #
         # 1. check where to process self, and make sure self is in the options list
         # by default we want to merge this before children so we can reference its values.
-        group_paths = list(option.options.keys())
+        options = option.get_unresolved_options()
+        group_paths = list(options.keys())
         if s.OPT_SELF not in group_paths:
             # allow referencing parent values in children
             group_paths = [s.OPT_SELF] + group_paths
@@ -108,7 +109,9 @@ class ConfigLoader(object):
                 self._merge_option(option)
                 # ===================== #
             else:
-                option_name = option.options[group_path]
+                # get the option name and resolve
+                option_name = options[group_path]
+                option_name = self._resolve_value(option_name)
                 # ===================== #
                 # 2.b dfs through options
                 # TODO: handle keys and values if they are value interps
@@ -151,7 +154,7 @@ class ConfigLoader(object):
         # 2. get the root config object according to the package
         root = recursive_getitem(self._merged_config, keys, make_missing=True)
         # 3. merge the option into the config
-        dict_recursive_update(left=root, right=option.data)
+        dict_recursive_update(left=root, right=option.get_unresolved_data())
 
     def _resolve_value(self, value):
         # 1. allow interpolation of config objects
@@ -164,7 +167,7 @@ class ConfigLoader(object):
         return value
 
     def _resolve_package(self, option) -> Tuple[str]:
-        path = self._resolve_value(option.package)
+        path = self._resolve_value(option.get_unresolved_package())
         # check the type
         if not isinstance(path, str):
             raise TypeError(f'{s.KEY_PKG} must be a string')

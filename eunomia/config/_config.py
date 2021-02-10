@@ -1,5 +1,8 @@
 from typing import Dict, Union, List, Tuple
+
+from eunomia._util_traverse import RecursiveTransformer
 from eunomia.config import scheme as s
+from eunomia.config.nodes import ConfigNode, SubNode
 
 
 # ========================================================================= #
@@ -262,7 +265,6 @@ class Option(_ConfigObject):
             data: dict = None,
             pkg: str = None,
             opts: Dict[str, str] = None,
-            validate=True,
     ):
         super().__init__()
         self._data = data if data is not None else {}
@@ -271,9 +273,7 @@ class Option(_ConfigObject):
         assert isinstance(self._pkg, (str, ConfigNode)), f'{s.KEY_PKG} is not a string or {ConfigNode.__name__}'
         assert isinstance(self._data, dict), f'{s.KEY_DATA} is not a dictionary'
         assert isinstance(self._opts, dict), f'{s.KEY_OPTS} is not a dicitonary'
-        # check that we can convert to the schema
-        if validate:
-            self.to_dict()
+        # we dont validate in case things are nodes
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
@@ -301,17 +301,27 @@ class Option(_ConfigObject):
     # getters - data                                                        #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    @property
-    def options(self):
-        return self._opts
+    class _ReplaceStrings(RecursiveTransformer):
+        def _transform_str(self, value):
+            return SubNode(value)
+        def __transform_default__(self, value):
+            return value
+        def _transform_dict_key(self, key):
+            # do not allow interpolation on keys
+            if isinstance(key, str):
+                return key
+            elif isinstance(key, ConfigNode):
+                raise TypeError('keys in configs cannot be config nodes')
+            return super()._transform_dict_key(key)
 
-    @property
-    def package(self) -> str:
-        return self._pkg
+    def get_unresolved_options(self):
+        return self._ReplaceStrings().transform(self._opts)
 
-    @property
-    def data(self):
-        return self._data
+    def get_unresolved_package(self):
+        return self._ReplaceStrings().transform(self._pkg)
+
+    def get_unresolved_data(self):
+        return self._ReplaceStrings().transform(self._data)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Children - disabled for the option node                               #
@@ -345,8 +355,6 @@ class Option(_ConfigObject):
             pkg=option[s.KEY_PKG],
             opts=option[s.KEY_OPTS],
             data=option[s.KEY_DATA],
-            # no need to validate because of above
-            validate=False,
         )
 
     def to_dict(self, validate=True):

@@ -160,8 +160,8 @@ class Group(_ConfigObject):
 
     # override to yield in order
     def __iter__(self):
-        yield from self.options
         yield from self.groups
+        yield from self.options
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Getters                                                               #

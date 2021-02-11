@@ -39,6 +39,15 @@ def test_simple_option():
     # NOTE: the working directory must not be /eunomia/tests, it must be /eunomia
     assert root.to_dict() == target.to_dict()
 
+    assert root.get_registered_defaults() == {'tests/test_registry': 'foo'}
+    assert root.get_registered_defaults(explicit_only=True) == {}
+
+    _foo = root.register(option_name='foo_alt4', group_path='/group/subgroup', override_defaults=dict(baz=3), is_default=True)(_foo)
+
+    assert root.get_registered_defaults() == {'group/subgroup': 'foo_alt4'}
+    assert root.get_registered_defaults(explicit_only=True) == {'group/subgroup': 'foo_alt4'}
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

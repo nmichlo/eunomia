@@ -122,6 +122,10 @@ class _ConfigObject(object):
         except:
             return False
 
+    def to_yaml(self) -> str:
+        import ruamel.yaml
+        return ruamel.yaml.round_trip_dump(self.to_dict())
+
 
 # ========================================================================= #
 # Group                                                                     #
@@ -176,6 +180,10 @@ class Group(_ConfigObject):
     @property
     def options(self) -> Dict[str, 'Option']:
         return {k: v for k, v in self._children.items() if isinstance(v, Option)}
+
+    @property
+    def group_path(self):
+        return '/'.join(self.keys if self.keys else ())
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Groups & Options                                                      #
@@ -404,6 +412,10 @@ class Option(_ConfigObject):
     @property
     def group_keys(self) -> Tuple[str]:
         return self.group.keys
+
+    @property
+    def group_path(self):
+        return self.group.group_path
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters - data                                                        #

@@ -107,7 +107,7 @@ class RegistryGroup(Group):
             explicit, _ = self._registered_defaults[func]
             if explicit:
                 if is_default:
-                    raise KeyError(f'registered callable {func} for option: {option.keys} was previously explicitly registered as a default.')
+                    raise AssertionError(f'registered callable {func} for option: {option.keys} was previously explicitly registered as a default.')
             else:
                 if is_default:
                     self._registered_defaults[func] = (True, option)
@@ -126,7 +126,7 @@ class RegistryGroup(Group):
                 continue
             k = option.group_path
             if k in defaults:
-                raise KeyError(f'default for callable {func} corresponding to option: {option.keys} has already been added.')
+                raise AssertionError(f'default for callable {func} corresponding to option: {option.keys} has already been added.')
             defaults[k] = option.key
         return defaults
 

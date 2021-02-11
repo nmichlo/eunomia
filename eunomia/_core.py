@@ -63,7 +63,12 @@ def eunomia_runner_adv(func: callable, backend: Backend, entrypoint=DEFAULT_ENTR
     - This function is the core of eunomia, calling the relevant plugins, creating
       the merged config and finally calling your entry.
     """
-    raise NotImplementedError('TODO: implement me!')
+    config = eunomia_load_adv(
+        backend=backend,
+        entrypoint=entrypoint
+    )
+    # TODO: extract runner from config, and run that way!
+    func(config)
 
 
 # ========================================================================= #

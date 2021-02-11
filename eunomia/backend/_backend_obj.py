@@ -18,7 +18,7 @@ class BackendObj(Backend):
 
     def __init__(self, root_group: Group):
         if not isinstance(root_group, Group):
-            raise TypeError(f'{root_group} must be an instance of {Group.__name__}')
+            raise TypeError(f'root_group must be an instance of {Group.__name__}')
         self._root_group = root_group
 
     def _load_root_group(self) -> Group:

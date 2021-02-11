@@ -97,11 +97,15 @@ class EvalNode(ConfigNode):
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict):
-        return interpret_expr(self.raw_value, usersyms={
-            'this': current_config,
-            'conf': merged_config,
-            'opts': merged_options,
-        })
+        return interpret_expr(
+            self.raw_value,
+            usersyms={
+                'this': current_config,
+                'conf': merged_config,
+                'opts': merged_options,
+            },
+            NON_STANDARD_PYTHON=True  # try getitem on AttributeError
+        )
 
 
 # ========================================================================= #

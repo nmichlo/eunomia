@@ -108,12 +108,12 @@ def test_option_init():
     assert option.to_dict() == option.from_dict(option.to_dict()).to_dict()
 
 
-@contextmanager
-def no_stdout():
-    old_stdout = sys.stdout
-    sys.stdout = open(os.devnull, 'w')
-    yield
-    sys.stdout = old_stdout
+# @contextmanager
+# def no_stdout():
+#     old_stdout = sys.stdout
+#     sys.stdout = open(os.devnull, 'w')
+#     yield
+#     sys.stdout = old_stdout
 
 @contextmanager
 def capture_stdout():

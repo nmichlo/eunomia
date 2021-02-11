@@ -275,7 +275,7 @@ class Group(_ConfigObject):
     # Debug                                                                 #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def print_debug_tree(self, colors=True, show_options=True, full_option_path=True, full_group_path=True):
+    def debug_print_tree(self, colors=True, show_options=True, full_option_path=True, full_group_path=True):
         from attr import dataclass
 
         @dataclass
@@ -331,7 +331,7 @@ class Group(_ConfigObject):
 
         for stack in _walk():
             (*_, item) = stack
-            tree = ''.join(TREE.get(o.key, f'ERR{o}') for o in stack)
+            tree = ''.join(TREE.get(o.key, f'ERR{o}') for o in stack[1:])
             if item.is_group:
                 keys = [f'/{k}' for k in (item.node.keys if item.node.keys else ('',))]
                 name = f"{nG}{keys[-1]}{R}"

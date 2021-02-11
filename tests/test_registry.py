@@ -1,3 +1,6 @@
+import pytest
+
+from eunomia import eunomia_load
 from eunomia.config import Group, Option
 from eunomia.registry import RegistryGroup
 
@@ -39,6 +42,10 @@ def test_simple_option():
     # NOTE: the working directory must not be /eunomia/tests, it must be /eunomia
     assert root.to_dict() == target.to_dict()
 
+    # test defaults
+    # - if is_default is not specified, then the default can be overwritten
+    #   otherwise it cannot be
+
     assert root.get_registered_defaults() == {'tests/test_registry': 'foo'}
     assert root.get_registered_defaults(explicit_only=True) == {}
 
@@ -46,6 +53,24 @@ def test_simple_option():
 
     assert root.get_registered_defaults() == {'group/subgroup': 'foo_alt4'}
     assert root.get_registered_defaults(explicit_only=True) == {'group/subgroup': 'foo_alt4'}
+
+    # test that the registrable group is the root.
+    g = Group({'temp': root})
+    with pytest.raises(AssertionError, match='Can only register on the root node.'): root.register()(_foo)
+    with pytest.raises(AssertionError, match='Can only register on the root node.'): root.get_registered_defaults()
+
+    # reset
+    root._parent = None
+    root._key = None
+
+    # try again
+    # TODO: maybe update to better error message
+    with pytest.raises(KeyError, match='parent already has child with key: foo'): root.register()(_foo)
+    assert root.get_registered_defaults() == {'group/subgroup': 'foo_alt4'}
+
+    # try merge group
+    root.add_option('default', Option(opts=root.get_registered_defaults()))
+    assert eunomia_load(root) == {'group': {'subgroup': {'_target_': 'tests.test_registry.foo', 'baz': 3}}}
 
 
 # ========================================================================= #

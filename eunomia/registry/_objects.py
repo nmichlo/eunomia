@@ -64,6 +64,8 @@ class RegistryGroup(Group):
         self._registered_defaults: Dict[object, Tuple[bool, Option]] = {}
 
     def register(self, option_name: str = None, group_path: str = None, target: str = None, override_defaults=None, is_default=None):
+        assert not self.has_parent, 'Can only register on the root node.'
+        # wrap!
         def wrapper(func):
             # get the function paths
             import_path = _get_import_path(func) if target is None else target
@@ -97,7 +99,6 @@ class RegistryGroup(Group):
             return wrapper
 
     def _register_obj(self, func, option, is_default=None):
-        print()
         assert not self.has_parent, 'Can only register on the root node.'
         # keep track that this was registered
         self._registered_all[func].append(option)

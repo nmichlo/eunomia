@@ -304,7 +304,7 @@ class Group(_ConfigObject):
             return _recurse(self, True, [])
 
         if colors:
-            nG, nO, S, G, O, R = '\033[31m', '\033[33m', '\033[90m', '\033[91m', '\033[93m', '\033[0m'
+            nG, nO, S, G, O, R = '\033[35m', '\033[33m', '\033[90m', '\033[95m', '\033[93m', '\033[0m'
         else:
             nG, nO, S, G, O, R = '', '', '', '', '', ''
 

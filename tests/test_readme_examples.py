@@ -1,7 +1,7 @@
 import os
 
 # get the absolute path to the config dir relative to this file
-CONFIGS_DIR = os.path.join(os.path.dirname(__file__), 'configs')
+CONFIGS_DIR = os.path.join(os.path.dirname(__file__), 'test_configs/readme_configs')
 
 # the expected output
 OUTPUT =\

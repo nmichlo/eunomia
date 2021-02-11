@@ -1,6 +1,9 @@
 import pytest
 
-from eunomia import eunomia_load
+from eunomia import eunomia, eunomia_adv
+from eunomia import eunomia_runner, eunomia_runner_adv
+from eunomia import eunomia_load, eunomia_load_adv
+from eunomia.backend import BackendObj, BackendDict
 from eunomia.config.nodes import SubNode, EvalNode
 from tests.test_backend_obj import _make_config_group
 
@@ -52,3 +55,39 @@ def test_eunomia_loader_interpolation():
     assert eunomia_load(_make_config_group(suboption=SubNode('f"suboption{1}"'))) == {'subgroup': {'bar': 1}, 'foo': 1}
     assert eunomia_load(_make_config_group(suboption=EvalNode('f"suboption{2}"'))) == {'subgroup': {'bar': 2}, 'foo': 1}
     assert eunomia_load(_make_config_group(suboption=SubNode('suboption${foo}'))) == {'subgroup': {'bar': 1}, 'foo': 1}
+
+
+def test_eunomia_core_funcs():
+
+    root = _make_config_group()
+    target = {'foo': 1, 'subgroup': {'bar': 1}}
+
+    # LOADER
+
+    # test group backend
+    assert eunomia_load(root, 'default') == target
+    assert eunomia_load_adv(BackendObj(root), 'default') == target
+
+    # test dict backend
+    assert eunomia_load(root.to_dict(), 'default') == target
+    assert eunomia_load_adv(BackendDict(root.to_dict()), 'default') == target
+
+    # RUNNERS
+
+    def main(config):
+        assert config == target
+    eunomia_runner(main, root, 'default')
+    eunomia_runner_adv(main, BackendObj(root), 'default')
+
+    # WRAPPERS
+
+    @eunomia(root, 'default')
+    def main(config):
+        assert config == target
+    main()
+    @eunomia_adv(BackendObj(root), 'default')
+    def main(config):
+        assert config == target
+    main()
+
+

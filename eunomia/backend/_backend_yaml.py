@@ -134,8 +134,8 @@ class EunomiaSafeLoader(yaml.SafeLoader):
 EunomiaSafeLoader.add_constructors(['!tuple'], EunomiaSafeLoader.construct_custom_tuple)
 EunomiaSafeLoader.add_constructors(['!str'], EunomiaSafeLoader.construct_node_ignore)
 EunomiaSafeLoader.add_constructors(['!ref'], EunomiaSafeLoader.construct_node_ref)
-EunomiaSafeLoader.add_constructors(['!eval'], EunomiaSafeLoader.construct_node_eval)
-EunomiaSafeLoader.add_constructors(['!interp'], EunomiaSafeLoader.construct_node_sub)
+EunomiaSafeLoader.add_constructors(['!expr'], EunomiaSafeLoader.construct_node_eval)
+EunomiaSafeLoader.add_constructors(['!sub'], EunomiaSafeLoader.construct_node_sub)
 
 
 # NOTE: unknown tags can be parsed

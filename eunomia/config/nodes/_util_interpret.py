@@ -278,6 +278,8 @@ class Interpreter(BasicInterpreter):
             allow_numerical_unary_on_bool=False,
             allow_chained_comparisons=True,
             allow_unpacking=False,
+            # NON-STANDARD-PYTHON
+            NON_STANDARD_PYTHON_allow_getitem_on_getattr_fail=False,
     ):
         super().__init__(
             allow_nested_unary=allow_nested_unary,
@@ -289,6 +291,9 @@ class Interpreter(BasicInterpreter):
         self._symtable = make_symbol_table(use_numpy=False) if (default_symtable is None) else default_symtable
         # add extras to symtable
         self._symtable.update({} if (extra_symtable is None) else extra_symtable)
+        # THIS IS NON STANDARD PYTHON
+        # THIS SHOULD MAYBE BE REPLACED WITH AN ATTR_DICT
+        self._NON_STANDARD_PYTHON_allow_getitem_on_getattr_fail = NON_STANDARD_PYTHON_allow_getitem_on_getattr_fail
 
     def copy(self) -> 'Interpreter':
         # TODO: this is not safe, does not use a deep copy
@@ -315,7 +320,18 @@ class Interpreter(BasicInterpreter):
     def visit_Attribute(self, node):
         if node.attr in UNSAFE_ATTRS:
             raise KeyError(f'Tried to access unsafe attribute: {node.attr}')
-        return getattr(self._visit(node.value), node.attr)
+        visited, attr = self._visit(node.value), node.attr
+        try:
+            return getattr(visited, attr)
+        except AttributeError as e:
+            if self._NON_STANDARD_PYTHON_allow_getitem_on_getattr_fail:
+                if hasattr(visited, '__getitem__'):
+                    try:
+                        return visited[attr]
+                    except KeyError:
+                        pass
+            raise e
+
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # List, Tuple, Set, Dict Unpacking                                      #
@@ -448,11 +464,18 @@ class Interpreter(BasicInterpreter):
     #     # [i for i in [1, 2, 3] if i for j in [3, 4, 5] if j if j]
 
 
-def interpret_expr(string: str, usersyms: Optional[Dict[str, Any]] = None):
+def interpret_expr(
+        string: str,
+        usersyms: Optional[Dict[str, Any]] = None,
+        NON_STANDARD_PYTHON = False,
+):
     """
     Interpret the given expression with preset
     limitations on what is allowed.
     """
-    interpreter = Interpreter(extra_symtable=usersyms)
+    interpreter = Interpreter(
+        extra_symtable=usersyms,
+        NON_STANDARD_PYTHON_allow_getitem_on_getattr_fail=NON_STANDARD_PYTHON
+    )
     assert isinstance(string, str)
     return interpreter.interpret(string)

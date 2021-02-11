@@ -20,21 +20,6 @@ class Transformer(object):
         raise NotImplementedError
 
 
-class Visitor(object):
-    """
-    Based off of the various visitors that
-    exist for traversing ASTs.
-    """
-
-    def visit(self, value):
-        attr = f'_visit_{type(value).__name__}'
-        func = getattr(self, attr, self.__visit_default__)
-        func(value)
-
-    def __visit_default__(self, value):
-        raise NotImplementedError
-
-
 class RecursiveTransformer(Transformer):
     """
     This one effectively makes copies of the

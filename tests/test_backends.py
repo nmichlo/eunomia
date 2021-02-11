@@ -3,12 +3,12 @@ import pytest
 from eunomia import eunomia_load
 from eunomia.backend import BackendObj, BackendDict, BackendYaml
 from tests.test_backend_obj import _make_config_group
+from tests.test_readme_examples import CONFIGS_DIR
 
 
 # ========================================================================= #
 # Test Config Objects                                                       #
 # ========================================================================= #
-from tests.test_readme_examples import CONFIGS_DIR
 
 
 def test_simple_option():
@@ -23,6 +23,9 @@ def test_simple_option():
     assert BackendDict(root.to_dict()).load_root_group().to_dict() == root.to_dict()
     with pytest.raises(TypeError, match='must be a dict'):
         BackendDict(root).load_root_group().to_dict()
+
+    # test yaml backend
+    BackendYaml(CONFIGS_DIR).load_root_group()
 
     # test yaml backend
     merged = eunomia_load(CONFIGS_DIR, 'advanced')

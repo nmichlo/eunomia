@@ -315,6 +315,7 @@ class Group(_ConfigObject):
             (1, 1, 0, 1): f' {S}│{R} ',     # group,  visited,   inner, no groups after
             (1, 0, 0, 1): f' {S}├{G}─{R}',  # group,  unvisited, inner, no groups after
             (1, 0, 1, 1): f' {S}╰{G}─{R}',  # group,  unvisited, last,  no groups after
+            (0, 0, 0, 1): f' {S}│{R} ',     # option, unvisited, last,  has groups after
             (0, 0, 1, 1): f' {S}├{O}╌{R}',  # option, unvisited, last,  no groups after
             (0, 0, 0, 0): f' {S}├{O}╌{R}',  # option, unvisited, inner, has groups after
             (0, 0, 1, 0): f' {S}╰{O}╌{R}',  # option, unvisited, last,  has groups after

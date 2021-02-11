@@ -1,9 +1,12 @@
 # 📜 eunomia
-[![License](https://img.shields.io/github/license/nmichlo/eunomia?style=flat-square)](https://choosealicense.com/licenses/mit/)
-[![Version](https://img.shields.io/pypi/v/eunomia?style=flat-square)](https://pypi.org/project/eunomia)
+
 [![Python Versions](https://img.shields.io/pypi/pyversions/eunomia?style=flat-square)](https://pypi.org/project/eunomia)
 [![Tests Status](https://img.shields.io/github/workflow/status/nmichlo/eunomia/test?label=tests&style=flat-square)](https://github.com/nmichlo/eunomia/actions?query=workflow%3Atest)
 [![Code Coverage](https://img.shields.io/codecov/c/gh/nmichlo/eunomia?token=86IZK3J038&style=flat-square)](https://codecov.io/gh/nmichlo/eunomia/)
+
+[![License](https://img.shields.io/github/license/nmichlo/eunomia?style=flat-square&color=lightgrey)](https://choosealicense.com/licenses/mit/)
+[![Version](https://img.shields.io/pypi/v/eunomia?style=flat-square)](https://pypi.org/project/eunomia)
+[![Last Commit](https://img.shields.io/github/last-commit/nmichlo/eunomia?style=flat-square)](https://github.com/nmichlo/eunomia)
 
 > Eunomia, the Greek goddess of law and legislation. Directly translated as "good order" or "governance according to good laws"
 
@@ -23,11 +26,15 @@ Have a look at the [docs and examples](https://eunomia.dontpanic.sh)!
 - Does not support custom backends
 - Does not support nested pythonic config definitions
 - Does not support simple python expressions
+- Does not support combining groups/options loaded from different backends before config merge
 - Defaults are defined as lists not ordered dictionaries
 - Uses custom yaml parsing to obtain package
 - Config resolution order is unexpected (cannot reference config values in defaults lists)
 - Overcomplicated / Depends on OmegaConf
 - Release version 1.1 (with recursive defaults) was taking too long.
+- Complex
+    - Hydra + OmegaConf: ![](https://img.shields.io/tokei/lines/github/facebookresearch/hydra?style=flat-square&color=red)  ![](https://img.shields.io/tokei/lines/github/omry/omegaconf?style=flat-square&color=orange)
+    - Eunomia: ![](https://img.shields.io/tokei/lines/github/nmichlo/eunomia?style=flat-square&color=brightgreen)
 
 ## Usage
 

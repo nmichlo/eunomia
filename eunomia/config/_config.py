@@ -25,7 +25,7 @@ class _ConfigObject(object):
     @property
     def has_parent(self):
         assert not ((not self._key) ^ (not self._parent))
-        return self._key and self._parent
+        return (self._key is not None) and (self._parent is not None)
 
     @property
     def parent(self) -> '_ConfigObject':
@@ -39,12 +39,12 @@ class _ConfigObject(object):
 
     @property
     def keys(self) -> Tuple[str]:
-        return tuple(n.key for n in self._walk_from_root(visit_root=False))
+        return tuple(n.key for n in self.walk_from_root(visit_root=False))
 
     @property
     def root(self) -> '_ConfigObject':
         node = self
-        for node in self._walk_to_root(visit_root=True):
+        for node in self.walk_to_root(visit_root=True):
             pass
         return node
 
@@ -52,7 +52,7 @@ class _ConfigObject(object):
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def _walk_to_root(self, visit_root=False):
+    def walk_to_root(self, visit_root=False):
         current = self
         while current.has_parent:
             yield current
@@ -60,10 +60,17 @@ class _ConfigObject(object):
         if visit_root:
             yield current
 
-    def _walk_from_root(self, visit_root=False):
-        yield from reversed(list(self._walk_to_root(
+    def walk_from_root(self, visit_root=False):
+        yield from reversed(list(self.walk_to_root(
             visit_root=visit_root
         )))
+
+    def walk_descendants(self):
+        def _iter(node):
+            yield node
+            for k in node:
+                yield from _iter(node[k])
+        return _iter(self)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Children                                                              #
@@ -114,6 +121,10 @@ class _ConfigObject(object):
             return True
         except:
             return False
+
+    def to_yaml(self) -> str:
+        import ruamel.yaml
+        return ruamel.yaml.round_trip_dump(self.to_dict())
 
 
 # ========================================================================= #
@@ -170,6 +181,10 @@ class Group(_ConfigObject):
     def options(self) -> Dict[str, 'Option']:
         return {k: v for k, v in self._children.items() if isinstance(v, Option)}
 
+    @property
+    def group_path(self):
+        return '/'.join(self.keys if self.keys else ())
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Groups & Options                                                      #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -218,7 +233,6 @@ class Group(_ConfigObject):
             return False
         return True
 
-
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -234,6 +248,19 @@ class Group(_ConfigObject):
             return _recurse(group.get_subgroup(key), keys)
         return _recurse(self, keys)
 
+    def get_group_from_path(self, path: str, make_missing=False):
+        """
+        This function checks if a path is relative or absolute.
+        If the path is relative, it traverses from the current group.
+        If the path is absolute, it traverses from the root group.
+
+        Supports make_missing like get_subgroups_recursive(...)
+        """
+        group_keys, is_relative = s.split_group_path(path)
+        # get the group corresponding to the path - must handle relative & root paths
+        root = (self if is_relative else self.root)
+        return root.get_subgroups_recursive(group_keys, make_missing=make_missing)
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Strings                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -243,6 +270,78 @@ class Group(_ConfigObject):
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self._children})'
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Debug                                                                 #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def debug_print_tree(self, colors=True, show_options=True, full_option_path=True, full_group_path=True):
+        from attr import dataclass
+
+        @dataclass
+        class _WalkObj:
+            node: _ConfigObject
+            visited: bool
+            is_last: bool
+            @property
+            def is_group(self):
+                return isinstance(self.node, Group)
+            @property
+            def has_groups_after(self):
+                return self.node.has_parent and isinstance(self.node.parent, Group) and bool(self.node.parent.groups)
+            @property
+            def key(self):
+                return (self.is_group, self.visited, self.is_last, self.has_groups_after)
+            def __str__(self):
+                return f":{''.join(map(str, map(int, self.key)))}"
+
+        def _is_last_iter(items):
+            yield from ((item, i == len(items)-1) for i, item in enumerate(items))
+
+        def _walk():
+            def _recurse(node, is_last, stack):
+                stk = stack + [_WalkObj(node, False, is_last)]
+                yield stk
+                stk[-1].visited = True
+                if isinstance(node, Group):
+                    if show_options:
+                        for o, l in _is_last_iter(node.options.values()):
+                            yield from _recurse(o, l, stk)
+                    for g, l in _is_last_iter(node.groups.values()):
+                        yield from _recurse(g, l, stk)
+            return _recurse(self, True, [])
+
+        if colors:
+            nG, nO, S, G, O, R = '\033[35m', '\033[33m', '\033[90m', '\033[95m', '\033[93m', '\033[0m'
+        else:
+            nG, nO, S, G, O, R = '', '', '', '', '', ''
+
+        TREE = {
+            (1, 1, 1, 0): f'   ',           # group,  visited,   last,  has groups after
+            (1, 1, 1, 1): f'   ',           # group,  visited,   last,  no groups after
+            (1, 0, 1, 0): f'   ',           # group,  unvisited, last,  has groups after
+            (1, 1, 0, 1): f' {S}│{R} ',     # group,  visited,   inner, no groups after
+            (1, 0, 0, 1): f' {S}├{G}─{R}',  # group,  unvisited, inner, no groups after
+            (1, 0, 1, 1): f' {S}╰{G}─{R}',  # group,  unvisited, last,  no groups after
+            (0, 0, 0, 1): f' {S}│{R} ',     # option, unvisited, last,  has groups after
+            (0, 0, 1, 1): f' {S}├{O}╌{R}',  # option, unvisited, last,  no groups after
+            (0, 0, 0, 0): f' {S}├{O}╌{R}',  # option, unvisited, inner, has groups after
+            (0, 0, 1, 0): f' {S}╰{O}╌{R}',  # option, unvisited, last,  has groups after
+        }
+
+        for stack in _walk():
+            (*_, item) = stack
+            tree = ''.join(TREE.get(o.key, f'ERR{o}') for o in stack[1:])
+            if item.is_group:
+                keys = [f'/{k}' for k in (item.node.keys if item.node.keys else ('',))]
+                name = f"{nG}{keys[-1]}{R}"
+                if full_group_path:
+                    name = f"{S}{''.join(keys[:-1])}{R}" + name
+            else:
+                name = f"{nO}{item.node.key}{R}"
+                if full_option_path:
+                    name = f"{S}{('/' + '/'.join(item.node.keys[:-1]))}:{R} " + name
+            print(tree, name)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Schema                                                                #
@@ -314,6 +413,10 @@ class Option(_ConfigObject):
     def group_keys(self) -> Tuple[str]:
         return self.group.keys
 
+    @property
+    def group_path(self):
+        return self.group.group_path
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters - data                                                        #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -348,7 +451,7 @@ class Option(_ConfigObject):
     get_child = None
     __setitem__ = None
     __getitem__ = None
-    __iter__ = None
+    __iter__ = ().__iter__
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Strings                                                               #

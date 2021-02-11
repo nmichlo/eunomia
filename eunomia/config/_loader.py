@@ -114,11 +114,8 @@ class ConfigLoader(object):
                 option_name = self._resolve_value(option_name)
                 # ===================== #
                 # 2.b dfs through options
-                # TODO: handle keys and values if they are value interps
-                group_keys, is_relative = s.split_group_path(group_path)
-                # get the group corresponding to the path - must handle relative & root paths
-                root = (option.group if is_relative else option.root)
-                group = root.get_subgroups_recursive(group_keys)
+                # supports relative & absolute paths
+                group = option.group.get_group_from_path(group_path, make_missing=False)
                 # visit the next option
                 self._visit_option(group.get_option(option_name))
                 # ===================== #

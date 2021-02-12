@@ -1,12 +1,9 @@
-import os
 import re
-import sys
-from contextlib import contextmanager
-from io import StringIO
 
 import pytest
 from schema import SchemaError
 
+from tests.util import capture_stdout
 from eunomia.config import Group, Option
 from eunomia.config import scheme as s
 
@@ -21,20 +18,20 @@ def test_simple_option():
     Option(data={'foo': 'bar'}, pkg=s.PKG_ROOT).to_dict()
     Option(data={'foo': 'bar'}, pkg=s.PKG_GROUP).to_dict()
 
-    Option(data={'foo': 'bar'}, opts={}).to_dict()
+    Option(data={'foo': 'bar'}, merge={}).to_dict()
 
     # test relative path
-    Option(data={'foo': 'bar'}, opts={'group1': 'option1'}).to_dict()
-    Option(data={'foo': 'bar'}, opts={'group1/group2': 'option2'}).to_dict()
+    Option(data={'foo': 'bar'}, merge={'group1': 'option1'}).to_dict()
+    Option(data={'foo': 'bar'}, merge={'group1/group2': 'option2'}).to_dict()
     # test absolute path
-    Option(data={'foo': 'bar'}, opts={'/group1/group2': 'option2'}).to_dict()
+    Option(data={'foo': 'bar'}, merge={'/group1/group2': 'option2'}).to_dict()
 
     with pytest.raises(SchemaError, match='is_identifier'):
-        Option(data={'foo': 'bar'}, opts={'group1': '1invalid'}).to_dict()
+        Option(data={'foo': 'bar'}, merge={'group1': '1invalid'}).to_dict()
     with pytest.raises(SchemaError, match='Wrong key'):
-        Option(data={'foo': 'bar'}, opts={'1invalid': 'option2'}).to_dict()
+        Option(data={'foo': 'bar'}, merge={'1invalid': 'option2'}).to_dict()
     with pytest.raises(SchemaError, match='Wrong key'):
-        Option(data={'foo': 'bar'}, opts={'group1/2invalid': 'option2'}).to_dict()
+        Option(data={'foo': 'bar'}, merge={'group1/2invalid': 'option2'}).to_dict()
 
     Option(data={'foo': 'bar'}, pkg='key1').to_dict()
     Option(data={'foo': 'bar'}, pkg='key1.key2').to_dict()
@@ -75,7 +72,7 @@ def _make_config_group(suboption='suboption1', suboption2=None, package1='<group
         }),
         'default': Option(
             data={'foo': 1},
-            opts={
+            merge={
                 **({'subgroup': suboption} if suboption else {}),  # relative
                 **({'/subgroup2/subgroup3': suboption2} if suboption2 else {}),  # absolute
             }
@@ -100,27 +97,12 @@ def test_config_objects():
 def test_option_init():
     # raw data in option
     data = {'foo': 'bar'}
-    opts = {'/group1/group2': 'option2'}
+    defaults = {'/group1/group2': 'option2'}
     pkg = s.PKG_ROOT
     # make equivalent options
-    option = Option(data=data, opts=opts, pkg=pkg)
+    option = Option(data=data, merge=defaults, pkg=pkg)
     # check circular conversion to_dict
     assert option.to_dict() == option.from_dict(option.to_dict()).to_dict()
-
-
-# @contextmanager
-# def no_stdout():
-#     old_stdout = sys.stdout
-#     sys.stdout = open(os.devnull, 'w')
-#     yield
-#     sys.stdout = old_stdout
-
-@contextmanager
-def capture_stdout():
-    old_stdout, temp_out = sys.stdout, StringIO()
-    sys.stdout = temp_out
-    yield temp_out
-    sys.stdout = old_stdout
 
 def test_debug_groups():
     root = _make_config_group(suboption='suboption1')

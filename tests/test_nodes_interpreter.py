@@ -369,6 +369,38 @@ def test_interpreter_getitem(name_sym_interp):
     assert name_sym_interp('conf["b"]') == conf["b"]
     assert name_sym_interp('conf["a"]["c"]') == conf["a"]["c"]
 
+
+def test_interpreter_NON_STANDARD_PYTHON():
+    config = {'foo': 1, 'bar': {'baz': 2}}
+    standard = Interpreter(extra_symtable={'conf': config})
+    non_standard = Interpreter(extra_symtable={'conf': config}, NON_STANDARD_PYTHON_allow_getitem_on_getattr_fail=True)
+
+    # check standard - get_item
+    assert standard.interpret('conf["foo"]') == 1
+    assert standard.interpret('conf["bar"]["baz"]') == 2
+    with pytest.raises(AttributeError): standard.interpret('conf.foo')
+    with pytest.raises(AttributeError): standard.interpret('conf.bar.baz')
+    with pytest.raises(AttributeError): standard.interpret('conf["bar"].baz')
+    with pytest.raises(AttributeError): standard.interpret('conf.bar["baz"]')
+    # check standard - missing
+    with pytest.raises(KeyError): standard.interpret('conf["buzz"]')
+    with pytest.raises(KeyError): standard.interpret('conf["bar"]["buzz"]')
+    with pytest.raises(AttributeError): standard.interpret('conf["bar"].buzz')
+    with pytest.raises(AttributeError): standard.interpret('conf.bar["buzz"]')
+
+    # check standard - get_item
+    assert non_standard.interpret('conf["foo"]') == 1
+    assert non_standard.interpret('conf["bar"]["baz"]') == 2
+    assert non_standard.interpret('conf.foo') == 1
+    assert non_standard.interpret('conf.bar.baz') == 2
+    assert non_standard.interpret('conf["bar"].baz') == 2
+    assert non_standard.interpret('conf.bar["baz"]') == 2
+    # check standard - missing
+    with pytest.raises(KeyError): non_standard.interpret('conf["buzz"]')
+    with pytest.raises(KeyError): non_standard.interpret('conf["bar"]["buzz"]')
+    with pytest.raises(AttributeError): non_standard.interpret('conf["bar"].buzz')  # different from above
+    with pytest.raises(KeyError): non_standard.interpret('conf.bar["buzz"]')
+
 # def test_interpreter_list_comprehension(name_sym_interp):
 #     # assert name_sym_interp('[i for i in [1, 2, 3, 4, 5]]') == [1, 2, 3, 4, 5]
 #     # assert name_sym_interp('[i for i, j in [1, 2, 3, 4, 5] if i == 4]') == [1, 2, 3, 4, 5]

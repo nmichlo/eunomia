@@ -34,8 +34,8 @@ def _get_import_path(obj):
 
 
 def _camel_to_snake(name):
-  name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-  return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
 
 
 # ========================================================================= #
@@ -59,7 +59,7 @@ class RegistryGroup(Group):
             named_nodes: Dict[str, Union['Group', 'Option']] = None,
     ):
         super().__init__(named_nodes=named_nodes)
-        # get defaults
+        # save all included options
         self._registered_all: DefaultDict[object, List[Option]] = defaultdict(list)
         self._registered_defaults: Dict[object, Tuple[bool, Option]] = {}
 
@@ -119,7 +119,7 @@ class RegistryGroup(Group):
 
     def get_registered_defaults(self, explicit_only=False):
         assert not self.has_parent, 'Can only register on the root node.'
-        # get defaults!
+        # get include!
         defaults = {}
         for func, (explicit, option) in self._registered_defaults.items():
             if explicit_only and not explicit:

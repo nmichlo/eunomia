@@ -11,7 +11,7 @@ from eunomia.config.nodes._util_lark import SUB_PARSER, SUB_RECONSTRUCTOR
 
 
 def parse(string) -> Tree:
-    # TODO: this might actaully be useful in the actual code...
+    # TODO: this might actually be useful in the main code...
 
     # replace template_exp nodes by reconstructing
     # them for easier testing

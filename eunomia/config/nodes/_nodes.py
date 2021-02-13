@@ -102,7 +102,7 @@ class EvalNode(ConfigNode):
             usersyms={
                 'this': current_config,
                 'conf': merged_config,
-                'opts': merged_options,
+                'incl': merged_options,
             },
             NON_STANDARD_PYTHON=True  # try getitem on AttributeError
         )

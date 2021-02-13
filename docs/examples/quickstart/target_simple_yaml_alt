@@ -1,0 +1,8 @@
+trainer:
+  epochs: 100
+framework:
+  _target_: disent.frameworks.vae.unsupervised.BetaVae
+  beta: 4
+dataset:
+  _target_: disent.data.groundtruth.Shapes3dData
+  folder: /tmp/data/shapes3d

@@ -11,8 +11,9 @@ from eunomia.config import scheme as s
 def _do_identifier_tests(schema, prefix=''):
     # check simple valid
     schema.validate(prefix + 'valid_id')
-    with pytest.raises(SchemaError, match="is_not_special_key"):    schema.validate(prefix + '_type_')
-    with pytest.raises(SchemaError, match="is_not_reserved"):       schema.validate(prefix + '_invalid_id_')
+    with pytest.raises(SchemaError, match="is_not_special_key"):    schema.validate(prefix + '__type__')
+    with pytest.raises(SchemaError, match="is_not_reserved"):       schema.validate(prefix + '__invalid_id__')
+    schema.validate(prefix + '_okay_id_')
     with pytest.raises(SchemaError, match="is_identifier"):         schema.validate(prefix + '1234')
     with pytest.raises(SchemaError, match="is_not_keyword"):        schema.validate(prefix + 'with')
     with pytest.raises(SchemaError, match="should be instance of"): schema.validate(1234)
@@ -48,8 +49,9 @@ def test_pkg_path():
     # check identifiers, should be same as above
     _do_identifier_tests(s.PkgPath)
     _do_identifier_tests(s.PkgPath, prefix='valid1.')
+    _do_identifier_tests(s.PkgPath, prefix='_marker_.')
     with pytest.raises(SchemaError, match='is_not_reserved'):
-        _do_identifier_tests(s.PkgPath, prefix='_invalid1_.')
+        _do_identifier_tests(s.PkgPath, prefix='__invalid1__.')
 
     # check group...
     with pytest.raises(SchemaError, match='is_identifier'):
@@ -89,8 +91,9 @@ def test_group_path():
     # check identifiers, should be same as above
     _do_identifier_tests(s.GroupPath)
     _do_identifier_tests(s.GroupPath, prefix='valid1/')
+    _do_identifier_tests(s.GroupPath, prefix='_marker_/')
     with pytest.raises(SchemaError, match='is_not_reserved'):
-        _do_identifier_tests(s.GroupPath, prefix='_invalid1_/')
+        _do_identifier_tests(s.GroupPath, prefix='__invalid1__/')
 
     # check group...
     with pytest.raises(SchemaError, match='is_identifier'):

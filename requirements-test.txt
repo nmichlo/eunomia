@@ -1,6 +1,7 @@
 
 pytest==6.2.2
 pytest-cov==2.11.1
+
 # plugins
 # pytest-tldr == 0.2.2
 # pytest-sugar == 0.9.4

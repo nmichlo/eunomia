@@ -2,7 +2,7 @@ import pytest
 
 from eunomia.backend import BackendObj, BackendDict, BackendYaml
 from tests.test_backend_obj import _make_config_group
-from tests.test_docs_examples import SIMPLE_CONFIG_DIR
+from tests.util import path_from_root
 
 
 # ========================================================================= #
@@ -24,7 +24,7 @@ def test_simple_option():
         BackendDict(root).load_root_group().to_dict()
 
     # test yaml backend
-    BackendYaml(SIMPLE_CONFIG_DIR).load_root_group()
+    BackendYaml(path_from_root('docs/examples/quickstart/configs')).load_root_group()
 
 
 # ========================================================================= #

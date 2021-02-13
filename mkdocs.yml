@@ -55,7 +55,7 @@ markdown_extensions:
   # ALL: https://squidfunk.github.io/mkdocs-material/reference
 
   # META:
-  - meta                         # override titles and descriptions
+  # - meta                       # override titles and descriptions
 
   # REFERENCES:
   - abbr                         # show content on hover
@@ -74,16 +74,16 @@ markdown_extensions:
   # ADMONITIONS & DIAGRAMS:
   - admonition                   # blocks with a description
   - pymdownx.details             # collapsible admonitions
-  - pymdownx.superfences:        # nesting inside admonitions
-      custom_fences:             # add support for diagrams
-        - name: mermaid
-          class: mermaid-experimental
-          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.superfences         # nesting inside admonitions
+      # custom_fences:           # add support for diagrams
+      #   - name: mermaid
+      #     class: mermaid-experimental
+      #     format: !!python/name:pymdownx.superfences.fence_code_format
 
   # ICONS + EMOJIS:
-  - pymdownx.emoji:              # :smile:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
+  # pymdownx.emoji:              # :smile:
+  #   emoji_index: !!python/name:materialx.emoji.twemoji
+  #   emoji_generator: !!python/name:materialx.emoji.to_svg
   # pymdownx.keys                # ++ctrl+alt+delete++
 
   # FORMATTING:

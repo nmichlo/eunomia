@@ -380,15 +380,15 @@ class Option(_ConfigObject):
             self,
             data: dict = None,
             pkg: str = None,
-            opts: Dict[str, str] = None,
+            include: Dict[str, str] = None,
     ):
         super().__init__()
         self._data = data if data is not None else {}
         self._pkg = pkg if pkg is not None else s.DEFAULT_PKG
-        self._opts = opts if opts is not None else {}
+        self._include = include if include is not None else {}
         assert isinstance(self._pkg, (str, ConfigNode)), f'{s.KEY_PKG} is not a string or {ConfigNode.__name__}'
         assert isinstance(self._data, dict), f'{s.KEY_DATA} is not a dictionary'
-        assert isinstance(self._opts, dict), f'{s.KEY_OPTS} is not a dicitonary'
+        assert isinstance(self._include, dict), f'{s.KEY_MERGE} is not a dicitonary'
         # we dont validate in case things are nodes
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -434,8 +434,8 @@ class Option(_ConfigObject):
                 raise TypeError(f'keys in configs cannot be config nodes: {key}')
             return super()._transform_dict_key(key)
 
-    def get_unresolved_options(self):
-        return self._ReplaceStrings().transform(self._opts)
+    def get_unresolved_includes(self):
+        return self._ReplaceStrings().transform(self._include)
 
     def get_unresolved_package(self):
         return self._ReplaceStrings().transform(self._pkg)
@@ -473,7 +473,7 @@ class Option(_ConfigObject):
             option = s.VerboseOption.validate(option)
         return Option(
             pkg=option[s.KEY_PKG],
-            opts=option[s.KEY_OPTS],
+            include=option[s.KEY_MERGE],
             data=option[s.KEY_DATA],
         )
 
@@ -481,7 +481,7 @@ class Option(_ConfigObject):
         option = {
             s.KEY_TYPE: s.TYPE_OPTION,
             s.KEY_PKG: self._pkg,
-            s.KEY_OPTS: self._opts,
+            s.KEY_MERGE: self._include,
             s.KEY_DATA: self._data,
         }
         return s.VerboseOption.validate(option) if validate else option

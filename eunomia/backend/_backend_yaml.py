@@ -66,13 +66,13 @@ class BackendYaml(Backend):
         else:
             # pop all config values
             pkg = data.pop(s.KEY_PKG, None)
-            opts = data.pop(s.KEY_OPTS, None)
+            merge = data.pop(s.KEY_MERGE, None)
             type = data.pop(s.KEY_TYPE, None)
             # check that we have nothing extra
-            if any(k in s.ALL_KEYS for k in data.keys()):
-                raise KeyError(f'A reserved key was found in a compact option dictionary: {list(k for k in data.keys() if k in s.ALL_KEYS)}')
+            if any(k in s.RESERVED_KEYS for k in data.keys()):
+                raise KeyError(f'A reserved key was found in a compact option dictionary: {list(k for k in data.keys() if k in s.RESERVED_KEYS)}')
             # no need to validate because of above
-            return Option(pkg=pkg, opts=opts, data=data)
+            return Option(pkg=pkg, include=merge, data=data)
 
     def _load_root_group(self) -> Group:
         root = Group()

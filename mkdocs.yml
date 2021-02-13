@@ -1,7 +1,19 @@
 site_name: Eunomia Docs
 repo_url: https://github.com/nmichlo/eunomia
 repo_name: nmichlo/eunomia
+
+
+#nav:
+#  - About: index.md
+#  - Overview: overview.md
+#  - Quickstart: quickstart.md
+
+
 theme:
+  features:
+    # - navigation.instant
+    - navigation.sections
+    - navigation.indexes
   name: material
   palette:
     scheme: default
@@ -10,24 +22,85 @@ theme:
     repo: fontawesome/brands/github
     logo: material/script-text
   favicon: images/favicon.png
+
+
+extra_css:
+  - src/style/extra.css
+
+
 plugins:
   - search
-  - mkdocstrings # reference functions and code in markdown `::: module.class.func`
+  - mkdocstrings: # reference functions and code in markdown `::: module.class.func`
+      watch:
+        - eunomia
+      default_handler: python
+      handlers:
+        python:
+          # these can be overridden by appending the yaml nodes after the ::: but indented
+          # ALL OPTIONS: https://mkdocstrings.github.io/handlers/python
+          rendering:
+            show_root_heading: true
+            show_root_full_path: true
+            show_root_members_full_path: false
+            show_source: false
+            heading_level: 2
+
   - git-revision-date-localized: # visible last edit date on each page
       type: date
       fallback_to_build_date: false
+
+
 markdown_extensions:
-  - admonition
-  - pymdownx.details
-  - pymdownx.highlight
-  - pymdownx.inlinehilite
-  - pymdownx.superfences
-  - pymdownx.snippets
-  - pymdownx.tabbed
-  - pymdownx.arithmatex:
-      generic: true
-# THE !! CURRENTLY BREAKS READTHEDOCS
-# https://github.com/readthedocs/readthedocs.org/issues/7865
-#  - pymdownx.emoji:
-#      emoji_index: !!python/name:materialx.emoji.twemoji
-#      emoji_generator: !!python/name:materialx.emoji.to_svg
+  # General Links:
+  # ALL: https://squidfunk.github.io/mkdocs-material/reference
+
+  # META:
+  - meta                         # override titles and descriptions
+
+  # REFERENCES:
+  - abbr                         # show content on hover
+  - footnotes                    # references / footnotes
+  - pymdownx.snippets            # insert code from other
+
+  # CUSTOM CSS + BUTTONS
+  - attr_list                    # add css eg. for buttons
+
+  # CODE:
+  - pymdownx.highlight           # code highlight ```bash ...```
+  - pymdownx.inlinehilite        # code highlight `#!bash ...`
+
+  - pymdownx.tabbed              # group markdown under tabs
+
+  # ADMONITIONS & DIAGRAMS:
+  - admonition                   # blocks with a description
+  - pymdownx.details             # collapsible admonitions
+  - pymdownx.superfences:        # nesting inside admonitions
+      custom_fences:             # add support for diagrams
+        - name: mermaid
+          class: mermaid-experimental
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+  # ICONS + EMOJIS:
+  - pymdownx.emoji:              # :smile:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  # pymdownx.keys                # ++ctrl+alt+delete++
+
+  # FORMATTING:
+  - pymdownx.betterem:           # better bold / italic
+      smart_enable: all
+  - pymdownx.caret               # superscript eg. H^2^O
+  - pymdownx.mark                # ==highlight text==
+  - pymdownx.tilde               # subscript H~2~0 & ~~delete~~
+  # pymdownx.critic              # text difference highlighting
+  # pymdownx.smartsymbols        # copyright (tm) trademark etc
+
+  # LISTS:
+  - def_list                     # key value pair lists
+  - pymdownx.tasklist:           # prettyfy lists  - * +
+      custom_checkbox: true      # pretty checkboxes
+      clickable_checkbox: false  # not persisted...
+
+  # MATH: requires JS injection
+  # pymdownx.arithmatex:         # $<latex>$ $$<latex>$$
+  #   generic: true

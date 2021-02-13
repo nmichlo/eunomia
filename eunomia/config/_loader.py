@@ -91,7 +91,7 @@ class ConfigLoader(object):
         # ===================== #
         # 1. check where to process self, and make sure self is in the options list
         # by default we want to merge this before children so we can reference its values.
-        options = option.get_unresolved_options()
+        options = option.get_unresolved_includes()
         group_paths = list(options.keys())
         if s.OPT_SELF not in group_paths:
             # allow referencing parent values in children
@@ -133,7 +133,7 @@ class ConfigLoader(object):
         #       - allow from the same group to be merged
         #       1. check that the group has not already been merged
         #       2. check that the option has not already been merged
-        # get the path to the config - recursive version of whats listed in the _options_
+        # get the path to the config - recursive version of whats listed in the __include__
         # maybe lift the non-recursive limitation in future?
         group_keys = option.group_keys
         # check that this is not a duplicate
@@ -159,8 +159,8 @@ class ConfigLoader(object):
         if isinstance(value, ConfigNode):
             value = value.get_config_value(self._merged_config, self._merged_options, {})
         if isinstance(value, dict):
-            if s.MARKER_KEY_NODE in value:
-                raise RuntimeError(f'{s.MARKER_KEY_NODE} is not yet supported!')
+            if s.KEY_NODE in value:
+                raise RuntimeError(f'{s.KEY_NODE} is not yet supported!')
         return value
 
     def _resolve_package(self, option) -> Tuple[str]:

@@ -21,6 +21,7 @@ def test_eunomia_loader_simple():
     eunomia_load(_make_config_group(suboption=None, suboption2='sub2option1'))
     eunomia_load(_make_config_group(suboption=None, suboption2='sub2option2'))
 
+
 def test_eunomia_loader():
     # check no subgroups
     assert eunomia_load(_make_config_group(suboption=None)) == {'foo': 1}

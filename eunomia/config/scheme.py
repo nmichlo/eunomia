@@ -45,16 +45,15 @@ def _debug_fn(fn):
 
 
 # keys - all
-KEY_TYPE = '_type_'
+KEY_TYPE = '__type__'
 # keys - options
-KEY_PKG = '_package_'
-KEY_OPTS = '_defaults_'
-KEY_DATA = '_data_'
+KEY_PKG = '__package__'
+KEY_MERGE = '__include__'
+KEY_DATA = '__data__'
 # keys - groups
-KEY_CHILDREN = '_children_'
+KEY_CHILDREN = '__children__'
 
-# marker keys
-MARKER_KEY_NODE   = '_node_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+# marker keys - these are not reserved
 MARKER_KEY_TARGET = '_target_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 MARKER_KEY_ARGS   = '_args_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 MARKER_KEY_KWARGS = '_kwargs_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
@@ -63,6 +62,7 @@ MARKER_KEY_VALUE  = '_value_'   # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 # special types
 TYPE_OPTION = 'option'
 TYPE_GROUP  = 'group'
+TYPE_NODE  = 'node'             # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 
 # special packages
 PKG_ROOT = '<root>'
@@ -71,34 +71,39 @@ PKG_GROUP = '<group>'
 # special options
 OPT_SELF = '<self>'
 
-# defaults
+# include
 DEFAULT_PKG = PKG_GROUP
 
 # - - - - - - - - - - - - - #
 # all values                #
 # - - - - - - - - - - - - - #
 
-# these keys are allowed as values anywhere
+# these keys are allowed as values anywhere and are not reserved
 _MARKER_KEYS = {
-    MARKER_KEY_NODE,
     MARKER_KEY_TARGET,
     MARKER_KEY_ARGS,
     MARKER_KEY_KWARGS,
     MARKER_KEY_VALUE
 }
 
-_ALL_GROUP_KEYS = {
-    KEY_TYPE, KEY_PKG, KEY_OPTS, KEY_DATA,
+_RESERVED_GROUP_KEYS = {
+    KEY_TYPE, KEY_PKG, KEY_MERGE, KEY_DATA,
 }
 
-_ALL_OPTION_KEYS = {
+_RESERVED_OPTION_KEYS = {
     KEY_TYPE, KEY_CHILDREN,
 }
 
-ALL_KEYS = {
-    *_ALL_GROUP_KEYS,
-    *_ALL_OPTION_KEYS,
-    # *_MARKER_KEYS,
+# TODO: not yet implemented
+_RESERVED_NODE_KEYS = {
+    KEY_TYPE, KEY_DATA,
+}
+
+# these keys are not allowed in normal data
+RESERVED_KEYS = {
+    *_RESERVED_GROUP_KEYS,
+    *_RESERVED_OPTION_KEYS,
+    *_RESERVED_NODE_KEYS,
 }
 
 # ========================================================================= #
@@ -121,8 +126,8 @@ Identifier = _Schema(_And(
     _rename_fn('is_not_empty',       lambda key: bool(key)),
     _rename_fn('is_identifier',      lambda key: str.isidentifier(key)),
     _rename_fn('is_not_keyword',     lambda key: not _keyword.iskeyword(key)),
-    _rename_fn('is_not_special_key', lambda key: key not in ALL_KEYS),
-    _rename_fn('is_not_reserved',    lambda key: not (key.startswith('_') and key.endswith('_'))),
+    _rename_fn('is_not_special_key', lambda key: key not in RESERVED_KEYS),
+    _rename_fn('is_not_reserved',    lambda key: not (key.startswith('__') and key.endswith('__'))),  # we allow one underscore on each side for markers
 ), name='identifier')
 
 IdentifierList = _Schema([Identifier], name='identifier_list')
@@ -176,10 +181,10 @@ NameKey  = _Schema(Identifier, name='name_key')
 
 PkgValue  = _Schema(_Or(PKG_ROOT, PKG_GROUP, PkgPath), name=KEY_PKG)
 DataValue = _Schema({_Optional(Value): Value}, name=KEY_DATA)
-OptsValue = _Schema({
+MergersValue = _Schema({
     _Optional(OPT_SELF, default=None): None,
     _Optional(GroupPath): Identifier
-}, name=KEY_OPTS)
+}, name=KEY_MERGE)
 
 
 # ========================================================================= #
@@ -192,7 +197,7 @@ VerboseOption = _Schema({}, name='verbose_option')
 VerboseOption.schema.update({
     _Optional(KEY_TYPE, default=TYPE_OPTION): TYPE_OPTION,
     _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
-    _Optional(KEY_OPTS, default=dict):       OptsValue,
+    _Optional(KEY_MERGE, default=dict):      MergersValue,
     _Optional(KEY_DATA, default=dict):       DataValue,
 })
 

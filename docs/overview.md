@@ -16,4 +16,19 @@ We use the similar terminology to [Hydra](https://hydra.cc).
 | **Package Path**  | A path to a configuration _node_, usually for referencing child values in the _output config_.
 | **Group Path**    | A path to a group in the _input config_, usually for referencing child groups of the _input config_.
 
-::: eunomia.config
+
+## Generating The Output Config
+
+The user builds the input config consisting of a tree of groups and options. Once built the output
+config is obtained by traversing the tree using directives specified in options themselves.
+
+The starting point or entrypoint is defined by the user as the first option to visit, each visited option can specify
+other options to include in the traversal. Each time an option is visited, it is included by being merged into the output
+config.
+
+!!! tldr "Merging Process"
+    The merging process of merging configs is simple:
+    
+    1. visit an option
+    2. merge the chosen option into the output config at the location specified by `__package__`
+    3. recursively visit options in the order specified by `__include__` using depth first search.

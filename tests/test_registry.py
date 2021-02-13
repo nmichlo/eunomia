@@ -68,8 +68,8 @@ def test_simple_option():
     with pytest.raises(KeyError, match='parent already has child with key: foo'): root.register()(_foo)
     assert root.get_registered_defaults() == {'group/subgroup': 'foo_alt4'}
 
-    # try merge group
-    root.add_option('default', Option(opts=root.get_registered_defaults()))
+    # try include group
+    root.add_option('default', Option(include=root.get_registered_defaults()))
     assert eunomia_load(root) == {'group': {'subgroup': {'_target_': 'tests.test_registry.foo', 'baz': 3}}}
 
 

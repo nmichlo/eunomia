@@ -1,0 +1,2 @@
+# ./configs/framework/vae.yaml
+_target_: 'disent.frameworks.vae.unsupervised.Vae'

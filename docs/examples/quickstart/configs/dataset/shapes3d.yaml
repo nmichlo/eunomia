@@ -1,0 +1,3 @@
+# ./configs/dataset/shapes3d.yaml
+_target_: 'disent.data.groundtruth.Shapes3dData'
+folder: '/tmp/data/shapes3d'

@@ -1,3 +1,7 @@
+---
+hidden: True
+---
+
 
 # "defaults" replacement name
 

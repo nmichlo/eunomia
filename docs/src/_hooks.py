@@ -12,12 +12,11 @@ META_TAG_EXCLUDE = 'hidden'
 META_TAG_POS = 'pos'
 META_TAG_SECTION_EXCLUDE = 'section_hidden'
 META_TAG_SECTION_POS = 'section_pos'
+META_TAG_SECTION_TITLE = 'section_title'
 
 # added attrs to nav nodes
 ATTR_EXCLUDE = '_nav_hook_exclude'
 ATTR_POS_KEY = '_nav_hook_pos_key'
-ATTR_SECTION_EXCLUDE = '_nav_hook_section_exclude'
-ATTR_SECTION_POS_KEY = '_nav_hook_section_pos_key'
 
 
 # ========================================================================= #
@@ -58,6 +57,13 @@ def _get_exclude_meta(dct: dict, key: str):
     return exclude
 
 
+def _get_title_meta(dct: dict, key: str):
+    title = dct.get(key, None)
+    if title is not None:
+        assert isinstance(title, str), f'meta tag {key}={repr(title)} must be a string'
+    return title
+
+
 def _sort_and_filter_sections_and_pages(items):
     items = filter(lambda x: not getattr(x, ATTR_EXCLUDE), items)
     items = sorted(items, key=lambda x: getattr(x, ATTR_POS_KEY))
@@ -84,10 +90,11 @@ def _modify_section(section: Section):
     # copy exclude / key information from first index page
     for page in section.children:
         if isinstance(page, Page) and page.is_index:
-            setattr(section, ATTR_EXCLUDE, getattr(page, ATTR_SECTION_EXCLUDE))
-            setattr(section, ATTR_POS_KEY, getattr(page, ATTR_SECTION_POS_KEY))
+            setattr(section, ATTR_EXCLUDE, _get_exclude_meta(page.meta, key=META_TAG_SECTION_EXCLUDE))
+            setattr(section, ATTR_POS_KEY, _get_pos_meta(page.meta, key=META_TAG_SECTION_POS, is_section=True))
+            section.title = _get_title_meta(page.meta, key=META_TAG_SECTION_TITLE)
             break
-    # check that children are included
+    # if there are no shown children, hide the section!
     all_children_excluded = all(getattr(child, ATTR_EXCLUDE) for child in section.children)
     # update exclude attr
     setattr(section, ATTR_EXCLUDE, getattr(section, ATTR_EXCLUDE) or all_children_excluded)
@@ -103,10 +110,7 @@ def _modify_page(page: Page, config):
     # get metadata
     setattr(page, ATTR_EXCLUDE, _get_exclude_meta(page.meta, key=META_TAG_EXCLUDE))
     setattr(page, ATTR_POS_KEY, _get_pos_meta(page.meta, key=META_TAG_POS, is_section=False))
-    # is index pages
-    if page.is_index:
-        setattr(page, ATTR_SECTION_EXCLUDE, _get_exclude_meta(page.meta, key=META_TAG_SECTION_EXCLUDE))
-        setattr(page, ATTR_SECTION_POS_KEY, _get_pos_meta(page.meta, key=META_TAG_SECTION_POS, is_section=True))
+
 
 
 # ========================================================================= #

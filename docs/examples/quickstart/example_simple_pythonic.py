@@ -20,7 +20,7 @@ group = Group({
                 'epochs': 50
             }
         },
-        include={
+        defaults={
             'framework': 'vae',
             'dataset': 'shapes3d',
         }

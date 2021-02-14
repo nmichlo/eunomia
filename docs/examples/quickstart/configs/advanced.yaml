@@ -1,5 +1,5 @@
 # ./configs/advanced.yaml
-__include__:
+__defaults__:
   framework: betavae
 
 trainer:

@@ -1,5 +1,5 @@
 # ./configs/alternate.yaml
-__include__:
+__defaults__:
   framework: betavae
   dataset: shapes3d
 

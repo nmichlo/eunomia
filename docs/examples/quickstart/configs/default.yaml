@@ -1,5 +1,5 @@
 # ./configs/default.yaml
-__include__:
+__defaults__:
   framework: vae
   dataset: shapes3d
 

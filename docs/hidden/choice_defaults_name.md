@@ -1,9 +1,5 @@
----
-hidden: True
----
 
-
-# "defaults" replacement name
+# Choice For Defaults Key
 
 hydra config uses the name "defaults" for the list of other
 options that should be included for merging into the output config.

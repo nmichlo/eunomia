@@ -25,13 +25,7 @@ ATTR_POS_KEY = '_nav_hook_pos_key'
 
 
 def on_nav(nav: Navigation, config, files):
-    # print('=======')
-    # print(nav)
-    # print('=======')
     _recursive_modify(nav, config)
-    # print('=======')
-    # print(nav)
-    # print('=======')
     return nav
 
 

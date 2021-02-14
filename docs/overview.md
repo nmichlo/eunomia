@@ -1,3 +1,7 @@
+---
+title: Overview
+pos: 100
+---
 
 # Overview
 
@@ -31,4 +35,4 @@ config.
     
     1. visit an option
     2. merge the chosen option into the output config at the location specified by `__package__`
-    3. recursively visit options in the order specified by `__include__` using depth first search.
+    3. recursively visit options in the order specified by `__defaults__` using depth first search.

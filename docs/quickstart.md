@@ -1,7 +1,10 @@
+---
+title: Quickstart
+pos: 200
+---
+
+
 # Quickstart
-
-
-
 
 ## Option Special Keys
 
@@ -35,12 +38,12 @@ root options can include various special keys or directives that change the beha
     
     === "\_merge\_"
     
-        `__include__: Dict[str, str]`
+        `__defaults__: Dict[str, str]`
     
         A dictionary of *group paths* to *option names* that should also be visited and merged.
 
         !!! hint
-            `__include__` is similar to `defaults` in hydra config.
+            `__defaults__` is similar to `defaults` in hydra config.
 
         -----------------
 
@@ -92,7 +95,7 @@ The resulting output of the merged config in yaml format is:
 
 ### Modified Yaml Example
 
-You'll notice that in the previous example we had the `__includes__` key
+You'll notice that in the previous example we had the `__defaults__` key
 which contained keys and values corresponding to the nested files which
 should be merged into the config.
 

@@ -1,8 +1,0 @@
-# ./configs/default.yaml
-__defaults__:
-  framework: vae
-  dataset: shapes3d
-
-trainer:
-  epochs: 50
-

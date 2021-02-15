@@ -27,6 +27,7 @@ plugins:
   - mkdocstrings: # reference functions and code in markdown `::: module.class.func`
       watch:
         - eunomia
+        - examples/docs
       default_handler: python
       handlers:
         python:

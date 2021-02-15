@@ -1,9 +1,7 @@
-# ./configs/alternate.yaml
+# ./configs/default.yaml
 __defaults__:
   framework: betavae
   dataset: shapes3d
 
 trainer:
   epochs: 100
-
-

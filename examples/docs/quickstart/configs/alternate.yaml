@@ -1,0 +1,7 @@
+# ./configs/alternate.yaml
+__defaults__:
+  /dataset: dsprites
+  /framework: vae
+
+trainer:
+  epochs: 50

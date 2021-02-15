@@ -87,7 +87,8 @@ def fizz(foo, bar, buzz=1, baz=1):
 
 def test_override_modes():
     def _register(**kwargs):
-        root = RegistryGroup().register_target_fn(fizz, **kwargs)
+        root = RegistryGroup()
+        root.register_target_fn(fizz, **kwargs)
         root.add_option('default', Option(defaults=root.get_registered_defaults()))
         return eunomia_load(root)
 

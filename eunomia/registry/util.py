@@ -1,8 +1,8 @@
 import inspect
-import os
 import re
 
-from eunomia.config import scheme as s
+from eunomia._util_dict import recursive_getitem, dict_recursive_update
+from eunomia.config import scheme as s, Option
 
 
 # ========================================================================= #
@@ -12,6 +12,7 @@ from eunomia.config import scheme as s
 
 def _fn_get_kwargs(func) -> dict:
     signature = inspect.signature(func)
+    asdf = list(signature.parameters.items())
     return {
         k: v.default
         for k, v in signature.parameters.items()
@@ -34,7 +35,27 @@ def _fn_get_all_args(func) -> list:
 
 
 def _fn_get_module_path(obj):
-    path = os.path.relpath(inspect.getmodule(obj).__file__, os.getcwd())
+    # get package search paths
+    import os
+    import site
+    try:
+        python_paths = os.environ['PYTHONPATH'].split(os.pathsep)
+    except KeyError:
+        python_paths = []
+    python_paths = site.getsitepackages() + python_paths
+    # get module path
+    path = os.path.abspath(inspect.getmodule(obj).__file__)
+    # return the shortest relative path from all the packages
+    rel_paths = []
+    for site in python_paths:
+        site = os.path.abspath(site)
+        if os.path.commonprefix([site, path]) == site:
+            rel_paths.append(os.path.relpath(path, site))
+    # get shortest rel path
+    rel_paths = sorted(rel_paths, key=str.__len__)
+    assert len(rel_paths) > 0, f'no valid path found to: {obj}'
+    # get the correct path
+    path = rel_paths[0]
     assert path.endswith('.py')
     path = path[:-len('.py')]
     return os.path.normpath(path)
@@ -55,8 +76,49 @@ def _camel_to_snake(name):
 # ========================================================================= #
 
 
+def make_target_option(
+        fn,
+        # target function
+        target: str = None,
+        params: dict = None,
+        mode: str = 'any',
+        keep_defaults: bool = True,
+        # option params extras
+        nest_path: str = None,
+        data: dict = None,
+        pkg: str = None,
+        defaults: dict = None,
+) -> 'Option':
+    # get various defaults
+    data = {} if data is None else data
+    # check nest path
+    if nest_path is not None:
+        nest_path, is_relative = s.split_pkg_path(nest_path)
+        assert not is_relative, 'nest path must not be relative'
+    else:
+        nest_path = []
+    # get the dictionary to merge the target into
+    targ_merge_dict = recursive_getitem(data, nest_path, make_missing=True)
+    if not isinstance(targ_merge_dict, dict):
+        raise ValueError('nested object in data must be a dictionary that the target can be merged into.')
+    if targ_merge_dict:
+        raise ValueError('nested object in data must be empty, otherwise target conflicts can occur.')
+    # make data for the option
+    dict_recursive_update(
+        left=targ_merge_dict,
+        right=make_target_dict(fn, target=target, params=params, mode=mode, keep_defaults=keep_defaults),
+    )
+    # make option
+    return Option(
+        data=data,
+        pkg=pkg,
+        defaults=defaults
+    )
+
+
 def make_target_dict(
         func,
+        # target function
         target: str = None,
         params: dict = None,
         mode: str = 'any',

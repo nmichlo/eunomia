@@ -4,7 +4,7 @@ from typing import Dict, Union, DefaultDict, List, Tuple
 from eunomia.config import Group, Option
 from eunomia.config import scheme as s
 
-from eunomia.registry.util import make_target_dict, _fn_get_module_path, _camel_to_snake
+from eunomia.registry.util import make_target_dict, _fn_get_module_path, _camel_to_snake, make_target_option
 from eunomia._util_dict import recursive_getitem, dict_recursive_update
 
 
@@ -66,35 +66,16 @@ class RegistryGroup(Group):
             target: str = None, params: dict = None, mode: str = 'any', keep_defaults: bool = True,
             # option params extras
             nest_path: str = None, data: dict = None, pkg: str = None, defaults: dict = None
-    ) -> 'RegistryGroup':
+    ) -> 'Option':
         assert not self.has_parent, 'Can only register on the root node.'
-        # get various defaults
+        # make various defaults
         path = _fn_get_module_path(fn) if path is None else path
         name = _camel_to_snake(fn.__name__) if name is None else name
-        data = {} if data is None else data
-        # check nest path
-        if nest_path is not None:
-            nest_path, is_relative = s.split_pkg_path(nest_path)
-            assert not is_relative, 'nest path must not be relative'
-        else:
-            nest_path = []
-        # get the dictionary to merge the target into
-        targ_merge_dict = recursive_getitem(data, nest_path, make_missing=True)
-        if not isinstance(targ_merge_dict, dict):
-            raise ValueError('nested object in data must be a dictionary that the target can be merged into.')
-        if targ_merge_dict:
-            raise ValueError('nested object in data must be empty, otherwise target conflicts can occur.')
-        # make data for the option
-        dict_recursive_update(
-            left=targ_merge_dict,
-            right=make_target_dict(fn, target=target, params=params, mode=mode, keep_defaults=keep_defaults),
-        )
         # make option under the specified group
         group = self.get_group_from_path(path=path, make_missing=True)
-        option = group.add_option(name, Option(
-            data=data,
-            pkg=pkg,
-            defaults=defaults
+        option = group.add_option(name, make_target_option(
+            fn, target=target, params=params, mode=mode, keep_defaults=keep_defaults,
+            nest_path=nest_path, data=data, pkg=pkg, defaults=defaults
         ))
         # register the option first!
         try:
@@ -103,7 +84,7 @@ class RegistryGroup(Group):
             group.del_option(name)
             raise e
         # done!
-        return self
+        return option
 
     def _register_obj(self, func, option, is_default=None):
         assert not self.has_parent, 'Can only register on the root node.'
@@ -141,4 +122,22 @@ class RegistryGroup(Group):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+
+def asdf(a, b, *args, foo=1, bar=2, **kwargs):
+    pass
+
+
+if __name__ == '__main__':
+
+    REGISTRY = RegistryGroup()
+
+    from ruamel import yaml
+
+    # option = REGISTRY.register_target_fn(yaml.round_trip_dump)
+    # option = REGISTRY.register_target_fn(asdf, params=dict(asdf=5))
+
+    print(make_target_dict(asdf, params=dict(asdf=5)))
+
+    REGISTRY.debug_print_tree()
 

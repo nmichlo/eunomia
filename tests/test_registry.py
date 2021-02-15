@@ -15,6 +15,9 @@ def foo(bar, baz=1):
 
 
 def test_simple_option():
+    assert RegistryGroup().register(foo) is foo    # @register
+    assert RegistryGroup().register()(foo) is foo  # @register()
+
     root = RegistryGroup()
 
     _foo = foo

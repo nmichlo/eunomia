@@ -92,8 +92,8 @@ class RegistryGroup(Group):
             return func
 
         # decorate correctly!
-        if callable(group_path):
-            fn, group_path = group_path, None
+        if callable(option_name):
+            fn, option_name = option_name, None
             return wrapper(fn)
         else:
             return wrapper

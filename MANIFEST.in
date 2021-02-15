@@ -1,1 +1,2 @@
 include requirements.txt
+include eunomia/config/nodes/grammar_substitute.lark

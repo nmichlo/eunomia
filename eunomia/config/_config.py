@@ -91,6 +91,13 @@ class _ConfigObject(object):
         # return the added value
         return child
 
+    def del_child(self, key: str):
+        child = self.get_child(key)
+        # remove details
+        child._parent = None
+        child._key = None
+        del self._children[key]
+
     def get_child(self, key: str):
         return self._children[key]
 
@@ -195,6 +202,10 @@ class Group(_ConfigObject):
             raise TypeError(f'node with key: {repr(key)} is not a {Group.__name__}')
         return node
 
+    def del_subgroup(self, key: str) -> 'Option':
+        assert self.has_subgroup(key)
+        self.del_child(key)
+
     def get_option(self, key: str) -> 'Option':
         node = self.get_child(key)
         if not isinstance(node, Option):
@@ -210,6 +221,10 @@ class Group(_ConfigObject):
         if not isinstance(value, Option):
             raise TypeError(f'adding node with key: {repr(key)} is not a {Option.__name__}')
         return self.add_child(key, value)
+
+    def del_option(self, key: str) -> 'Option':
+        assert self.has_suboption(key)
+        self.del_child(key)
 
     def new_subgroup(self, key: str) -> 'Group':
         return self.add_subgroup(key, Group())

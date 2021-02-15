@@ -12,7 +12,6 @@ from eunomia.config import scheme as s, Option
 
 def _fn_get_kwargs(func) -> dict:
     signature = inspect.signature(func)
-    asdf = list(signature.parameters.items())
     return {
         k: v.default
         for k, v in signature.parameters.items()
@@ -38,10 +37,7 @@ def _fn_get_module_path(obj):
     # get package search paths
     import os
     import site
-    try:
-        python_paths = os.environ['PYTHONPATH'].split(os.pathsep)
-    except KeyError:
-        python_paths = []
+    python_paths = os.environ['PYTHONPATH'].split(os.pathsep)
     python_paths = site.getsitepackages() + python_paths
     # get module path
     path = os.path.abspath(inspect.getmodule(obj).__file__)
@@ -91,23 +87,27 @@ def make_target_option(
 ) -> 'Option':
     # get various defaults
     data = {} if data is None else data
+
     # check nest path
     if nest_path is not None:
         nest_path, is_relative = s.split_pkg_path(nest_path)
         assert not is_relative, 'nest path must not be relative'
     else:
         nest_path = []
+
     # get the dictionary to merge the target into
     targ_merge_dict = recursive_getitem(data, nest_path, make_missing=True)
     if not isinstance(targ_merge_dict, dict):
         raise ValueError('nested object in data must be a dictionary that the target can be merged into.')
     if targ_merge_dict:
         raise ValueError('nested object in data must be empty, otherwise target conflicts can occur.')
+
     # make data for the option
     dict_recursive_update(
         left=targ_merge_dict,
         right=make_target_dict(fn, target=target, params=params, mode=mode, keep_defaults=keep_defaults),
     )
+
     # make option
     return Option(
         data=data,
@@ -127,12 +127,14 @@ def make_target_dict(
     # get default values
     target = _fn_get_import_path(func) if target is None else target
     overrides = {} if params is None else params
+
     # if we should include all the non-overridden default
     # parameters in the final config
     if keep_defaults:
         defaults = _fn_get_kwargs(func)
     else:
         defaults = {}
+
     # get the parameters that can be overridden
     args, kwargs, all_args = _fn_get_args(func), _fn_get_kwargs(func), _fn_get_all_args(func)
     if mode == 'kwargs':
@@ -141,23 +143,33 @@ def make_target_dict(
         allowed_overrides = set(args) | set(kwargs)
     elif mode == 'all':
         allowed_overrides = set(args) | set(kwargs)
+    elif mode == 'unchecked':
+        allowed_overrides = None
     else:
         raise KeyError(f'Invalid override mode: {repr(mode)}')
+
     # generate final list of parameter overrides
-    for k in all_args:  # sorted
-        if k in allowed_overrides:
-            if k in overrides:
-                defaults[k] = overrides.pop(k)
+    if mode == 'unchecked':
+        defaults.update(overrides)
+        overrides = {}
+    else:
+        for k in all_args:  # sorted
+            if k in allowed_overrides:
+                if k in overrides:
+                    defaults[k] = overrides.pop(k)
+
     # check that no extra unused overrides exist
     # and that _target_ is not a parameter name
     assert not overrides, f'cannot override params: {list(overrides.keys())}'
     assert s.MARKER_KEY_TARGET not in defaults, f'object {target} has conflicting optional parameter: {s.MARKER_KEY_TARGET}'
+
     # check that nothing is left over according to the override mode
     if mode == 'all':
         missed_args = set(args) - set(defaults)
         if missed_args:
             missed_args = [a for a in all_args if a in missed_args]  # sorted
             raise AssertionError(f'all non-default parameters require an override: {missed_args}')
+
     # return final dictionary
     return {
         s.MARKER_KEY_TARGET: target,

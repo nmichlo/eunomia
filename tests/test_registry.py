@@ -137,6 +137,12 @@ def test_override_modes():
     assert _register(keep_defaults=False, mode='all', params=dict(foo=7, bar=7)) == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz', 'bar': 7, 'foo': 7}}}
     assert _register(keep_defaults=True, mode='all', params=dict(foo=7, bar=7)) == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz', 'bar': 7, 'foo': 7, 'buzz': 1, 'baz': 1}}}
 
+    # made: unchecked
+    assert _register(keep_defaults=True, mode='unchecked') == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz', 'baz': 1, 'buzz': 1}}}
+    assert _register(keep_defaults=False, mode='unchecked') == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz'}}}
+    assert _register(keep_defaults=True, mode='unchecked', params=dict(INVALID=1)) == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz', 'baz': 1, 'buzz': 1, 'INVALID': 1}}}
+    assert _register(keep_defaults=False, mode='unchecked', params=dict(INVALID=1)) == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz', 'INVALID': 1}}}
+
     # test nesting inside option and extra data
     assert _register() == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz', 'buzz': 1, 'baz': 1}}}
     assert _register(nest_path='targ1') == {'tests': {'test_registry': {'targ1': {'_target_': 'tests.test_registry.fizz', 'buzz': 1, 'baz': 1}}}}

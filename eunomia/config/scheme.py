@@ -133,7 +133,7 @@ Identifier = _Schema(_And(
 IdentifierList = _Schema([Identifier], name='identifier_list')
 
 
-def _split_path(path: str, sep: str):
+def _split_path(path: str, sep: str) -> (str, bool):
     # check and remove prefix
     is_prefixed = False
     if path.startswith(sep):
@@ -147,14 +147,14 @@ def _split_path(path: str, sep: str):
     return IdentifierList.validate(split), is_prefixed
 
 
-def split_pkg_path(path: str):
+def split_pkg_path(path: str) -> (str, bool):
     if path in {PKG_GROUP, PKG_ROOT}:
         raise RuntimeError('special package keys should be handled separately')
     keys, is_relative = _split_path(path, '.')
     return keys, is_relative
 
 
-def split_group_path(path: str):
+def split_group_path(path: str) -> (str, bool):
     keys, is_not_relative = _split_path(path, '/')
     return keys, not is_not_relative
 

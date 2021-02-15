@@ -91,6 +91,13 @@ class _ConfigObject(object):
         # return the added value
         return child
 
+    def del_child(self, key: str):
+        child = self.get_child(key)
+        # remove details
+        child._parent = None
+        child._key = None
+        del self._children[key]
+
     def get_child(self, key: str):
         return self._children[key]
 
@@ -195,6 +202,10 @@ class Group(_ConfigObject):
             raise TypeError(f'node with key: {repr(key)} is not a {Group.__name__}')
         return node
 
+    def del_subgroup(self, key: str) -> 'Option':
+        assert self.has_subgroup(key)
+        self.del_child(key)
+
     def get_option(self, key: str) -> 'Option':
         node = self.get_child(key)
         if not isinstance(node, Option):
@@ -210,6 +221,10 @@ class Group(_ConfigObject):
         if not isinstance(value, Option):
             raise TypeError(f'adding node with key: {repr(key)} is not a {Option.__name__}')
         return self.add_child(key, value)
+
+    def del_option(self, key: str) -> 'Option':
+        assert self.has_suboption(key)
+        self.del_child(key)
 
     def new_subgroup(self, key: str) -> 'Group':
         return self.add_subgroup(key, Group())
@@ -256,7 +271,7 @@ class Group(_ConfigObject):
 
         Supports make_missing like get_subgroups_recursive(...)
         """
-        group_keys, is_relative = s.split_group_path(path)
+        group_keys, is_relative = s.split_config_path(path)
         # get the group corresponding to the path - must handle relative & root paths
         root = (self if is_relative else self.root)
         return root.get_subgroups_recursive(group_keys, make_missing=make_missing)
@@ -350,6 +365,7 @@ class Group(_ConfigObject):
     @classmethod
     def from_dict(cls, raw_group: dict, validate=True):
         if validate:
+            print(raw_group)
             raw_group = s.VerboseGroup.validate(raw_group)
         group = Group()
         for key, child in raw_group[s.KEY_CHILDREN].items():
@@ -374,21 +390,27 @@ class Group(_ConfigObject):
 # ========================================================================= #
 
 
+DefaultsType = List[Union[
+    str,
+    Dict[str, str]
+]]
+
+
 class Option(_ConfigObject):
 
     def __init__(
             self,
             data: dict = None,
             pkg: str = None,
-            defaults: Dict[str, str] = None,
+            defaults: DefaultsType = None,
     ):
         super().__init__()
         self._data = data if data is not None else {}
         self._pkg = pkg if pkg is not None else s.DEFAULT_PKG
-        self._defaults = defaults if defaults is not None else {}
+        self._defaults: DefaultsType = defaults if defaults is not None else []
         assert isinstance(self._pkg, (str, ConfigNode)), f'{s.KEY_PKG} is not a string or {ConfigNode.__name__}'
         assert isinstance(self._data, dict), f'{s.KEY_DATA} is not a dictionary'
-        assert isinstance(self._defaults, dict), f'{s.KEY_MERGE} is not a dicitonary'
+        assert isinstance(self._defaults, list), f'{s.KEY_DEFAULTS} is not a list'
         # we dont validate in case things are nodes
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -473,7 +495,7 @@ class Option(_ConfigObject):
             option = s.VerboseOption.validate(option)
         return Option(
             pkg=option[s.KEY_PKG],
-            defaults=option[s.KEY_MERGE],
+            defaults=option[s.KEY_DEFAULTS],
             data=option[s.KEY_DATA],
         )
 
@@ -481,7 +503,7 @@ class Option(_ConfigObject):
         option = {
             s.KEY_TYPE: s.TYPE_OPTION,
             s.KEY_PKG: self._pkg,
-            s.KEY_MERGE: self._defaults,
+            s.KEY_DEFAULTS: self._defaults,
             s.KEY_DATA: self._data,
         }
         return s.VerboseOption.validate(option) if validate else option

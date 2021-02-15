@@ -1,41 +1,11 @@
-import inspect
-import os
-import re
 from collections import defaultdict
-from typing import Dict, Union, DefaultDict, List, Tuple, Optional
+from typing import Dict, Union, DefaultDict, List, Tuple
 
 from eunomia.config import Group, Option
 from eunomia.config import scheme as s
 
-
-# ========================================================================= #
-# Helper                                                                    #
-# ========================================================================= #
-
-
-def _get_default_args(func):
-    signature = inspect.signature(func)
-    return {
-        k: v.default
-        for k, v in signature.parameters.items()
-        if v.default is not inspect.Parameter.empty
-    }
-
-def _get_module_path(obj):
-    path = os.path.relpath(inspect.getmodule(obj).__file__, os.getcwd())
-    assert path.endswith('.py')
-    path = path[:-len('.py')]
-    return os.path.normpath(path)
-
-
-def _get_import_path(obj):
-    module_path = '.'.join(_get_module_path(obj).split('/'))
-    return f'{module_path}.{obj.__name__}'
-
-
-def _camel_to_snake(name):
-    name = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', name).lower()
+from eunomia.registry.util import make_target_dict, _fn_get_module_path, _camel_to_snake, make_target_option
+from eunomia._util_dict import recursive_getitem, dict_recursive_update
 
 
 # ========================================================================= #
@@ -63,45 +33,61 @@ class RegistryGroup(Group):
         self._registered_all: DefaultDict[object, List[Option]] = defaultdict(list)
         self._registered_defaults: Dict[object, Tuple[bool, Option]] = {}
 
-    def register(self, option_name: str = None, group_path: str = None, target: str = None, override_defaults=None, is_default=None):
-        assert not self.has_parent, 'Can only register on the root node.'
-        # wrap!
+    def register_target(
+            self,
+            fn=None,
+            # config settings
+            name: str = None, path: str = None, is_default: bool = None,
+            # target function
+            target: str = None, params: dict = None, mode: str = 'any', keep_defaults: bool = True,
+            # option params extras
+            nest_path: str = None, data: dict = None, pkg: str = None, defaults: dict = None
+    ):
         def wrapper(func):
-            # get the function paths
-            import_path = _get_import_path(func) if target is None else target
-            module_path = _get_module_path(func) if group_path is None else group_path
-            # construct option
-            overrides = override_defaults if override_defaults else {}
-            kwargs = _get_default_args(func)
-            for k in kwargs:
-                if k in overrides:
-                    kwargs[k] = overrides.pop(k)
-            assert not overrides, f'tried to override missing values: {list(overrides.keys())}'
-            assert s.MARKER_KEY_TARGET not in kwargs, f'object {import_path} has conflicting optional parameter: {s.MARKER_KEY_TARGET}'
-            # get group and make missing along path
-            group = self.get_group_from_path(path=module_path, make_missing=True)
-            # get the name of the option from the function
-            option_key = _camel_to_snake(func.__name__) if option_name is None else option_name
-            # register the option
-            option = group.add_option(option_key, Option(data={
-                s.MARKER_KEY_TARGET: import_path,
-                **kwargs
-            }))
-            self._register_obj(func, option, is_default)
-            # return the original function
+            self.register_target_fn(
+                func,
+                name=name, path=path, is_default=is_default,
+                target=target, params=params, mode=mode, keep_defaults=keep_defaults,
+                nest_path=nest_path, data=data, pkg=pkg, defaults=defaults,
+            )
             return func
-
         # decorate correctly!
-        if callable(option_name):
-            fn, option_name = option_name, None
+        if fn is not None:
             return wrapper(fn)
         else:
             return wrapper
 
+    def register_target_fn(
+            self,
+            fn,
+            # config settings
+            name: str = None, path: str = None, is_default: bool = None,
+            # target function
+            target: str = None, params: dict = None, mode: str = 'any', keep_defaults: bool = True,
+            # option params extras
+            nest_path: str = None, data: dict = None, pkg: str = None, defaults: dict = None
+    ) -> 'Option':
+        assert not self.has_parent, 'Can only register on the root node.'
+        # make various defaults
+        path = _fn_get_module_path(fn) if path is None else path
+        name = _camel_to_snake(fn.__name__) if name is None else name
+        # make option under the specified group
+        group = self.get_group_from_path(path=path, make_missing=True)
+        option = group.add_option(name, make_target_option(
+            fn, target=target, params=params, mode=mode, keep_defaults=keep_defaults,
+            nest_path=nest_path, data=data, pkg=pkg, defaults=defaults
+        ))
+        # register the option first!
+        try:
+            self._register_obj(fn, option, is_default)
+        except Exception as e:
+            group.del_option(name)
+            raise e
+        # done!
+        return option
+
     def _register_obj(self, func, option, is_default=None):
         assert not self.has_parent, 'Can only register on the root node.'
-        # keep track that this was registered
-        self._registered_all[func].append(option)
         # register as a default
         if func in self._registered_defaults:
             explicit, _ = self._registered_defaults[func]
@@ -116,8 +102,10 @@ class RegistryGroup(Group):
         else:
             if is_default or (is_default is None):
                 self._registered_defaults.setdefault(func, (False if is_default is None else True, option))
+        # keep track that this was registered
+        self._registered_all[func].append(option)
 
-    def get_registered_defaults(self, explicit_only=False):
+    def get_registered_defaults(self, explicit_only=False) -> list:
         assert not self.has_parent, 'Can only register on the root node.'
         # get default options!
         defaults = {}
@@ -128,9 +116,28 @@ class RegistryGroup(Group):
             if k in defaults:
                 raise AssertionError(f'default for callable {func} corresponding to option: {option.keys} has already been added.')
             defaults[k] = option.key
-        return defaults
+        return [{k: v} for k, v in defaults.items()]
+
 
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
+
+
+def asdf(a, b, *args, foo=1, bar=2, **kwargs):
+    pass
+
+
+if __name__ == '__main__':
+
+    REGISTRY = RegistryGroup()
+
+    from ruamel import yaml
+
+    option = REGISTRY.register_target_fn(yaml.round_trip_dump)
+    option = REGISTRY.register_target_fn(asdf, params=dict(asdf=5), defaults=[])
+
+    # print(make_target_dict(asdf, params=dict(asdf=5)))
+
+    REGISTRY.debug_print_tree()
 

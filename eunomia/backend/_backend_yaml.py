@@ -66,7 +66,7 @@ class BackendYaml(Backend):
         else:
             # pop all config values
             pkg = data.pop(s.KEY_PKG, None)
-            merge = data.pop(s.KEY_MERGE, None)
+            merge = data.pop(s.KEY_DEFAULTS, None)
             type = data.pop(s.KEY_TYPE, None)
             # check that we have nothing extra
             if any(k in s.RESERVED_KEYS for k in data.keys()):

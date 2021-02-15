@@ -91,7 +91,7 @@ class ConfigLoader(object):
         # ===================== #
         # 1. check where to process self, and make sure self is in the options list
         # by default we want to merge this before children so we can reference its values.
-        options = option.get_unresolved_includes()
+        options = option.get_unresolved_defaults()
         group_paths = list(options.keys())
         if s.OPT_SELF not in group_paths:
             # allow referencing parent values in children
@@ -133,7 +133,7 @@ class ConfigLoader(object):
         #       - allow from the same group to be merged
         #       1. check that the group has not already been merged
         #       2. check that the option has not already been merged
-        # get the path to the config - recursive version of whats listed in the __include__
+        # get the path to the config - recursive version of whats listed in the __defaults__
         # maybe lift the non-recursive limitation in future?
         group_keys = option.group_keys
         # check that this is not a duplicate

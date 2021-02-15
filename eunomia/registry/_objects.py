@@ -59,7 +59,7 @@ class RegistryGroup(Group):
             named_nodes: Dict[str, Union['Group', 'Option']] = None,
     ):
         super().__init__(named_nodes=named_nodes)
-        # save all included options
+        # save all default options
         self._registered_all: DefaultDict[object, List[Option]] = defaultdict(list)
         self._registered_defaults: Dict[object, Tuple[bool, Option]] = {}
 
@@ -119,7 +119,7 @@ class RegistryGroup(Group):
 
     def get_registered_defaults(self, explicit_only=False):
         assert not self.has_parent, 'Can only register on the root node.'
-        # get include!
+        # get default options!
         defaults = {}
         for func, (explicit, option) in self._registered_defaults.items():
             if explicit_only and not explicit:

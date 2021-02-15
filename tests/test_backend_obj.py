@@ -18,20 +18,20 @@ def test_simple_option():
     Option(data={'foo': 'bar'}, pkg=s.PKG_ROOT).to_dict()
     Option(data={'foo': 'bar'}, pkg=s.PKG_GROUP).to_dict()
 
-    Option(data={'foo': 'bar'}, include={}).to_dict()
+    Option(data={'foo': 'bar'}, defaults={}).to_dict()
 
     # test relative path
-    Option(data={'foo': 'bar'}, include={'group1': 'option1'}).to_dict()
-    Option(data={'foo': 'bar'}, include={'group1/group2': 'option2'}).to_dict()
+    Option(data={'foo': 'bar'}, defaults={'group1': 'option1'}).to_dict()
+    Option(data={'foo': 'bar'}, defaults={'group1/group2': 'option2'}).to_dict()
     # test absolute path
-    Option(data={'foo': 'bar'}, include={'/group1/group2': 'option2'}).to_dict()
+    Option(data={'foo': 'bar'}, defaults={'/group1/group2': 'option2'}).to_dict()
 
     with pytest.raises(SchemaError, match='is_identifier'):
-        Option(data={'foo': 'bar'}, include={'group1': '1invalid'}).to_dict()
+        Option(data={'foo': 'bar'}, defaults={'group1': '1invalid'}).to_dict()
     with pytest.raises(SchemaError, match='Wrong key'):
-        Option(data={'foo': 'bar'}, include={'1invalid': 'option2'}).to_dict()
+        Option(data={'foo': 'bar'}, defaults={'1invalid': 'option2'}).to_dict()
     with pytest.raises(SchemaError, match='Wrong key'):
-        Option(data={'foo': 'bar'}, include={'group1/2invalid': 'option2'}).to_dict()
+        Option(data={'foo': 'bar'}, defaults={'group1/2invalid': 'option2'}).to_dict()
 
     Option(data={'foo': 'bar'}, pkg='key1').to_dict()
     Option(data={'foo': 'bar'}, pkg='key1.key2').to_dict()
@@ -72,7 +72,7 @@ def _make_config_group(suboption='suboption1', suboption2=None, package1='<group
         }),
         'default': Option(
             data={'foo': 1},
-            include={
+            defaults={
                 **({'subgroup': suboption} if suboption else {}),  # relative
                 **({'/subgroup2/subgroup3': suboption2} if suboption2 else {}),  # absolute
             }
@@ -100,7 +100,7 @@ def test_option_init():
     defaults = {'/group1/group2': 'option2'}
     pkg = s.PKG_ROOT
     # make equivalent options
-    option = Option(data=data, include=defaults, pkg=pkg)
+    option = Option(data=data, defaults=defaults, pkg=pkg)
     # check circular conversion to_dict
     assert option.to_dict() == option.from_dict(option.to_dict()).to_dict()
 

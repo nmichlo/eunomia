@@ -1,3 +1,8 @@
+---
+title: Home
+pos: 0
+---
+
 
 ----------------------
 
@@ -61,14 +66,13 @@ Please use the following citation if you use Eunomia in your research:
 
 **Hydra Config Limitations:**
 
-- ❌ Does not support custom backends
-- ❌ Does not support nested pythonic config definitions
-- ❌ Does not support simple python expressions
-- ❌ Does not support combining groups/options loaded from different backends before config merge
-- ❌ Defaults are defined as lists not py3.6 ordered dictionaries
-- ❌ Uses custom yaml parsing to obtain package
-- ❌ Config resolution order is unexpected (cannot reference config values in defaults lists)
-- ❌ Release version 1.1 (with recursive defaults) was taking too long.
-- ❌ Overcomplicated / Depends on OmegaConf
-    - Hydra + OmegaConf: ![](https://img.shields.io/tokei/lines/github/facebookresearch/hydra?style=flat-square&color=red)  ![](https://img.shields.io/tokei/lines/github/omry/omegaconf?style=flat-square&color=orange)
-    - Eunomia: ![](https://img.shields.io/tokei/lines/github/nmichlo/eunomia?style=flat-square&color=brightgreen)
+- ❌ &nbsp; Does not support simple python expressions
+- ❌ &nbsp; Cannot reference merged config values in defaults lists
+- ❌ &nbsp; Does not support custom backends
+    * ❌ &nbsp; Does not support nested pythonic config definitions
+    * ❌ &nbsp; Does not support combining groups/options loaded from different backends
+- ❌ &nbsp; Uses custom yaml comment parsing to obtain package
+- ❌ &nbsp; Release version 1.1 (with recursive defaults) was taking too long.
+- ❌ &nbsp; Huge + Depends on OmegaConf
+    * Hydra + OmegaConf: ![](https://img.shields.io/tokei/lines/github/facebookresearch/hydra?style=flat-square&color=red)  ![](https://img.shields.io/tokei/lines/github/omry/omegaconf?style=flat-square&color=orange)
+    * Eunomia: ![](https://img.shields.io/tokei/lines/github/nmichlo/eunomia?style=flat-square&color=brightgreen)

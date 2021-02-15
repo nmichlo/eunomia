@@ -1,6 +1,6 @@
 from eunomia.config import ConfigLoader
 from eunomia.backend import Backend, BackendObj, BackendYaml, BackendDict
-from eunomia.backend import ValidConfigTypes as _ValidConfigTypes, make_backend as _make_backend
+from eunomia.backend import DefaultConfigTypes as _ValidConfigTypes, make_default_backend as _make_backend
 
 # ========================================================================= #
 # Variables                                                                 #

@@ -72,7 +72,7 @@ class BackendYaml(Backend):
             if any(k in s.RESERVED_KEYS for k in data.keys()):
                 raise KeyError(f'A reserved key was found in a compact option dictionary: {list(k for k in data.keys() if k in s.RESERVED_KEYS)}')
             # no need to validate because of above
-            return Option(pkg=pkg, include=merge, data=data)
+            return Option(pkg=pkg, defaults=merge, data=data)
 
     def _load_root_group(self) -> Group:
         root = Group()

@@ -5,10 +5,10 @@ from eunomia.backend import BackendYaml, BackendDict, BackendObj
 from eunomia.config import Group
 
 
-ValidConfigTypes = Union[str, Path, dict, Group]
+DefaultConfigTypes = Union[str, Path, dict, Group]
 
 
-def make_backend(config: ValidConfigTypes):
+def make_default_backend(config: DefaultConfigTypes):
     if isinstance(config, (str, Path)):
         # we assume the config is a path to the root folder for a YAML backend
         if isinstance(config, Path):

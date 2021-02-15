@@ -1,10 +1,10 @@
 trainer:
   epochs: 100
-interpolation:
+subbed:
   epochs_ref: 100
-  beta_sub_ref: beta = 4
+  beta_sub_ref: beta is 4
   beta_expr: 8
-  epochs_sub_expr: epochs = 142
+  epochs_sub_expr: epochs is 142
   fstring: '00100'
 framework:
   _target_: disent.frameworks.vae.unsupervised.BetaVae

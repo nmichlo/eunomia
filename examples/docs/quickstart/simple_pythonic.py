@@ -4,8 +4,9 @@ from ruamel import yaml
 
 group = Group({
     'framework': Group({
-        'vae': Option({
-            '_target_': 'disent.frameworks.vae.unsupervised.Vae',
+        'betavae': Option({
+            '_target_': 'disent.frameworks.vae.unsupervised.BetaVae',
+            'beta': 4,
         })
     }),
     'dataset': Group({
@@ -17,11 +18,11 @@ group = Group({
     'default': Option(
         data={
             'trainer': {
-                'epochs': 50
+                'epochs': 100
             }
         },
-        include={
-            'framework': 'vae',
+        defaults={
+            'framework': 'betavae',
             'dataset': 'shapes3d',
         }
     )

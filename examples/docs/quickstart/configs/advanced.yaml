@@ -1,20 +1,20 @@
 # ./configs/advanced.yaml
-__include__:
+__defaults__:
   framework: betavae
 
 trainer:
   epochs: 100
 
-interpolation:
+subbed:
   # we can reference values, if the reference template ${...} is the only component
   # of the string, the actual value, not necessarily as string, is returned.
   epochs_ref: ${trainer.epochs}
-  beta_sub_ref: 'beta = ${framework.beta}'
+  beta_sub_ref: 'beta is ${framework.beta}'
 
   # we can evaluate expressions, if the expression template is the only component
   # of the string, the actual value, not necessarily as string, is returned.
   beta_expr: ${=conf.framework.beta * 2}
-  epochs_sub_expr: 'epochs = ${=conf.trainer.epochs + 42}'
+  epochs_sub_expr: 'epochs is ${=conf.trainer.epochs + 42}'
 
   # fstrings don't need to be nested within expression templates ${=f'...'}
   # they are automatically detected and evaluated

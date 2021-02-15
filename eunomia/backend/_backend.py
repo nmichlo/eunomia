@@ -1,5 +1,4 @@
-from schema import SchemaError
-from eunomia.config import Group
+from eunomia.config import Group as Group
 
 
 # ========================================================================= #

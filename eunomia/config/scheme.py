@@ -48,7 +48,7 @@ def _debug_fn(fn):
 KEY_TYPE = '__type__'
 # keys - options
 KEY_PKG = '__package__'
-KEY_MERGE = '__include__'
+KEY_MERGE = '__defaults__'
 KEY_DATA = '__data__'
 # keys - groups
 KEY_CHILDREN = '__children__'
@@ -71,7 +71,7 @@ PKG_GROUP = '<group>'
 # special options
 OPT_SELF = '<self>'
 
-# include
+# default
 DEFAULT_PKG = PKG_GROUP
 
 # - - - - - - - - - - - - - #

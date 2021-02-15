@@ -24,7 +24,7 @@ def test_simple_option():
         BackendDict(root).load_root_group().to_dict()
 
     # test yaml backend
-    BackendYaml(path_from_root('docs/examples/quickstart/configs')).load_root_group()
+    BackendYaml(path_from_root('examples/docs/quickstart/configs')).load_root_group()
 
 
 # ========================================================================= #

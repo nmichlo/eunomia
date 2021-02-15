@@ -1,9 +1,0 @@
-# ./configs/alternate.yaml
-__include__:
-  framework: betavae
-  dataset: shapes3d
-
-trainer:
-  epochs: 100
-
-

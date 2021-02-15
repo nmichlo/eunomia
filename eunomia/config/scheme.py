@@ -1,4 +1,6 @@
 import keyword as _keyword
+import os as _os
+
 from schema import Schema as _Schema
 from schema import Optional as _Optional
 from schema import And as _And
@@ -48,7 +50,7 @@ def _debug_fn(fn):
 KEY_TYPE = '__type__'
 # keys - options
 KEY_PKG = '__package__'
-KEY_MERGE = '__defaults__'
+KEY_DEFAULTS = '__defaults__'
 KEY_DATA = '__data__'
 # keys - groups
 KEY_CHILDREN = '__children__'
@@ -87,7 +89,7 @@ _MARKER_KEYS = {
 }
 
 _RESERVED_GROUP_KEYS = {
-    KEY_TYPE, KEY_PKG, KEY_MERGE, KEY_DATA,
+    KEY_TYPE, KEY_PKG, KEY_DEFAULTS, KEY_DATA,
 }
 
 _RESERVED_OPTION_KEYS = {
@@ -154,7 +156,7 @@ def split_pkg_path(path: str) -> (str, bool):
     return keys, is_relative
 
 
-def split_group_path(path: str) -> (str, bool):
+def split_config_path(path: str) -> (str, bool):
     keys, is_not_relative = _split_path(path, '/')
     return keys, not is_not_relative
 
@@ -164,12 +166,12 @@ PkgPath = _Schema(_Or(
     PKG_GROUP,
     # sequentially convert and validate as a list of identifiers
     _And(str, _Const(split_pkg_path))
-), name='package_path')
+), name='package_path', error='invalid package path, package paths must be full stop delimited identifiers')
 
-GroupPath = _Schema((
+ConfigPath = _Schema((
     # sequentially convert and validate as a list of identifiers
-    _And(str, _Const(split_group_path))
-), name='group_path')
+    _And(str, _Const(split_config_path))
+), name='config_path', error='invalid config path, config paths must be forward slash delimited identifiers')
 
 
 # ========================================================================= #
@@ -178,13 +180,36 @@ GroupPath = _Schema((
 
 
 NameKey  = _Schema(Identifier, name='name_key')
-
 PkgValue  = _Schema(_Or(PKG_ROOT, PKG_GROUP, PkgPath), name=KEY_PKG)
 DataValue = _Schema({_Optional(Value): Value}, name=KEY_DATA)
-MergersValue = _Schema({
-    _Optional(OPT_SELF, default=None): None,
-    _Optional(GroupPath): Identifier
-}, name=KEY_MERGE)
+
+
+def normalise_defaults_item(item):
+    if item == OPT_SELF:
+        return OPT_SELF
+    elif isinstance(item, str):
+        option_name = _os.path.basename(item)
+        group_path = _os.path.dirname(item)
+    elif isinstance(item, dict):
+        assert len(item) == 1
+        group_path, option_name = list(item.items())[0]
+    else:
+        raise TypeError(f'invalid defaults item type: {type(item)}')
+    return [group_path, option_name]
+
+
+DefaultsValue = _Schema(
+    [
+        _Schema(OPT_SELF, error='entry was not <self>'),
+        _Schema(ConfigPath, error='entry was not a valid config path'),
+        _Schema(
+            _And({ConfigPath: Identifier}, _rename_fn('only_one_item', lambda x: len(x) == 1)),
+            error='entry was not a valid dictionary with a single key that is a config path to value that is an option name'
+        ),
+    ],
+    name=KEY_DEFAULTS,
+    error='invalid defaults list or invalid entry in defaults list',
+)
 
 
 # ========================================================================= #
@@ -197,7 +222,7 @@ VerboseOption = _Schema({}, name='verbose_option')
 VerboseOption.schema.update({
     _Optional(KEY_TYPE, default=TYPE_OPTION): TYPE_OPTION,
     _Optional(KEY_PKG, default=DEFAULT_PKG): PkgValue,
-    _Optional(KEY_MERGE, default=dict):      MergersValue,
+    _Optional(KEY_DEFAULTS, default=list):   DefaultsValue,
     _Optional(KEY_DATA, default=dict):       DataValue,
 })
 

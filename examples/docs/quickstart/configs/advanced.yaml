@@ -1,6 +1,6 @@
 # ./configs/advanced.yaml
 __defaults__:
-  framework: betavae
+  - framework: betavae
 
 trainer:
   epochs: 100

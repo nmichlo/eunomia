@@ -1,3 +1,4 @@
+import os
 from typing import Tuple
 
 from eunomia._util_dict import recursive_getitem, dict_recursive_update
@@ -54,27 +55,33 @@ class ConfigLoader(object):
         # ===================== #
         # 1. check where to process self, and make sure self is in the options list
         # by default we want to merge this before children so we can reference its values.
-        options = option.get_unresolved_defaults()
-        group_paths = list(options.keys())
-        if s.OPT_SELF not in group_paths:
+        defaults = option.get_unresolved_defaults()
+        if s.OPT_SELF not in defaults:
             # allow referencing parent values in children
-            group_paths = [s.OPT_SELF] + group_paths
+            defaults = [s.OPT_SELF] + defaults
             # # allow parent overwriting children values
             # group_paths = group_paths + [s.OPT_SELF]
         # ===================== #
         # 2. process options in order
-        for group_path in group_paths:
+        for default_item in defaults:
             # handle different cases
-            if group_path == s.OPT_SELF:
+            if default_item == s.OPT_SELF:
                 # ===================== #
                 # 2.a if self is encountered, merge into config. We skip the
                 #     value of the option_name here as it is not needed.
                 self._merge_option(option)
                 # ===================== #
             else:
-                # get the option name and resolve
-                option_name = options[group_path]
+                # resolve the default
+                default_item = self._resolve_value(default_item)
+                assert isinstance(default_item, (str, dict))
+                # normalise the thing, can be strings, or dicts
+                group_path, option_name = s.normalise_defaults_item(default_item)
+                # resolve the string
+                group_path = self._resolve_value(group_path)
                 option_name = self._resolve_value(option_name)
+                assert isinstance(group_path, str)
+                assert isinstance(option_name, str)
                 # ===================== #
                 # 2.b dfs through options
                 # supports relative & absolute paths
@@ -118,12 +125,9 @@ class ConfigLoader(object):
 
     def _resolve_value(self, value):
         # 1. allow interpolation of config objects
-        # 2. process dictionary syntax with _node_ keys
+        # 2. TODO: process dictionary syntax with _node_ keys
         if isinstance(value, ConfigNode):
             value = value.get_config_value(self._merged_config, self._merged_options, {})
-        if isinstance(value, dict):
-            if s.KEY_NODE in value:
-                raise RuntimeError(f'{s.KEY_NODE} is not yet supported!')
         return value
 
     def _resolve_package(self, option) -> Tuple[str]:

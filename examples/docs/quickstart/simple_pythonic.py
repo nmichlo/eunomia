@@ -21,10 +21,10 @@ group = Group({
                 'epochs': 100
             }
         },
-        defaults={
-            'framework': 'betavae',
-            'dataset': 'shapes3d',
-        }
+        defaults=[
+            'framework/' + 'betavae',
+            'dataset/' + 'shapes3d',
+        ]
     )
 })
 

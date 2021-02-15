@@ -105,7 +105,7 @@ class RegistryGroup(Group):
         # keep track that this was registered
         self._registered_all[func].append(option)
 
-    def get_registered_defaults(self, explicit_only=False):
+    def get_registered_defaults(self, explicit_only=False) -> list:
         assert not self.has_parent, 'Can only register on the root node.'
         # get default options!
         defaults = {}
@@ -116,7 +116,7 @@ class RegistryGroup(Group):
             if k in defaults:
                 raise AssertionError(f'default for callable {func} corresponding to option: {option.keys} has already been added.')
             defaults[k] = option.key
-        return defaults
+        return [{k: v} for k, v in defaults.items()]
 
 
 # ========================================================================= #
@@ -134,10 +134,10 @@ if __name__ == '__main__':
 
     from ruamel import yaml
 
-    # option = REGISTRY.register_target_fn(yaml.round_trip_dump)
-    # option = REGISTRY.register_target_fn(asdf, params=dict(asdf=5))
+    option = REGISTRY.register_target_fn(yaml.round_trip_dump)
+    option = REGISTRY.register_target_fn(asdf, params=dict(asdf=5), defaults=[])
 
-    print(make_target_dict(asdf, params=dict(asdf=5)))
+    # print(make_target_dict(asdf, params=dict(asdf=5)))
 
     REGISTRY.debug_print_tree()
 

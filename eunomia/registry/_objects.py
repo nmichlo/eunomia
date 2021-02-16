@@ -62,7 +62,7 @@ class RegistryGroup(Group):
             # target function
             target: str = None, params: dict = None, mode: str = 'any', keep_defaults: bool = True,
             # option params extras
-            nest_path: str = None, data: dict = None, pkg: str = None, defaults: dict = None
+            nest_path: str = None, data: dict = None, pkg: str = None, defaults: list = None
     ) -> 'Option':
         assert not self.has_parent, 'Can only register on the root node.'
         # make various defaults
@@ -119,22 +119,3 @@ class RegistryGroup(Group):
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #
-
-
-def asdf(a, b, *args, foo=1, bar=2, **kwargs):
-    pass
-
-
-if __name__ == '__main__':
-
-    REGISTRY = RegistryGroup()
-
-    from ruamel import yaml
-
-    option = REGISTRY.register_target_fn(yaml.round_trip_dump)
-    option = REGISTRY.register_target_fn(asdf, params=dict(asdf=5), defaults=[])
-
-    # print(make_target_dict(asdf, params=dict(asdf=5)))
-
-    REGISTRY.debug_print_tree()
-

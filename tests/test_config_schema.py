@@ -1,5 +1,5 @@
 import pytest
-from eunomia.config import keys as K
+from eunomia.config import keys as K, Option, Group
 from eunomia.config import validate as V
 
 # ========================================================================= #
@@ -114,7 +114,7 @@ def test_group_path():
 def test_defaults():
 
     # check self
-    assert V.split_defaults_item('<self>') == ('<self>', '<self>')
+    assert V.split_defaults_item('<self>') == '<self>'
     with pytest.raises(ValueError):
         V.split_defaults_item(['<self>s'])
 
@@ -147,6 +147,13 @@ def test_defaults():
     assert V.split_defaults_item(['group', 'option1']) == ('group', 'option1')
     assert V.split_defaults_item(['/group', 'option1']) == ('/group', 'option1')
 
+    # check options as refs
+    option = Group().new_option('default')
+    with pytest.raises(RuntimeError, match='single defaults items that are an Option instance are disabled'):
+        V.split_defaults_list_items([option])
+    with pytest.raises(RuntimeError, match='single defaults items that are an Option instance are disabled'):
+        V.split_defaults_list_items([option], allow_config_node_return=False)
+    assert V.split_defaults_list_items([option], allow_config_node_return=True) == [option]
 
     # check lots
     assert V.split_defaults_list_items([]) == []
@@ -156,11 +163,13 @@ def test_defaults():
         {'/group/subgroup': 'option1'},
         {'group/subgroup2': 'option2'},
         '<self>',
-    ]) == [
+        option,
+    ], allow_config_node_return=True) == [
         ('group1', 'option1'),
         ('/group2', 'option2'),
         ('/group/subgroup', 'option1'),
         ('group/subgroup2', 'option2'),
-        ('<self>', '<self>'),
+        '<self>',
+        option,
     ]
 

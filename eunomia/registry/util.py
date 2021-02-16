@@ -83,7 +83,7 @@ def make_target_option(
         nest_path: str = None,
         data: dict = None,
         pkg: str = None,
-        defaults: dict = None,
+        defaults: list = None,
 ) -> 'Option':
     # get various defaults
     data = {} if data is None else data

@@ -1,6 +1,5 @@
 
 # TODO: asteval dependency can easily be removed
-asteval==0.9.21
+asteval==0.9.22
 lark-parser==0.11.1
 ruamel.yaml==0.16.12
-schema==0.7.4

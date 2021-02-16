@@ -2,7 +2,9 @@ import inspect
 import re
 
 from eunomia._util_dict import recursive_getitem, dict_recursive_update
-from eunomia.config import scheme as s, Option
+from eunomia.config import keys as K
+from eunomia.config import validate as V
+from eunomia.config import Option
 
 
 # ========================================================================= #
@@ -36,14 +38,12 @@ def _fn_get_all_args(func) -> list:
 def _fn_get_module_path(obj):
     # get package search paths
     import os
-    import site
-    python_paths = os.environ['PYTHONPATH'].split(os.pathsep)
-    python_paths = site.getsitepackages() + python_paths
+    import sys
     # get module path
     path = os.path.abspath(inspect.getmodule(obj).__file__)
     # return the shortest relative path from all the packages
     rel_paths = []
-    for site in python_paths:
+    for site in sys.path:
         site = os.path.abspath(site)
         if os.path.commonprefix([site, path]) == site:
             rel_paths.append(os.path.relpath(path, site))
@@ -90,7 +90,7 @@ def make_target_option(
 
     # check nest path
     if nest_path is not None:
-        nest_path, is_relative = s.split_pkg_path(nest_path)
+        nest_path, is_relative = V.split_package_path(nest_path)
         assert not is_relative, 'nest path must not be relative'
     else:
         nest_path = []
@@ -161,7 +161,7 @@ def make_target_dict(
     # check that no extra unused overrides exist
     # and that _target_ is not a parameter name
     assert not overrides, f'cannot override params: {list(overrides.keys())}'
-    assert s.MARKER_KEY_TARGET not in defaults, f'object {target} has conflicting optional parameter: {s.MARKER_KEY_TARGET}'
+    assert K.MARKER_KEY_TARGET not in defaults, f'object {target} has conflicting optional parameter: {K.MARKER_KEY_TARGET}'
 
     # check that nothing is left over according to the override mode
     if mode == 'all':
@@ -172,7 +172,7 @@ def make_target_dict(
 
     # return final dictionary
     return {
-        s.MARKER_KEY_TARGET: target,
+        K.MARKER_KEY_TARGET: target,
         **defaults,
     }
 

@@ -1,8 +1,10 @@
 from typing import Dict, Union, List, Tuple
 
 from eunomia._util_traverse import RecursiveTransformer
-from eunomia.config import scheme as s
 from eunomia.config.nodes import ConfigNode, SubNode
+
+from eunomia.config import keys as K
+from eunomia.config import validate as V
 
 
 # ========================================================================= #
@@ -110,28 +112,6 @@ class _ConfigObject(object):
 
     def __iter__(self):
         yield from self._children
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Schema                                                                #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    @classmethod
-    def from_dict(cls, mapping: dict, validate=True):
-        raise NotImplementedError
-
-    def to_dict(self, validate=True):
-        raise NotImplementedError
-
-    def is_valid_dict(self):
-        try:
-            self.to_dict()
-            return True
-        except:
-            return False
-
-    def to_yaml(self) -> str:
-        import ruamel.yaml
-        return ruamel.yaml.round_trip_dump(self.to_dict())
 
 
 # ========================================================================= #
@@ -252,7 +232,7 @@ class Group(_ConfigObject):
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def get_subgroups_recursive(self, keys: List[str], make_missing=False) -> 'Group':
+    def get_subgroup_recursive(self, keys: List[str], make_missing=False) -> 'Group':
         def _recurse(group: Group, old_keys):
             if not old_keys:
                 return group
@@ -271,10 +251,10 @@ class Group(_ConfigObject):
 
         Supports make_missing like get_subgroups_recursive(...)
         """
-        group_keys, is_relative = s.split_config_path(path)
+        group_keys, is_relative = V.split_config_path(path)
         # get the group corresponding to the path - must handle relative & root paths
         root = (self if is_relative else self.root)
-        return root.get_subgroups_recursive(group_keys, make_missing=make_missing)
+        return root.get_subgroup_recursive(group_keys, make_missing=make_missing)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Strings                                                               #
@@ -291,109 +271,13 @@ class Group(_ConfigObject):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     def debug_print_tree(self, colors=True, show_options=True, full_option_path=True, full_group_path=True):
-        from attr import dataclass
-
-        @dataclass
-        class _WalkObj:
-            node: _ConfigObject
-            visited: bool
-            is_last: bool
-            @property
-            def is_group(self):
-                return isinstance(self.node, Group)
-            @property
-            def has_groups_after(self):
-                return self.node.has_parent and isinstance(self.node.parent, Group) and bool(self.node.parent.groups)
-            @property
-            def key(self):
-                return (self.is_group, self.visited, self.is_last, self.has_groups_after)
-            def __str__(self):
-                return f":{''.join(map(str, map(int, self.key)))}"
-
-        def _is_last_iter(items):
-            yield from ((item, i == len(items)-1) for i, item in enumerate(items))
-
-        def _walk():
-            def _recurse(node, is_last, stack):
-                stk = stack + [_WalkObj(node, False, is_last)]
-                yield stk
-                stk[-1].visited = True
-                if isinstance(node, Group):
-                    if show_options:
-                        for o, l in _is_last_iter(node.options.values()):
-                            yield from _recurse(o, l, stk)
-                    for g, l in _is_last_iter(node.groups.values()):
-                        yield from _recurse(g, l, stk)
-            return _recurse(self, True, [])
-
-        if colors:
-            nG, nO, S, G, O, R = '\033[35m', '\033[33m', '\033[90m', '\033[95m', '\033[93m', '\033[0m'
-        else:
-            nG, nO, S, G, O, R = '', '', '', '', '', ''
-
-        TREE = {
-            (1, 1, 1, 0): f'   ',           # group,  visited,   last,  has groups after
-            (1, 1, 1, 1): f'   ',           # group,  visited,   last,  no groups after
-            (1, 0, 1, 0): f'   ',           # group,  unvisited, last,  has groups after
-            (1, 1, 0, 1): f' {S}│{R} ',     # group,  visited,   inner, no groups after
-            (1, 0, 0, 1): f' {S}├{G}─{R}',  # group,  unvisited, inner, no groups after
-            (1, 0, 1, 1): f' {S}╰{G}─{R}',  # group,  unvisited, last,  no groups after
-            (0, 0, 0, 1): f' {S}│{R} ',     # option, unvisited, last,  has groups after
-            (0, 0, 1, 1): f' {S}├{O}╌{R}',  # option, unvisited, last,  no groups after
-            (0, 0, 0, 0): f' {S}├{O}╌{R}',  # option, unvisited, inner, has groups after
-            (0, 0, 1, 0): f' {S}╰{O}╌{R}',  # option, unvisited, last,  has groups after
-        }
-
-        for stack in _walk():
-            (*_, item) = stack
-            tree = ''.join(TREE.get(o.key, f'ERR{o}') for o in stack[1:])
-            if item.is_group:
-                keys = [f'/{k}' for k in (item.node.keys if item.node.keys else ('',))]
-                name = f"{nG}{keys[-1]}{R}"
-                if full_group_path:
-                    name = f"{S}{''.join(keys[:-1])}{R}" + name
-            else:
-                name = f"{nO}{item.node.key}{R}"
-                if full_option_path:
-                    name = f"{S}{('/' + '/'.join(item.node.keys[:-1]))}:{R} " + name
-            print(tree, name)
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Schema                                                                #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    @classmethod
-    def from_dict(cls, raw_group: dict, validate=True):
-        if validate:
-            print(raw_group)
-            raw_group = s.VerboseGroup.validate(raw_group)
-        group = Group()
-        for key, child in raw_group[s.KEY_CHILDREN].items():
-            if child[s.KEY_TYPE] == s.TYPE_GROUP:
-                group.add_subgroup(key, Group.from_dict(child, validate=False))
-            elif child[s.KEY_TYPE] == s.TYPE_OPTION:
-                group.add_option(key, Option.from_dict(child, validate=False))
-            else:
-                raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
-        return group
-
-    def to_dict(self, validate=True):
-        group = {
-            s.KEY_TYPE: s.TYPE_GROUP,
-            s.KEY_CHILDREN: {k: self[k].to_dict(validate=False) for k in self}
-        }
-        return s.VerboseGroup.validate(group) if validate else group
+        from eunomia.config._config_debug import debug_print_tree
+        return debug_print_tree(self, colors=colors, show_options=show_options, full_option_path=full_option_path, full_group_path=full_group_path)
 
 
 # ========================================================================= #
 # Option                                                                    #
 # ========================================================================= #
-
-
-DefaultsType = List[Union[
-    str,
-    Dict[str, str]
-]]
 
 
 class Option(_ConfigObject):
@@ -402,16 +286,25 @@ class Option(_ConfigObject):
             self,
             data: dict = None,
             pkg: str = None,
-            defaults: DefaultsType = None,
+            defaults: list = None,
     ):
         super().__init__()
-        self._data = data if data is not None else {}
-        self._pkg = pkg if pkg is not None else s.DEFAULT_PKG
-        self._defaults: DefaultsType = defaults if defaults is not None else []
-        assert isinstance(self._pkg, (str, ConfigNode)), f'{s.KEY_PKG} is not a string or {ConfigNode.__name__}'
-        assert isinstance(self._data, dict), f'{s.KEY_DATA} is not a dictionary'
-        assert isinstance(self._defaults, list), f'{s.KEY_DEFAULTS} is not a list'
-        # we dont validate in case things are nodes
+        # extract components
+        self._data = V.validate_option_data(data)
+        self._pkg = V.validate_option_package(pkg)
+        self._defaults = V.validate_option_defaults(defaults, allow_config_nodes=True)
+
+    @property
+    def pkg(self):
+        return self._pkg
+
+    @property
+    def data(self):
+        return self._data.copy()
+
+    @property
+    def defaults(self):
+        return self._defaults.copy()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
@@ -483,30 +376,7 @@ class Option(_ConfigObject):
         return self.__repr__()
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self._data})'
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # schema                                                                #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    @classmethod
-    def from_dict(cls, option, validate=True):
-        if validate:
-            option = s.VerboseOption.validate(option)
-        return Option(
-            pkg=option[s.KEY_PKG],
-            defaults=option[s.KEY_DEFAULTS],
-            data=option[s.KEY_DATA],
-        )
-
-    def to_dict(self, validate=True):
-        option = {
-            s.KEY_TYPE: s.TYPE_OPTION,
-            s.KEY_PKG: self._pkg,
-            s.KEY_DEFAULTS: self._defaults,
-            s.KEY_DATA: self._data,
-        }
-        return s.VerboseOption.validate(option) if validate else option
+        return f'{self.__class__.__name__}(data={repr(self._data)}, pkg={repr(self._pkg)}, defaults={repr(self._defaults)})'
 
 
 # ========================================================================= #

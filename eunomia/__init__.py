@@ -20,11 +20,11 @@ assert _V[0] == 3 and _V[1] >= 6, 'Python 3.6 or above is required for ordered d
 
 
 # eunomia decorator
-from ._core import eunomia, eunomia_adv
+from ._core import eunomia
 # eunomia runner
-from ._core import eunomia_runner, eunomia_runner_adv
+from ._core import eunomia_runner
 # eunomia simple loader - skips plugins and runners
-from ._core import eunomia_load, eunomia_load_adv
+from ._core import eunomia_load
 
 
 # ========================================================================= #

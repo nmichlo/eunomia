@@ -1,6 +1,7 @@
 import pytest
 
 from eunomia import eunomia_load
+from eunomia.backend import BackendDict
 from eunomia.config import Group, Option
 from eunomia.registry import RegistryGroup
 
@@ -43,7 +44,7 @@ def test_simple_option():
     })
 
     # NOTE: the working directory must not be /eunomia/tests, it must be /eunomia
-    assert root.to_dict() == target.to_dict()
+    assert BackendDict().dump(root) == BackendDict().dump(target)
 
     # test defaults
     # - if is_default is not specified, then the default can be overwritten

@@ -3,7 +3,7 @@ import os
 import ruamel.yaml as yaml
 
 from eunomia.backend import Backend
-from eunomia.backend._backend_dict import normalise_option_dict
+from eunomia.backend._backend_dict import normalise_option_dict, BackendDict
 from eunomia.config import Group, Option
 from eunomia.config.nodes import IgnoreNode
 
@@ -55,7 +55,7 @@ class BackendYaml(Backend):
         # load option
         data = yaml_load_file(value)
         # convert data to option
-        return Option.from_dict(normalise_option_dict(data, recursive=False, allow_compact=True))
+        return BackendDict().load_option(normalise_option_dict(data, recursive=False, allow_compact=True))
 
     def _dump_group(self, group: Group):
         raise RuntimeError('Not implemented!')  # pragma: no cover

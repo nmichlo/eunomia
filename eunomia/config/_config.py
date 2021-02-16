@@ -113,17 +113,6 @@ class _ConfigObject(object):
     def __iter__(self):
         yield from self._children
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Dumping                                                               #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def to_dict(self):
-        raise NotImplementedError
-
-    @classmethod
-    def from_dict(cls, dct):
-        raise NotImplementedError
-
 
 # ========================================================================= #
 # Group                                                                     #
@@ -349,19 +338,6 @@ class Group(_ConfigObject):
                     name = f"{S}{('/' + '/'.join(item.node.keys[:-1]))}:{R} " + name
             print(tree, name)
 
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Dumping                                                               #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def to_dict(self):
-        from eunomia.backend import BackendDict
-        return BackendDict().dump_group(self)
-
-    @classmethod
-    def from_dict(cls, dct):
-        from eunomia.backend import BackendDict
-        return BackendDict().load_group(dct)
-
 
 # ========================================================================= #
 # Option                                                                    #
@@ -462,20 +438,6 @@ class Option(_ConfigObject):
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self._data})'
-
-
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Dumping                                                               #
-    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-
-    def to_dict(self):
-        from eunomia.backend import BackendDict
-        return BackendDict().dump_option(self)
-
-    @classmethod
-    def from_dict(cls, dct):
-        from eunomia.backend import BackendDict
-        return BackendDict().load_option(dct)
 
 
 # ========================================================================= #

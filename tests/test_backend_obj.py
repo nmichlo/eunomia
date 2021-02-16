@@ -15,29 +15,29 @@ from eunomia.config import validate as V
 
 
 def test_simple_option():
-    b = BackendDict()
+    bk = BackendDict()
 
-    b.dump_option(Option(data={'foo': 'bar'}))
-    b.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_ROOT))
-    b.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_GROUP))
+    bk.dump_option(Option(data={'foo': 'bar'}))
+    bk.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_ROOT))
+    bk.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_GROUP))
 
-    b.dump_option(Option(data={'foo': 'bar'}, defaults=[]))
+    bk.dump_option(Option(data={'foo': 'bar'}, defaults=[]))
 
     # test relative path
-    Option(data={'foo': 'bar'}, defaults=['group1/option1']).to_dict()
-    Option(data={'foo': 'bar'}, defaults=['group1/group2/option2']).to_dict()
+    bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/option1']))
+    bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/group2/option2']))
     # test absolute path
-    Option(data={'foo': 'bar'}, defaults=['/group1/group2/option2']).to_dict()
+    bk.dump_option(Option(data={'foo': 'bar'}, defaults=['/group1/group2/option2']))
 
     with pytest.raises(ValueError):  # TODO: fix error messages, match='is_identifier'):
-        Option(data={'foo': 'bar'}, defaults=[{'group1': '1invalid'}]).to_dict()
+        bk.dump_option(Option(data={'foo': 'bar'}, defaults=[{'group1': '1invalid'}]))
     with pytest.raises(ValueError):  # TODO: fix error messages, match='Wrong key'):
-        Option(data={'foo': 'bar'}, defaults=[{'1invalid': 'option2'}]).to_dict()
+        bk.dump_option(Option(data={'foo': 'bar'}, defaults=[{'1invalid': 'option2'}]))
     with pytest.raises(ValueError):  # TODO: fix error messages, match='Wrong key'):
-        Option(data={'foo': 'bar'}, defaults=[{'group1/2invalid': 'option2'}]).to_dict()
+        bk.dump_option(Option(data={'foo': 'bar'}, defaults=[{'group1/2invalid': 'option2'}]))
 
-    Option(data={'foo': 'bar'}, pkg='key1').to_dict()
-    Option(data={'foo': 'bar'}, pkg='key1.key2').to_dict()
+    bk.dump_option(Option(data={'foo': 'bar'}, pkg='key1'))
+    bk.dump_option(Option(data={'foo': 'bar'}, pkg='key1.key2'))
 
 
 def test_simple_config():
@@ -55,9 +55,11 @@ def test_simple_config():
         }),
     })
 
+    bck = BackendDict()
+
     # forward and backwards conversion!
-    d1 = g.to_dict()
-    g1 = Group.from_dict(d1)
+    d1 = BackendDict().dump(g)
+    g1 = BackendDict().load_group(d1)
     assert repr(g1) == repr(g)
 
 
@@ -84,8 +86,8 @@ def _make_config_group(suboption='suboption1', suboption2=None, package1='<group
 
     if check_cycle:
         # forward and backwards conversion!
-        d1 = g.to_dict()
-        g1 = Group.from_dict(d1)
+        d1 = BackendDict().dump(g)
+        g1 = BackendDict().load_group(d1)
         assert repr(g1) == repr(g)
 
     return g
@@ -104,8 +106,9 @@ def test_option_init():
     pkg = K.PKG_ROOT
     # make equivalent options
     option = Option(data=data, defaults=defaults, pkg=pkg)
-    # check circular conversion to_dict
-    assert option.to_dict() == option.from_dict(option.to_dict()).to_dict()
+    # check circular conversion
+    bk = BackendDict()
+    assert bk.dump(option) == bk.dump(bk.load_option(bk.dump(option)))
 
 def test_debug_groups():
     root = _make_config_group(suboption='suboption1')

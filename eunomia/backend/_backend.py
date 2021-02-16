@@ -43,10 +43,10 @@ class Backend(object):
         assert isinstance(option, Option), f'loaded option must be a: {Option}'
         return option
 
-    def _load_group(cls, value: GROUP_TYPE) -> Group:
+    def _load_group(self, value: GROUP_TYPE) -> Group:
         raise NotImplementedError
 
-    def _load_option(cls, value: OPTION_TYPE) -> Option:
+    def _load_option(self, value: OPTION_TYPE) -> Option:
         raise NotImplementedError
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #

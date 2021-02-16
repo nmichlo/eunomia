@@ -68,8 +68,8 @@ def test_eunomia_core_funcs():
     assert eunomia_load(root, 'default', backend=BackendObj()) == target
 
     # test dict backend
-    assert eunomia_load(root.to_dict(), 'default') == target
-    assert eunomia_load(root.to_dict(), 'default', backend=BackendDict()) == target
+    assert eunomia_load(BackendDict().dump(root), 'default') == target
+    assert eunomia_load(BackendDict().dump(root), 'default', backend=BackendDict()) == target
 
     # RUNNERS
 

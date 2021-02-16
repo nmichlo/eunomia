@@ -38,14 +38,12 @@ def _fn_get_all_args(func) -> list:
 def _fn_get_module_path(obj):
     # get package search paths
     import os
-    import site
-    python_paths = os.environ['PYTHONPATH'].split(os.pathsep)
-    python_paths = site.getsitepackages() + python_paths
+    import sys
     # get module path
     path = os.path.abspath(inspect.getmodule(obj).__file__)
     # return the shortest relative path from all the packages
     rel_paths = []
-    for site in python_paths:
+    for site in sys.path:
         site = os.path.abspath(site)
         if os.path.commonprefix([site, path]) == site:
             rel_paths.append(os.path.relpath(path, site))

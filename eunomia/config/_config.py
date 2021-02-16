@@ -209,10 +209,10 @@ class Group(_ConfigObject):
     def new_subgroup(self, key: str) -> 'Group':
         return self.add_subgroup(key, Group())
 
-    # we don't support new_option because we shouldn't
-    # modify it after it is initialised
-    # def new_option(self, key: str) -> 'Option':
-    #     return self.add_option(key, Option())
+    def new_option(self, key: str, data=None, pkg=None, defaults=None) -> 'Option':
+        return self.add_option(key, Option(
+            data=data, pkg=pkg, defaults=defaults
+        ))
 
     def has_suboption(self, key):
         if not self.has_child(key):

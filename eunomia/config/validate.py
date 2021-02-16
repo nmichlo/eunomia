@@ -184,7 +184,7 @@ def split_defaults_item(item, allow_config_node_return=False) -> _Union[_Tuple[s
     from eunomia.config._config import Option
 
     if isinstance(item, ConfigNode):
-        raise TypeError('single item config nodes that represent a defaults item should be resolved before being split.')
+        raise RuntimeError('single defaults items that are config nodes should be resolved before being split.')
 
     # support references to options
     # - these need to be resolved outside of this function in case things are
@@ -192,7 +192,7 @@ def split_defaults_item(item, allow_config_node_return=False) -> _Union[_Tuple[s
     if isinstance(item, Option):
         if allow_config_node_return:
             return item
-        raise TypeError(f'single item config nodes that are an {Option.__name__} instance are disabled.')
+        raise RuntimeError(f'single defaults items that are an {Option.__name__} instance are disabled.')
 
     # check the normal types
     if item == _K.OPT_SELF:

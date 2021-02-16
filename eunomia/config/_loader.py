@@ -134,7 +134,7 @@ class ConfigLoader(object):
         # 2. get the root config object according to the package
         root = recursive_getitem(self._merged_config, keys, make_missing=True)
         # 3. merge the option into the config
-        dict_recursive_update(left=root, right=option.get_unresolved_data())
+        dict_recursive_update(left=root, right=option.get_unresolved_data(), safe_merge=True)
 
     def _resolve_value(self, value):
         # 1. allow interpolation of config objects

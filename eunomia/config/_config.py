@@ -280,28 +280,31 @@ class Group(_ConfigObject):
 # ========================================================================= #
 
 
-DefaultsType = List[Union[
-    str,
-    Dict[str, str]
-]]
-
-
 class Option(_ConfigObject):
 
     def __init__(
             self,
             data: dict = None,
             pkg: str = None,
-            defaults: DefaultsType = None,
+            defaults: list = None,
     ):
         super().__init__()
-        self._data = data if data is not None else {}
-        self._pkg = pkg if pkg is not None else K.DEFAULT_PKG
-        self._defaults: DefaultsType = defaults if defaults is not None else []
-        assert isinstance(self._pkg, (str, ConfigNode)), f'{K.KEY_PKG} is not a string or {ConfigNode.__name__}'
-        assert isinstance(self._data, dict), f'{K.KEY_DATA} is not a dictionary'
-        assert isinstance(self._defaults, list), f'{K.KEY_DEFAULTS} is not a list'
-        # we dont validate in case things are nodes
+        # extract components
+        self._data = V.validate_option_data(data)
+        self._pkg = V.validate_option_package(pkg)
+        self._defaults = V.validate_option_defaults(defaults, allow_config_nodes=True)
+
+    @property
+    def pkg(self):
+        return self._pkg
+
+    @property
+    def data(self):
+        return self._data.copy()
+
+    @property
+    def defaults(self):
+        return self._defaults.copy()
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
@@ -373,7 +376,7 @@ class Option(_ConfigObject):
         return self.__repr__()
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self._data})'
+        return f'{self.__class__.__name__}(data={repr(self._data)}, pkg={repr(self._pkg)}, defaults={repr(self._defaults)})'
 
 
 # ========================================================================= #

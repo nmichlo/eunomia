@@ -96,18 +96,60 @@ def validate_config_path(path) -> str:
 # ========================================================================= #
 
 
-def validate_config_data(value):
+def validate_option_data(data) -> dict:
+    if data is None:
+        return {}
+
+    from eunomia.config.nodes import ConfigNode
+
+    if isinstance(data, ConfigNode):
+        raise TypeError(f'option data object can never be a config node: {repr(data)}')
+    if not isinstance(data, dict):
+        raise TypeError(f'option data object must be of type dict: {repr(data)}')
+    return _validate_option_data(data)
+
+
+def _validate_option_data(value):
     if isinstance(value, list):
         for v in value:
-            validate_config_data(v)
+            _validate_option_data(v)
     elif isinstance(value, dict):
         for k, v in value.items():
             validate_identifier(k)
-            validate_config_data(v)
+            _validate_option_data(v)
     elif isinstance(value, (int, float, str)):
         pass
     else:
         raise TypeError(f'unsupported value type: {type(value)}')
+    return value
+
+
+def validate_option_package(pkg) -> str:
+    if pkg is None:
+        return K.DEFAULT_PKG
+
+    from eunomia.config.nodes import ConfigNode
+
+    if isinstance(pkg, ConfigNode):
+        raise ValueError(f'option package can never be a config node: {repr(pkg)}')
+    try:
+        return validate_package_path(pkg)
+    except:
+        raise ValueError(f'option package is invalid: {repr(pkg)}')
+
+
+def validate_option_defaults(defaults, allow_config_nodes=False) -> list:
+    if defaults is None:
+        return []
+
+    from eunomia.config.nodes import ConfigNode
+
+    if isinstance(defaults, ConfigNode):
+        raise ValueError(f'option defaults can never directly be a config node, only its items: {repr(defaults)}')
+    try:
+        return split_defaults_list_items(defaults, allow_config_node_return=allow_config_nodes)
+    except Exception as e:
+        raise ValueError(f'option defaults is invalid: {repr(defaults)}').with_traceback(e.__traceback__)
 
 
 # ========================================================================= #

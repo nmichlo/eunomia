@@ -55,7 +55,7 @@ class BackendYaml(Backend):
         # load option
         data = yaml_load_file(value)
         # convert data to option
-        return BackendDict().load_option(normalise_option_dict(data, recursive=False, allow_compact=True))
+        return BackendDict(allow_compact_load=True).load_option(data)
 
     def _dump_group(self, group: Group):
         raise RuntimeError('Not implemented!')  # pragma: no cover

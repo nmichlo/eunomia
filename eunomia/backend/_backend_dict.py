@@ -92,88 +92,39 @@ def normalise_group_dict(group: dict, recursive: bool):
     return group
 
 
-# def _update_option_overrides(option, data=None, pkg=None, defaults=None, allow_compact=False):
-#     if pkg is not None:
-#         if K.KEY_PKG in option:
-#             raise ValueError(f'package parameter cannot be specified if {K.KEY_PKG} is in the option')
-#         option[K.KEY_PKG] = pkg
-#     if data is not None:
-#         if K.KEY_DATA in option:
-#             raise ValueError(f'data parameter cannot be specified if {K.KEY_DATA} is in the option')
-#         if allow_compact and (set(option.keys()) - K.RESERVED_OPTION_KEYS):
-#             raise ValueError(f'data parameter cannot be specified if the compact mode is being used and there are data keys.')
-#         option[K.KEY_DATA] = data
-#     if defaults is not None:
-#         if K.KEY_DEFAULTS in option:
-#             raise ValueError(f'defaults parameter cannot be specified if {K.KEY_DEFAULTS} is in the option')
-#         option[K.KEY_DEFAULTS] = defaults
-#     return option
-
-
-def _set_option_defaults_and_normalise(option, allow_compact=False):
-    # ========================= #
-    # set defaults
-    option.setdefault(K.KEY_TYPE, K.TYPE_OPTION)
-    option.setdefault(K.KEY_PKG, None)
-    option.setdefault(K.KEY_DEFAULTS, None)
-    # ========================= #
-    # handle data
-    if not (set(option.keys()) - K.RESERVED_OPTION_KEYS):
-        # VERBOSE
-        option.setdefault(K.KEY_DATA, None)
-        check_keys = option.keys()
-    else:
-        if not allow_compact:
-            raise KeyError(f'compact options are not allowed, option requires key: {K.KEY_DATA}')
-        # COMPACT
-        data = option
-        type = data.pop(K.KEY_TYPE)
-        package = data.pop(K.KEY_PKG)
-        defaults = data.pop(K.KEY_DEFAULTS)
-        # check that we have nothing extra
-        if any(k in K.RESERVED_KEYS for k in option.keys()):
-            raise KeyError(f'A reserved key was found in a compact option dictionary: {list(k for k in option.keys() if k in K.RESERVED_KEYS)}')
-        # construct verbose dict
-        option = {
-            K.KEY_TYPE: type,
-            K.KEY_PKG: package,
-            K.KEY_DEFAULTS: defaults,
-            K.KEY_DATA: data,
-        }
-        # check keys
-        check_keys = data.keys()
-    # ========================= #
-    # check the keys
-    keys = set.intersection(set(check_keys), K.RESERVED_KEYS) - K.RESERVED_OPTION_KEYS
-    if keys:
-        raise ValueError(f'not allowed reserved keys found in the option: {keys} only the following keys are allowed: {K.RESERVED_OPTION_KEYS}')
-    # ========================= #
-    return option
-
-
-def _validate_option_keys(option, allow_config_nodes=False):
-    typ, pkg, defaults, data = option[K.KEY_TYPE], option[K.KEY_PKG], option[K.KEY_DEFAULTS], option[K.KEY_DATA]
-    # ========================= #
-    # type
-    if isinstance(typ, ConfigNode):
-        raise RuntimeError(f'option type can never be a config node: {repr(typ)}')
-    if typ != K.TYPE_OPTION:
-        raise RuntimeError(f'option  type must be: {repr(typ)}')
-    # ========================= #
-    # package
-    option[K.KEY_PKG] = V.validate_option_package(pkg)
-    option[K.KEY_DEFAULTS] = V.validate_option_defaults(defaults, allow_config_nodes=allow_config_nodes)
-    option[K.KEY_DATA] = V.validate_option_data(data)
-    # ========================= #
-    return option
-
-
 def normalise_option_dict(option: dict, allow_compact=False, allow_config_nodes=False):
     if not isinstance(option, dict):
         raise TypeError('option must be a dictionary')
     # ========================= #
-    option = _set_option_defaults_and_normalise(option, allow_compact=allow_compact)
-    option = _validate_option_keys(option, allow_config_nodes=allow_config_nodes)
+    # handle compact dictionary -- identified if extra keys exist
+    extra_keys = set(option.keys()) - K.RESERVED_OPTION_KEYS
+    if extra_keys:
+        # COMPACT
+        if not allow_compact:
+            raise KeyError(f'compact options are not allowed, option requires key: {K.KEY_DATA}')
+        if K.KEY_DATA in option:
+            raise ValueError(f'option is considered compact because it has extra non-special keys in it. A compact option cannot contain a {K.KEY_DATA} key itself.')
+        option = {
+            K.KEY_TYPE:     option.pop(K.KEY_TYPE, None),
+            K.KEY_PKG:      option.pop(K.KEY_PKG, None),
+            K.KEY_DEFAULTS: option.pop(K.KEY_DEFAULTS, None),
+            K.KEY_DATA:     option,
+        }
+    # ========================= #
+    # get defaults
+    option[K.KEY_TYPE]     = V.validate_option_type(option.get(K.KEY_TYPE, None))
+    option[K.KEY_PKG]      = V.validate_option_package(option.get(K.KEY_PKG, None))
+    option[K.KEY_DEFAULTS] = V.validate_option_defaults(option.get(K.KEY_DEFAULTS, None), allow_config_nodes=allow_config_nodes)
+    option[K.KEY_DATA]     = V.validate_option_data(option.get(K.KEY_DATA, None))
+    # ========================= #
+    # again check that no extra keys exist
+    extra_keys = set(option.keys()) - K.RESERVED_OPTION_KEYS
+    if extra_keys:
+        raise ValueError(f'option has extra keys that are not allowed: {extra_keys}')
+    # check that nothing special is in here
+    extra_data_keys = set(option[K.KEY_DATA].keys()).intersection(K.RESERVED_KEYS)
+    if extra_data_keys:
+        raise ValueError(f'option data has reserved keys that are not allowed: {extra_data_keys}')
     # ========================= #
     return option
 

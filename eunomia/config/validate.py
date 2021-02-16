@@ -152,6 +152,19 @@ def validate_option_defaults(defaults, allow_config_nodes=False) -> list:
         raise ValueError(f'option defaults is invalid: {repr(defaults)}').with_traceback(e.__traceback__)
 
 
+def validate_option_type(typ) -> str:
+    if typ is None:
+        return K.TYPE_OPTION
+
+    from eunomia.config.nodes import ConfigNode
+
+    if isinstance(typ, ConfigNode):
+        raise RuntimeError(f'option type can never be a config node: {repr(typ)}')
+    if typ != K.TYPE_OPTION:
+        raise RuntimeError(f'option  type must be: {repr(typ)}')
+    return typ
+
+
 # ========================================================================= #
 # Options                                                                   #
 # ========================================================================= #

@@ -50,7 +50,7 @@ def test_simple_option():
     # - if is_default is not specified, then the default can be overwritten
     #   otherwise it cannot be
 
-    assert root.get_registered_defaults() == [{'tests/test_registry': 'foo'}]
+    assert root.get_registered_defaults() == [{'/tests/test_registry': 'foo'}]
     assert root.get_registered_defaults(explicit_only=True) == []
 
     _foo = root.register_target(name='foo_alt4', path='/group/subgroup', params=dict(baz=3), is_default=True)(_foo)
@@ -60,8 +60,8 @@ def test_simple_option():
     # this should not fail as the above failed
     root.register_target(name='foo_alt4_CHECK', path='/group/subgroup', params=dict(baz=3), is_default=False)(_foo)
 
-    assert root.get_registered_defaults() == [{'group/subgroup': 'foo_alt4'}]
-    assert root.get_registered_defaults(explicit_only=True) == [{'group/subgroup': 'foo_alt4'}]
+    assert root.get_registered_defaults() == [{'/group/subgroup': 'foo_alt4'}]
+    assert root.get_registered_defaults(explicit_only=True) == [{'/group/subgroup': 'foo_alt4'}]
 
     # test that the registrable group is the root.
     g = Group({'temp': root})
@@ -75,7 +75,7 @@ def test_simple_option():
     # try again
     # TODO: maybe update to better error message
     with pytest.raises(KeyError, match='parent already has child with key: foo'): root.register_target()(_foo)
-    assert root.get_registered_defaults() == [{'group/subgroup': 'foo_alt4'}]
+    assert root.get_registered_defaults() == [{'/group/subgroup': 'foo_alt4'}]
 
     # try merge group
     root.add_option('default', Option(defaults=root.get_registered_defaults()))

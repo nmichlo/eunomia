@@ -38,7 +38,7 @@ class RegistryGroup(Group):
             # target function
             target: str = None, params: dict = None, mode: str = 'any', keep_defaults: bool = True,
             # option params extras
-            nest_path: str = None, data: dict = None, pkg: str = None, defaults: dict = None
+            nest_path: str = None, data: dict = None, pkg: str = None, defaults: list = None
     ):
         def wrapper(func):
             self.register_target_fn(
@@ -109,7 +109,7 @@ class RegistryGroup(Group):
         for func, (explicit, option) in self._registered_defaults.items():
             if explicit_only and not explicit:
                 continue
-            k = option.group_path
+            k = option.abs_group_path
             if k in defaults:
                 raise AssertionError(f'default for callable {func} corresponding to option: {option.keys} has already been added.')
             defaults[k] = option.key

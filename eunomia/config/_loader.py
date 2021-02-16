@@ -75,8 +75,7 @@ class ConfigLoader(object):
                 # ===================== #
             else:
                 # normalise the thing, can be strings, or dicts
-                group_path, option_name = V.split_defaults_item(self._resolve_value(default_item), allow_config_node_return=True)
-                group_path, option_name = V.validate_resolved_defaults_item(self._resolve_value(group_path), self._resolve_value(option_name))
+                group_path, option_name = self._resolve_default_item(default_item)
                 # ===================== #
                 # 2.b dfs through options
                 # supports relative & absolute paths
@@ -84,6 +83,25 @@ class ConfigLoader(object):
                 # visit the next option
                 self._visit_option(group.get_option(option_name))
                 # ===================== #
+
+    def _resolve_default_item(self, default_item):
+        # split the default item
+        result = V.split_defaults_item(
+            self._resolve_value(default_item),
+            allow_config_node_return=True,
+        )
+        # handle the case where an option instance was in the list
+        if isinstance(result, Option):
+            group_path, option_name = result.group_path, result.key
+        elif result == K.OPT_SELF:
+            raise RuntimeError('This is a bug')
+        else:
+            group_path, option_name = result
+        # check that the components are valid
+        return V.validate_resolved_defaults_item(
+            self._resolve_value(group_path),
+            self._resolve_value(option_name),
+        )
 
     def _merge_option(self, option: Option):
         # 1. check that the group has not already been merged

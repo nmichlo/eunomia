@@ -158,6 +158,26 @@ def test_override_modes():
     assert _register(pkg='<root>') == {'_target_': 'tests.test_registry.fizz', 'buzz': 1, 'baz': 1}
 
 
+
+def test_registry_with_options_as_defaults():
+
+    registry = RegistryGroup()
+    option_foo = registry.register_target_fn(foo, params=dict(bar=20))
+    option_fizz = registry.register_target_fn(fizz, params=dict(foo=10, bar=20))
+
+    registry.add_option('default', Option(defaults=[option_foo, option_fizz]))
+    with pytest.raises(KeyError, match='Group has duplicate entry'):
+        eunomia_load(registry)
+
+    registry.del_option('default')
+    registry.add_option('default', Option(defaults=[option_foo]))
+    assert eunomia_load(registry) == {'tests': {'test_registry': {'_target_': 'tests.test_registry.foo', 'bar': 20, 'baz': 1}}}
+
+    registry.del_option('default')
+    registry.add_option('default', Option(defaults=[option_fizz]))
+    assert eunomia_load(registry) == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz', 'foo': 10, 'bar': 20, 'buzz': 1, 'baz': 1}}}
+
+
 # ========================================================================= #
 # END                                                                       #
 # ========================================================================= #

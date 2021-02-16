@@ -1,6 +1,8 @@
 import os as _os
 import keyword as _keyword
-from eunomia.config import keys as K
+from typing import Union as _Union, Tuple as _Tuple
+
+from eunomia.config import keys as _K
 
 
 # ========================================================================= #
@@ -17,7 +19,7 @@ def validate_identifier(key) -> str:
         raise ValueError(f'identifier is not a valid python identifier: {repr(key)}')
     if _keyword.iskeyword(key):
         raise ValueError(f'identifier is a python keyword: {repr(key)}')
-    if key in K.RESERVED_KEYS:
+    if key in _K.RESERVED_KEYS:
         raise ValueError(f'identifier is eunomia reserved key: {repr(key)}')
     if key.startswith('__') and key.endswith('__'):
         raise ValueError(f'identifier is reserved: {repr(key)}')
@@ -56,7 +58,7 @@ def _split_path(path: str, sep: str) -> (str, bool):
 
 
 def split_package_path(path: str) -> (str, bool):
-    if path in {K.PKG_GROUP, K.PKG_ROOT}:
+    if path in {_K.PKG_GROUP, _K.PKG_ROOT}:
         raise RuntimeError('special package keys should be handled separately')
     keys, is_relative = _split_path(path, '.')
     return keys, is_relative
@@ -76,7 +78,7 @@ def validate_package_path(path) -> str:
     if not isinstance(path, str):
         raise TypeError(f'package path is not of type string: {type(path)}')
     # check for aliases
-    if path in {K.PKG_GROUP, K.PKG_ROOT}:
+    if path in {_K.PKG_GROUP, _K.PKG_ROOT}:
         return path
     # try split
     split_package_path(path)
@@ -110,23 +112,25 @@ def validate_option_data(data) -> dict:
 
 
 def _validate_option_data(value):
-    if isinstance(value, list):
-        for v in value:
-            _validate_option_data(v)
+    if value is None:
+        pass
     elif isinstance(value, dict):
         for k, v in value.items():
             validate_identifier(k)
             _validate_option_data(v)
+    elif isinstance(value, list):
+        for v in value:
+            _validate_option_data(v)
     elif isinstance(value, (int, float, str)):
         pass
     else:
-        raise TypeError(f'unsupported value type: {type(value)}')
+        raise TypeError(f'unsupported data value type: {type(value)} with value: {repr(value)}')
     return value
 
 
 def validate_option_package(pkg) -> str:
     if pkg is None:
-        return K.DEFAULT_PKG
+        return _K.DEFAULT_PKG
 
     from eunomia.config.nodes import ConfigNode
 
@@ -147,14 +151,17 @@ def validate_option_defaults(defaults, allow_config_nodes=False) -> list:
     if isinstance(defaults, ConfigNode):
         raise TypeError(f'option defaults can never directly be a config node, only its items: {repr(defaults)}')
     try:
-        return split_defaults_list_items(defaults, allow_config_node_return=allow_config_nodes)
+        return split_defaults_list_items(
+            defaults,
+            allow_config_node_return=allow_config_nodes
+        )
     except Exception as e:
         raise ValueError(f'option defaults is invalid: {repr(defaults)}').with_traceback(e.__traceback__)
 
 
 def validate_option_type(typ) -> str:
     if typ is None:
-        return K.TYPE_OPTION
+        return _K.TYPE_OPTION
 
     from eunomia.config.nodes import ConfigNode
 
@@ -162,7 +169,7 @@ def validate_option_type(typ) -> str:
         raise TypeError(f'option type can never be a config node: {repr(typ)}')
     if not isinstance(typ, str):
         raise TypeError(f'option type must be of type string: {repr(typ)}')
-    if typ != K.TYPE_OPTION:
+    if typ != _K.TYPE_OPTION:
         raise ValueError(f'option  type must be: {repr(typ)}')
     return typ
 
@@ -172,16 +179,26 @@ def validate_option_type(typ) -> str:
 # ========================================================================= #
 
 
-def split_defaults_item(item, allow_config_node_return=False) -> (str, str):
+def split_defaults_item(item, allow_config_node_return=False) -> _Union[_Tuple[str, str], str, 'Option']:
     from eunomia.config.nodes import ConfigNode
+    from eunomia.config._config import Option
 
     if isinstance(item, ConfigNode):
         raise TypeError('single item config nodes that represent a defaults item should be resolved before being split.')
 
+    # support references to options
+    # - these need to be resolved outside of this function in case things are
+    #   updated while constructing the config tree
+    if isinstance(item, Option):
+        if allow_config_node_return:
+            return item
+        raise TypeError(f'single item config nodes that are an {Option.__name__} instance are disabled.')
+
     # check the normal types
-    if item == K.OPT_SELF:
-        group_path, option_name = K.OPT_SELF, K.OPT_SELF
-        return group_path, option_name
+    if item == _K.OPT_SELF:
+        # this must be handled externally
+        # its possibly an error if this is used here!
+        return item
     elif isinstance(item, (tuple, list)):
         group_path, option_name = item
     elif isinstance(item, str):
@@ -191,9 +208,10 @@ def split_defaults_item(item, allow_config_node_return=False) -> (str, str):
         assert len(item) == 1
         group_path, option_name = list(item.items())[0]
     else:
-        raise TypeError(f'invalid defaults item type: {type(item)}')
+        raise TypeError(f'invalid defaults item type: {type(item)} with value: {item}')
 
-    # we allow this to return config nodes, but they need to be resolved
+    # we allow this to return config nodes,
+    # but they need to be resolved
     if not allow_config_node_return:
         if isinstance(group_path, ConfigNode) or isinstance(option_name, ConfigNode):
             raise TypeError('returning of config nodes is not allowed')

@@ -10,7 +10,7 @@ from eunomia.registry import RegistryGroup
 # ========================================================================= #
 
 
-def foo(bar, baz=1):
+def foo(bar, baz=1):  # pragma: no cover
     return bar, baz
 
 
@@ -81,7 +81,7 @@ def test_simple_option():
     assert eunomia_load(root) == {'group': {'subgroup': {'_target_': 'tests.test_registry.foo', 'baz': 3}}}
 
 
-def fizz(foo, bar, buzz=1, baz=1):
+def fizz(foo, bar, buzz=1, baz=1):  # pragma: no cover
     return foo, bar, buzz, baz
 
 

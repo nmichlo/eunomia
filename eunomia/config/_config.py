@@ -1,8 +1,10 @@
 from typing import Dict, Union, List, Tuple
 
 from eunomia._util_traverse import RecursiveTransformer
-from eunomia.config import scheme as s
 from eunomia.config.nodes import ConfigNode, SubNode
+
+from eunomia.config import keys as K
+from eunomia.config import validate as V
 
 
 # ========================================================================= #
@@ -112,26 +114,15 @@ class _ConfigObject(object):
         yield from self._children
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Schema                                                                #
+    # Dumping                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
+    def to_dict(self):
+        raise NotImplementedError
+
     @classmethod
-    def from_dict(cls, mapping: dict, validate=True):
+    def from_dict(cls, dct):
         raise NotImplementedError
-
-    def to_dict(self, validate=True):
-        raise NotImplementedError
-
-    def is_valid_dict(self):
-        try:
-            self.to_dict()
-            return True
-        except:
-            return False
-
-    def to_yaml(self) -> str:
-        import ruamel.yaml
-        return ruamel.yaml.round_trip_dump(self.to_dict())
 
 
 # ========================================================================= #
@@ -252,7 +243,7 @@ class Group(_ConfigObject):
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def get_subgroups_recursive(self, keys: List[str], make_missing=False) -> 'Group':
+    def get_subgroup_recursive(self, keys: List[str], make_missing=False) -> 'Group':
         def _recurse(group: Group, old_keys):
             if not old_keys:
                 return group
@@ -271,10 +262,10 @@ class Group(_ConfigObject):
 
         Supports make_missing like get_subgroups_recursive(...)
         """
-        group_keys, is_relative = s.split_config_path(path)
+        group_keys, is_relative = V.split_config_path(path)
         # get the group corresponding to the path - must handle relative & root paths
         root = (self if is_relative else self.root)
-        return root.get_subgroups_recursive(group_keys, make_missing=make_missing)
+        return root.get_subgroup_recursive(group_keys, make_missing=make_missing)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Strings                                                               #
@@ -359,30 +350,17 @@ class Group(_ConfigObject):
             print(tree, name)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # Schema                                                                #
+    # Dumping                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    @classmethod
-    def from_dict(cls, raw_group: dict, validate=True):
-        if validate:
-            print(raw_group)
-            raw_group = s.VerboseGroup.validate(raw_group)
-        group = Group()
-        for key, child in raw_group[s.KEY_CHILDREN].items():
-            if child[s.KEY_TYPE] == s.TYPE_GROUP:
-                group.add_subgroup(key, Group.from_dict(child, validate=False))
-            elif child[s.KEY_TYPE] == s.TYPE_OPTION:
-                group.add_option(key, Option.from_dict(child, validate=False))
-            else:
-                raise ValueError(f'Invalid type: {child[s.KEY_TYPE]}')
-        return group
+    def to_dict(self):
+        from eunomia.backend import BackendDict
+        return BackendDict().dump_group(self)
 
-    def to_dict(self, validate=True):
-        group = {
-            s.KEY_TYPE: s.TYPE_GROUP,
-            s.KEY_CHILDREN: {k: self[k].to_dict(validate=False) for k in self}
-        }
-        return s.VerboseGroup.validate(group) if validate else group
+    @classmethod
+    def from_dict(cls, dct):
+        from eunomia.backend import BackendDict
+        return BackendDict().load_group(dct)
 
 
 # ========================================================================= #
@@ -406,11 +384,11 @@ class Option(_ConfigObject):
     ):
         super().__init__()
         self._data = data if data is not None else {}
-        self._pkg = pkg if pkg is not None else s.DEFAULT_PKG
+        self._pkg = pkg if pkg is not None else K.DEFAULT_PKG
         self._defaults: DefaultsType = defaults if defaults is not None else []
-        assert isinstance(self._pkg, (str, ConfigNode)), f'{s.KEY_PKG} is not a string or {ConfigNode.__name__}'
-        assert isinstance(self._data, dict), f'{s.KEY_DATA} is not a dictionary'
-        assert isinstance(self._defaults, list), f'{s.KEY_DEFAULTS} is not a list'
+        assert isinstance(self._pkg, (str, ConfigNode)), f'{K.KEY_PKG} is not a string or {ConfigNode.__name__}'
+        assert isinstance(self._data, dict), f'{K.KEY_DATA} is not a dictionary'
+        assert isinstance(self._defaults, list), f'{K.KEY_DEFAULTS} is not a list'
         # we dont validate in case things are nodes
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -485,28 +463,19 @@ class Option(_ConfigObject):
     def __repr__(self):
         return f'{self.__class__.__name__}({self._data})'
 
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
-    # schema                                                                #
+    # Dumping                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def to_dict(self):
+        from eunomia.backend import BackendDict
+        return BackendDict().dump_option(self)
 
     @classmethod
-    def from_dict(cls, option, validate=True):
-        if validate:
-            option = s.VerboseOption.validate(option)
-        return Option(
-            pkg=option[s.KEY_PKG],
-            defaults=option[s.KEY_DEFAULTS],
-            data=option[s.KEY_DATA],
-        )
-
-    def to_dict(self, validate=True):
-        option = {
-            s.KEY_TYPE: s.TYPE_OPTION,
-            s.KEY_PKG: self._pkg,
-            s.KEY_DEFAULTS: self._defaults,
-            s.KEY_DATA: self._data,
-        }
-        return s.VerboseOption.validate(option) if validate else option
+    def from_dict(cls, dct):
+        from eunomia.backend import BackendDict
+        return BackendDict().load_option(dct)
 
 
 # ========================================================================= #

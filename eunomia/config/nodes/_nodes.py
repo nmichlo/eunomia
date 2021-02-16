@@ -2,7 +2,9 @@ from typing import Any, Union, List, Tuple
 import lark
 from eunomia.config.nodes._util_interpret import interpret_expr
 from eunomia.config.nodes._util_lark import SUB_RECONSTRUCTOR, SUB_PARSER
-from eunomia.config import scheme as s
+from eunomia.config import validate as V
+
+
 
 # ========================================================================= #
 # Base Loaders                                                              #
@@ -79,7 +81,7 @@ class RefNode(ConfigNode):
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
         # TODO: add support for groups in the merged_options, prefix with /
-        keys, is_relative = s.split_pkg_path(self.raw_value)
+        keys, is_relative = V.split_package_path(self.raw_value)
         if is_relative:
             raise ValueError(f'reference cannot be a relative path, must be from root: {self.raw_value}')
         # walk to get value

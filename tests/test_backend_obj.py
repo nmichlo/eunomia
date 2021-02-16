@@ -1,11 +1,12 @@
 import re
 
 import pytest
-from schema import SchemaError
 
+from eunomia.backend import BackendDict
 from tests.util import temp_capture_stdout
 from eunomia.config import Group, Option
-from eunomia.config import scheme as s
+from eunomia.config import keys as K
+from eunomia.config import validate as V
 
 
 # ========================================================================= #
@@ -14,11 +15,13 @@ from eunomia.config import scheme as s
 
 
 def test_simple_option():
-    Option(data={'foo': 'bar'}).to_dict()
-    Option(data={'foo': 'bar'}, pkg=s.PKG_ROOT).to_dict()
-    Option(data={'foo': 'bar'}, pkg=s.PKG_GROUP).to_dict()
+    b = BackendDict()
 
-    Option(data={'foo': 'bar'}, defaults=[]).to_dict()
+    b.dump_option(Option(data={'foo': 'bar'}))
+    b.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_ROOT))
+    b.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_GROUP))
+
+    b.dump_option(Option(data={'foo': 'bar'}, defaults=[]))
 
     # test relative path
     Option(data={'foo': 'bar'}, defaults=['group1/option1']).to_dict()
@@ -26,11 +29,11 @@ def test_simple_option():
     # test absolute path
     Option(data={'foo': 'bar'}, defaults=['/group1/group2/option2']).to_dict()
 
-    with pytest.raises(SchemaError):  # TODO: fix error messages, match='is_identifier'):
+    with pytest.raises(ValueError):  # TODO: fix error messages, match='is_identifier'):
         Option(data={'foo': 'bar'}, defaults=[{'group1': '1invalid'}]).to_dict()
-    with pytest.raises(SchemaError):  # TODO: fix error messages, match='Wrong key'):
+    with pytest.raises(ValueError):  # TODO: fix error messages, match='Wrong key'):
         Option(data={'foo': 'bar'}, defaults=[{'1invalid': 'option2'}]).to_dict()
-    with pytest.raises(SchemaError):  # TODO: fix error messages, match='Wrong key'):
+    with pytest.raises(ValueError):  # TODO: fix error messages, match='Wrong key'):
         Option(data={'foo': 'bar'}, defaults=[{'group1/2invalid': 'option2'}]).to_dict()
 
     Option(data={'foo': 'bar'}, pkg='key1').to_dict()
@@ -98,7 +101,7 @@ def test_option_init():
     # raw data in option
     data = {'foo': 'bar'}
     defaults = ['/group1/group2/option2']
-    pkg = s.PKG_ROOT
+    pkg = K.PKG_ROOT
     # make equivalent options
     option = Option(data=data, defaults=defaults, pkg=pkg)
     # check circular conversion to_dict

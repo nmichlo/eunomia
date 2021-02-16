@@ -13,18 +13,21 @@ from tests.util import path_from_root
 def test_simple_option():
     root = _make_config_group()
 
+    b_obj = BackendObj()
+    b_dct = BackendDict()
+
     # test group backend
-    assert BackendObj(root).load_root_group().to_dict() == root.to_dict()
-    with pytest.raises(TypeError, match='must be an instance of Group'):
-        BackendObj(root.to_dict()).load_root_group().to_dict()
+    assert b_obj.load_group(root).to_dict() == root.to_dict()
+    with pytest.raises(TypeError, match='group value must be of type: .*Group'):
+        b_obj.load_group(root.to_dict()).to_dict()
 
     # test dict backend
-    assert BackendDict(root.to_dict()).load_root_group().to_dict() == root.to_dict()
-    with pytest.raises(TypeError, match='must be a dict'):
-        BackendDict(root).load_root_group().to_dict()
+    assert b_dct.load_group(root.to_dict()).to_dict() == root.to_dict()
+    with pytest.raises(TypeError, match='group value must be of type: .*dict'):
+        b_dct.load_group(root).to_dict()
 
     # test yaml backend
-    BackendYaml(path_from_root('examples/docs/quickstart/configs')).load_root_group()
+    BackendYaml().load_group('examples/docs/quickstart/configs')
 
 
 # ========================================================================= #

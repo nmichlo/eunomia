@@ -47,7 +47,7 @@ def test_eunomia_loader():
 
 def test_eunomia_loader_interpolation():
     # test custom packages with substitution
-    with pytest.raises(ValueError, match='can never be a config node'):
+    with pytest.raises(TypeError, match='can never be a config node'):
         assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2=SubNode('asdf.fdsa')))
 
     # test interpolation values

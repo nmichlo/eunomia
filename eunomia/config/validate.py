@@ -131,11 +131,11 @@ def validate_option_package(pkg) -> str:
     from eunomia.config.nodes import ConfigNode
 
     if isinstance(pkg, ConfigNode):
-        raise ValueError(f'option package can never be a config node: {repr(pkg)}')
+        raise TypeError(f'option package can never be a config node: {repr(pkg)}')
     try:
         return validate_package_path(pkg)
-    except:
-        raise ValueError(f'option package is invalid: {repr(pkg)}')
+    except Exception as e:
+        raise ValueError(f'option package is invalid: {repr(pkg)}').with_traceback(e.__traceback__)
 
 
 def validate_option_defaults(defaults, allow_config_nodes=False) -> list:
@@ -145,7 +145,7 @@ def validate_option_defaults(defaults, allow_config_nodes=False) -> list:
     from eunomia.config.nodes import ConfigNode
 
     if isinstance(defaults, ConfigNode):
-        raise ValueError(f'option defaults can never directly be a config node, only its items: {repr(defaults)}')
+        raise TypeError(f'option defaults can never directly be a config node, only its items: {repr(defaults)}')
     try:
         return split_defaults_list_items(defaults, allow_config_node_return=allow_config_nodes)
     except Exception as e:
@@ -159,9 +159,11 @@ def validate_option_type(typ) -> str:
     from eunomia.config.nodes import ConfigNode
 
     if isinstance(typ, ConfigNode):
-        raise RuntimeError(f'option type can never be a config node: {repr(typ)}')
+        raise TypeError(f'option type can never be a config node: {repr(typ)}')
+    if not isinstance(typ, str):
+        raise TypeError(f'option type must be of type string: {repr(typ)}')
     if typ != K.TYPE_OPTION:
-        raise RuntimeError(f'option  type must be: {repr(typ)}')
+        raise ValueError(f'option  type must be: {repr(typ)}')
     return typ
 
 

@@ -1,9 +1,9 @@
 from eunomia.backend import Backend
-from eunomia.config import Group
+from eunomia.config import Group, Option
 
 
 # ========================================================================= #
-# Internal Backend                                                          #
+# Object Backend                                                            #
 # ========================================================================= #
 
 
@@ -16,11 +16,22 @@ class BackendObj(Backend):
     are without any modifications.
     """
 
-    def __init__(self, root_group: Group):
-        if not isinstance(root_group, Group):
-            raise TypeError(f'root_group must be an instance of {Group.__name__}')
-        self._root_group = root_group
+    GROUP_TYPE = Group
+    OPTION_TYPE = Option
 
-    def _load_root_group(self) -> Group:
-        return self._root_group
+    def _load_group(cls, value) -> Group:
+        return value  # pragma: no cover
 
+    def _load_option(cls, value) -> Option:
+        return value  # pragma: no cover
+
+    def _dump_group(self, group: Group):
+        return group  # pragma: no cover
+
+    def _dump_option(self, option: Option):
+        return option  # pragma: no cover
+
+
+# ========================================================================= #
+# END                                                                       #
+# ========================================================================= #

@@ -1,8 +1,6 @@
 import pytest
 
-from eunomia import eunomia, eunomia_adv
-from eunomia import eunomia_runner, eunomia_runner_adv
-from eunomia import eunomia_load, eunomia_load_adv
+from eunomia import eunomia, eunomia_runner, eunomia_load
 from eunomia.backend import BackendObj, BackendDict
 from eunomia.config.nodes import SubNode, EvalNode
 from tests.test_backend_obj import _make_config_group
@@ -49,7 +47,8 @@ def test_eunomia_loader():
 
 def test_eunomia_loader_interpolation():
     # test custom packages with substitution
-    assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2=SubNode('asdf.fdsa'))) == {'asdf': {'bar': 1, 'fdsa': {'baz': 2}}, 'foo': 1}
+    with pytest.raises(TypeError, match='can never be a config node'):
+        assert eunomia_load(_make_config_group(suboption2='sub2option2', package1='asdf', package2=SubNode('asdf.fdsa')))
 
     # test interpolation values
     assert eunomia_load(_make_config_group(suboption=SubNode('suboption${=1}'))) == {'subgroup': {'bar': 1}, 'foo': 1}
@@ -67,18 +66,18 @@ def test_eunomia_core_funcs():
 
     # test group backend
     assert eunomia_load(root, 'default') == target
-    assert eunomia_load_adv(BackendObj(root), 'default') == target
+    assert eunomia_load(root, 'default', backend=BackendObj()) == target
 
     # test dict backend
-    assert eunomia_load(root.to_dict(), 'default') == target
-    assert eunomia_load_adv(BackendDict(root.to_dict()), 'default') == target
+    assert eunomia_load(BackendDict().dump(root), 'default') == target
+    assert eunomia_load(BackendDict().dump(root), 'default', backend=BackendDict()) == target
 
     # RUNNERS
 
     def main(config):
         assert config == target
     eunomia_runner(main, root, 'default')
-    eunomia_runner_adv(main, BackendObj(root), 'default')
+    eunomia_runner(main, root, 'default', backend=BackendObj())
 
     # WRAPPERS
 
@@ -86,7 +85,8 @@ def test_eunomia_core_funcs():
     def main(config):
         assert config == target
     main()
-    @eunomia_adv(BackendObj(root), 'default')
+
+    @eunomia(root, 'default', backend=BackendObj())
     def main(config):
         assert config == target
     main()

@@ -112,8 +112,8 @@ scenes for merging by the `Loader`. You can easily write your own backend.
     `#!python eunomia.backend.Backend`. The overridden function should
     return a new `Group` object from the data passed to the constructor.
 
-    You can pass the instantiated version of your backend to the function
-    `eunomia.eunomia_loader_adv`.
+    You can pass the instantiated version of your backend to the `eunomia`,
+    `eunomia_loader` or `eunomia_runner` functions with the `backend=` parameter.
 
 ## Entrypoint & Packages
 

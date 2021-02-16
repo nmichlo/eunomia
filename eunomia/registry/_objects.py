@@ -2,10 +2,7 @@ from collections import defaultdict
 from typing import Dict, Union, DefaultDict, List, Tuple
 
 from eunomia.config import Group, Option
-from eunomia.config import scheme as s
-
-from eunomia.registry.util import make_target_dict, _fn_get_module_path, _camel_to_snake, make_target_option
-from eunomia._util_dict import recursive_getitem, dict_recursive_update
+from eunomia.registry.util import _fn_get_module_path, _camel_to_snake, make_target_option
 
 
 # ========================================================================= #

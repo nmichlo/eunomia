@@ -1,11 +1,11 @@
-import os
 from typing import Tuple
 
 from eunomia._util_dict import recursive_getitem, dict_recursive_update
-from eunomia.config import Option
-from eunomia.config import scheme as s
-from eunomia.backend import Backend
+from eunomia.config import Option, Group
 from eunomia.config.nodes import ConfigNode
+
+from eunomia.config import keys as K
+from eunomia.config import validate as V
 
 
 # ========================================================================= #
@@ -15,8 +15,10 @@ from eunomia.config.nodes import ConfigNode
 
 class ConfigLoader(object):
 
-    def __init__(self, storage_backend: Backend):
-        self._backend = storage_backend
+    def __init__(self, root_group: Group):
+        if not isinstance(root_group, Group):
+            raise TypeError(f'root_group must be a {Group.__name__}')
+        self._root_group = root_group
         # merged items
         self._merged_options = None
         self._merged_config = None
@@ -36,7 +38,7 @@ class ConfigLoader(object):
 
         # ===================== #
         # 1. entry point for dfs, get initial option
-        root_group = self._backend.load_root_group()
+        root_group = self._root_group
         entry_option = root_group.get_option(config_name)
         # ===================== #
         # 2. perform dfs & merging and finally resolve values
@@ -56,32 +58,25 @@ class ConfigLoader(object):
         # 1. check where to process self, and make sure self is in the options list
         # by default we want to merge this before children so we can reference its values.
         defaults = option.get_unresolved_defaults()
-        if s.OPT_SELF not in defaults:
+        if K.OPT_SELF not in defaults:
             # allow referencing parent values in children
-            defaults = [s.OPT_SELF] + defaults
+            defaults = [K.OPT_SELF] + defaults
             # # allow parent overwriting children values
             # group_paths = group_paths + [s.OPT_SELF]
         # ===================== #
         # 2. process options in order
         for default_item in defaults:
             # handle different cases
-            if default_item == s.OPT_SELF:
+            if default_item == K.OPT_SELF:
                 # ===================== #
                 # 2.a if self is encountered, merge into config. We skip the
                 #     value of the option_name here as it is not needed.
                 self._merge_option(option)
                 # ===================== #
             else:
-                # resolve the default
-                default_item = self._resolve_value(default_item)
-                assert isinstance(default_item, (str, dict))
                 # normalise the thing, can be strings, or dicts
-                group_path, option_name = s.normalise_defaults_item(default_item)
-                # resolve the string
-                group_path = self._resolve_value(group_path)
-                option_name = self._resolve_value(option_name)
-                assert isinstance(group_path, str)
-                assert isinstance(option_name, str)
+                group_path, option_name = V.split_defaults_item(self._resolve_value(default_item), allow_config_node_return=True)
+                group_path, option_name = V.validate_resolved_defaults_item(self._resolve_value(group_path), self._resolve_value(option_name))
                 # ===================== #
                 # 2.b dfs through options
                 # supports relative & absolute paths
@@ -134,14 +129,14 @@ class ConfigLoader(object):
         path = self._resolve_value(option.get_unresolved_package())
         # check the type
         if not isinstance(path, str):
-            raise TypeError(f'{s.KEY_PKG} must be a string')
+            raise TypeError(f'{K.KEY_PKG} must be a string')
         # handle special values
-        if path == s.PKG_ROOT:
+        if path == K.PKG_ROOT:
             keys = ()
-        elif path == s.PKG_GROUP:
+        elif path == K.PKG_GROUP:
             keys = option.group_keys
         else:
-            keys, is_relative = s.split_pkg_path(path)
+            keys, is_relative = V.split_package_path(path)
             if is_relative:
                 keys = option.group_keys + keys
         # return the keys

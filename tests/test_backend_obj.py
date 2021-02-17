@@ -1,12 +1,8 @@
-import re
-
 import pytest
 
 from eunomia.backend import BackendDict
-from tests.util import temp_capture_stdout
 from eunomia.config import Group, Option
 from eunomia.config import keys as K
-from eunomia.config import validate as V
 
 
 # ========================================================================= #
@@ -71,8 +67,8 @@ def _make_config_group(suboption='suboption1', suboption2=None, package1='<group
         }),
         'subgroup2': Group({
             'subgroup3': Group({
-                'sub2option1': Option({'baz': 1}, pkg=package2),
-                'sub2option2': Option({'baz': 2}, pkg=package2),
+                'suboption1': Option({'baz': 1}, pkg=package2),
+                'suboption2': Option({'baz': 2}, pkg=package2),
             }),
         }),
         'default': Option(
@@ -110,22 +106,6 @@ def test_option_init():
     bk = BackendDict()
     assert bk.dump(option) == bk.dump(bk.load_option(bk.dump(option)))
 
-def test_debug_groups():
-    root = _make_config_group(suboption='suboption1')
-
-    with temp_capture_stdout() as out:
-        root.debug_print_tree()
-    color_out = out.getvalue()
-    assert color_out == ' \x1b[90m\x1b[0m\x1b[35m/\x1b[0m\n \x1b[90m├\x1b[93m╌\x1b[0m \x1b[90m/:\x1b[0m \x1b[33mdefault\x1b[0m\n \x1b[90m├\x1b[95m─\x1b[0m \x1b[90m\x1b[0m\x1b[35m/subgroup\x1b[0m\n \x1b[90m│\x1b[0m  \x1b[90m├\x1b[93m╌\x1b[0m \x1b[90m/subgroup:\x1b[0m \x1b[33msuboption1\x1b[0m\n \x1b[90m│\x1b[0m  \x1b[90m╰\x1b[93m╌\x1b[0m \x1b[90m/subgroup:\x1b[0m \x1b[33msuboption2\x1b[0m\n \x1b[90m╰\x1b[95m─\x1b[0m \x1b[90m\x1b[0m\x1b[35m/subgroup2\x1b[0m\n    \x1b[90m╰\x1b[95m─\x1b[0m \x1b[90m/subgroup2\x1b[0m\x1b[35m/subgroup3\x1b[0m\n       \x1b[90m├\x1b[93m╌\x1b[0m \x1b[90m/subgroup2/subgroup3:\x1b[0m \x1b[33msub2option1\x1b[0m\n       \x1b[90m╰\x1b[93m╌\x1b[0m \x1b[90m/subgroup2/subgroup3:\x1b[0m \x1b[33msub2option2\x1b[0m\n'
-
-    with temp_capture_stdout() as out:
-        root.debug_print_tree(colors=False)
-    normal_out = out.getvalue()
-    assert normal_out == ' /\n ├╌ /: default\n ├─ /subgroup\n │  ├╌ /subgroup: suboption1\n │  ╰╌ /subgroup: suboption2\n ╰─ /subgroup2\n    ╰─ /subgroup2/subgroup3\n       ├╌ /subgroup2/subgroup3: sub2option1\n       ╰╌ /subgroup2/subgroup3: sub2option2\n'
-    # https://stackoverflow.com/questions/14693701/how-can-i-remove-the-ansi-escape-sequences-from-a-string-in-python
-    assert normal_out == re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', color_out)
-
-    # TODO: test other flags
 
 # ========================================================================= #
 # END                                                                       #

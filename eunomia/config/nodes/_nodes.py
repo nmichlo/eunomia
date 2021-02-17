@@ -74,13 +74,15 @@ class IgnoreNode(ConfigNode):
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict):
         return self.raw_value
 
+    def __str__(self):
+        return self.raw_value
+
 
 class RefNode(ConfigNode):
 
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
-        # TODO: add support for groups in the merged_options, prefix with /
         keys, is_relative = V.split_package_path(self.raw_value)
         if is_relative:
             raise ValueError(f'reference cannot be a relative path, must be from root: {self.raw_value}')
@@ -92,6 +94,31 @@ class RefNode(ConfigNode):
             if isinstance(value, ConfigNode):
                 value = value.get_config_value(merged_config, merged_options, current_config)
         return value
+
+    def __str__(self):
+        return f'${{{self.raw_value}}}'
+
+
+class OptNode(ConfigNode):
+    """
+    Get the name of a chosen option from the path to a group.
+    """
+
+    INSTANCE_OF = str
+
+    def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
+        keys, is_relative = V.split_config_path(self.raw_value)
+        if is_relative:
+            raise ValueError(f'option choice cannot be a relative path, must be from root: {self.raw_value}')
+        # check that a choice has been made so far!
+        keys, path = tuple(keys), "/" + "/".join(keys)
+        if keys not in merged_options:
+            raise KeyError(f'No group choice or default has yet been merged into the config for: {path}\nAre you sure your defaults are ordered correctly or that you did not specify the path to an option itself, the path must be to a group?')
+        # get the name
+        return merged_options[keys][-1]
+
+    def __str__(self):
+        return f'${{{self.raw_value}}}'
 
 
 class EvalNode(ConfigNode):
@@ -109,6 +136,9 @@ class EvalNode(ConfigNode):
             NON_STANDARD_PYTHON=True  # try getitem on AttributeError
         )
 
+    def __str__(self):
+        return f'${{={self.raw_value}}}'
+
 
 # ========================================================================= #
 # Substitute Nodes                                                          #
@@ -118,7 +148,7 @@ class EvalNode(ConfigNode):
 class SubNode(ConfigNode):
 
     INSTANCE_OF = (str, list)
-    ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, EvalNode)
+    ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, OptNode, EvalNode)
 
     def _check_subnodes(self, nodes: list):
         for subnode in nodes:
@@ -150,6 +180,12 @@ class SubNode(ConfigNode):
         if len(values) == 1:
             return values[0]
         return ''.join(str(v) for v in values)
+
+    def __str__(self):
+        if isinstance(self.raw_value, str):
+            return self.raw_value
+        else:
+            return ''.join(map(str, self.raw_value))
 
 
 def _string_to_sub_nodes(string):
@@ -185,6 +221,7 @@ class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
         ]
 
     def template_ref(self, tree): return RefNode(SUB_RECONSTRUCTOR.reconstruct(tree))
+    def template_opt(self, tree): return OptNode(SUB_RECONSTRUCTOR.reconstruct(tree))
     def template_exp(self, tree): return EvalNode(SUB_RECONSTRUCTOR.reconstruct(tree))
 
     # we no longer handle this due to the grammar change for CHAR and WSSTR

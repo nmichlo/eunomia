@@ -25,18 +25,22 @@ class _ConfigObject(object):
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
     @property
+    def _is_valid_parent(self):
+        return not ((not self._key) ^ (not self._parent))
+
+    @property
     def has_parent(self):
-        assert not ((not self._key) ^ (not self._parent))
+        assert self._is_valid_parent
         return (self._key is not None) and (self._parent is not None)
 
     @property
     def parent(self) -> '_ConfigObject':
-        assert self.has_parent
+        assert self._is_valid_parent
         return self._parent
 
     @property
     def key(self) -> str:
-        assert self.has_parent
+        assert self._is_valid_parent
         return self._key
 
     @property
@@ -278,9 +282,15 @@ class Group(_ConfigObject):
     # Debug                                                                 #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def debug_print_tree(self, colors=True, show_options=True, full_option_path=True, full_group_path=True):
-        from eunomia.config._config_debug import debug_print_tree
-        return debug_print_tree(self, colors=colors, show_options=show_options, full_option_path=full_option_path, full_group_path=full_group_path)
+    def debug_tree_print(
+            self, colors=True, show_options=True, full_option_path=True,
+            full_group_path=True, show_defaults=False
+    ):
+        from eunomia.config._config_debug import debug_tree_print
+        debug_tree_print(
+            self, colors=colors, show_options=show_options, full_option_path=full_option_path,
+            full_group_path=full_group_path, show_defaults=show_defaults
+        )
 
 
 # ========================================================================= #

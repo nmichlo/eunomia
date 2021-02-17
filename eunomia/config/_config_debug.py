@@ -1,5 +1,8 @@
+import re
 from typing import Union as _Union
 from eunomia.config._config import _ConfigObject, Group, Option
+from eunomia.config.nodes import ConfigNode
+from eunomia.config import validate as V
 
 
 # ========================================================================= #
@@ -7,7 +10,14 @@ from eunomia.config._config import _ConfigObject, Group, Option
 # ========================================================================= #
 
 
-def debug_print_tree(root: _Union[Group, Option], colors=True, show_options=True, full_option_path=True, full_group_path=True):
+def debug_tree_print(root: _Union[Group, Option], colors=True, show_options=True, full_option_path=True, full_group_path=True, show_defaults=True):
+    print(debug_tree_str(
+        root=root, colors=colors, show_options=show_options, full_option_path=full_option_path,
+        full_group_path=full_group_path, show_defaults=show_defaults
+    ))
+
+
+def debug_tree_str(root: _Union[Group, Option], colors=True, show_options=True, full_option_path=True, full_group_path=True, show_defaults=True):
     from attr import dataclass
 
     @dataclass
@@ -61,19 +71,57 @@ def debug_print_tree(root: _Union[Group, Option], colors=True, show_options=True
         (0, 0, 1, 0): f' {S}╰{O}╌{R}',  # option, unvisited, last,  has groups after
     }
 
+    # get correct line length without ansi colors
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+
+    lengths, lines, items = {}, [], []
     for stack in _walk():
         (*_, item) = stack
         tree = ''.join(TREE.get(o.key, f'ERR{o}') for o in stack[1:])
         if item.is_group:
+            # GROUP
             keys = [f'/{k}' for k in (item.node.keys if item.node.keys else ('',))]
             name = f"{nG}{keys[-1]}{R}"
             if full_group_path:
                 name = f"{S}{''.join(keys[:-1])}{R}" + name
         else:
+            # OPTION
             name = f"{nO}{item.node.key}{R}"
             if full_option_path:
                 name = f"{S}{('/' + '/'.join(item.node.keys[:-1]))}:{R} " + name
-        print(tree, name)
+        # append for next iterations
+        line = f'{tree} {name}'
+        # get max line length
+        lengths.setdefault(item.node.parent, 0)
+        lengths[item.node] = len(ansi_escape.sub('', line))
+        lengths[item.node.parent] = max(lengths[item.node.parent], lengths[item.node])
+        # append
+        lines.append(line)
+        items.append(item)
+
+    def get_defaults(option):
+        for default in V.split_defaults_list_items(option.get_unresolved_defaults(), allow_config_node_return=True):
+            if isinstance(default, Option):
+                yield f'{default.abs_group_path}: {default.key}'
+            elif isinstance(default, tuple):
+                yield f'{str(default[0])}: {str(default[1])}'
+            elif isinstance(default, ConfigNode):
+                yield str(default)
+            else:
+                yield str(default)
+
+    if show_defaults:
+        new_lines = []
+        for line, item in zip(lines, items):
+            if not item.is_group:
+                defaults = list(get_defaults(item.node))
+                if defaults:
+                    padding = lengths[item.node.parent] - lengths[item.node]
+                    line = f'{line}{" "*padding} {S}[{", ".join(defaults)}]{R}'
+            new_lines.append(line)
+        lines = new_lines
+
+    return '\n'.join(lines)
 
 
 # ========================================================================= #

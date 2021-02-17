@@ -118,7 +118,7 @@ def _validate_option_data(value):
         for k, v in value.items():
             validate_identifier(k)
             _validate_option_data(v)
-    elif isinstance(value, list):
+    elif isinstance(value, (list, tuple, set)):
         for v in value:
             _validate_option_data(v)
     elif isinstance(value, (int, float, str)):
@@ -184,7 +184,9 @@ def split_defaults_item(item, allow_config_node_return=False) -> _Union[_Tuple[s
     from eunomia.config._config import Option
 
     if isinstance(item, ConfigNode):
-        raise RuntimeError('single defaults items that are config nodes should be resolved before being split.')
+        if allow_config_node_return:
+            return item
+        raise RuntimeError('single defaults items that are config nodes are disabled and should be resolved before being split.')
 
     # support references to options
     # - these need to be resolved outside of this function in case things are

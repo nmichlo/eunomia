@@ -4,12 +4,12 @@ from contextlib import contextmanager
 from io import StringIO
 
 
-@contextmanager
-def temp_no_stdout():
-    old_stdout = sys.stdout
-    sys.stdout = open(os.devnull, 'w')
-    yield
-    sys.stdout = old_stdout
+# @contextmanager
+# def temp_no_stdout():
+#     old_stdout = sys.stdout
+#     sys.stdout = open(os.devnull, 'w')
+#     yield
+#     sys.stdout = old_stdout
 
 
 @contextmanager

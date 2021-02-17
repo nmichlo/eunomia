@@ -74,6 +74,9 @@ class IgnoreNode(ConfigNode):
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict):
         return self.raw_value
 
+    def __str__(self):
+        return self.raw_value
+
 
 class RefNode(ConfigNode):
 
@@ -93,6 +96,9 @@ class RefNode(ConfigNode):
                 value = value.get_config_value(merged_config, merged_options, current_config)
         return value
 
+    def __str__(self):
+        return f'${{{self.raw_value}}}'
+
 
 class EvalNode(ConfigNode):
 
@@ -108,6 +114,9 @@ class EvalNode(ConfigNode):
             },
             NON_STANDARD_PYTHON=True  # try getitem on AttributeError
         )
+
+    def __str__(self):
+        return f'${{={self.raw_value}}}'
 
 
 # ========================================================================= #
@@ -150,6 +159,12 @@ class SubNode(ConfigNode):
         if len(values) == 1:
             return values[0]
         return ''.join(str(v) for v in values)
+
+    def __str__(self):
+        if isinstance(self.raw_value, str):
+            return self.raw_value
+        else:
+            return ''.join(map(str, self.raw_value))
 
 
 def _string_to_sub_nodes(string):

@@ -83,7 +83,6 @@ class RefNode(ConfigNode):
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
-        # TODO: add support for groups in the merged_options, prefix with /
         keys, is_relative = V.split_package_path(self.raw_value)
         if is_relative:
             raise ValueError(f'reference cannot be a relative path, must be from root: {self.raw_value}')
@@ -99,19 +98,22 @@ class RefNode(ConfigNode):
     def __str__(self):
         return f'${{{self.raw_value}}}'
 
+
 class OptNode(ConfigNode):
+    """
+    Get the name of a chosen option from the path to a group.
+    """
 
     INSTANCE_OF = str
 
     def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
-        # TODO: add support for groups in the merged_options, prefix with /
         keys, is_relative = V.split_config_path(self.raw_value)
         if is_relative:
             raise ValueError(f'option choice cannot be a relative path, must be from root: {self.raw_value}')
         # check that a choice has been made so far!
         keys, path = tuple(keys), "/" + "/".join(keys)
         if keys not in merged_options:
-            raise KeyError(f'No option choice or default has yet been merged into the config for: {path}')
+            raise KeyError(f'No group choice or default has yet been merged into the config for: {path}\nAre you sure your defaults are ordered correctly or that you did not specify the path to an option itself, the path must be to a group?')
         # get the name
         return merged_options[keys][-1]
 

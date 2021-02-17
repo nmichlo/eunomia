@@ -67,8 +67,8 @@ def _make_config_group(suboption='suboption1', suboption2=None, package1='<group
         }),
         'subgroup2': Group({
             'subgroup3': Group({
-                'sub2option1': Option({'baz': 1}, pkg=package2),
-                'sub2option2': Option({'baz': 2}, pkg=package2),
+                'suboption1': Option({'baz': 1}, pkg=package2),
+                'suboption2': Option({'baz': 2}, pkg=package2),
             }),
         }),
         'default': Option(

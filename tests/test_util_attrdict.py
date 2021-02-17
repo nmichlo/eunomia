@@ -1,5 +1,5 @@
 import pytest
-from eunomia._util_attrdict import AttrDict
+from eunomia.util._util_attrdict import AttrDict
 
 
 # ========================================================================= #

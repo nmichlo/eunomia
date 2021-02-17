@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Dict, Union, DefaultDict, List, Tuple
 
 from eunomia.config import Group, Option
-from eunomia.registry.util import _fn_get_module_path, _camel_to_snake, make_target_option
+from eunomia.util._targets import _fn_get_module_path, _camel_to_snake, make_target_option
 
 
 # ========================================================================= #

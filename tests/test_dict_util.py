@@ -1,8 +1,8 @@
 from copy import deepcopy
-from numbers import Number
 
 import pytest
-from eunomia import _util_dict as u
+from eunomia.util import _util_dict as u
+
 
 def test_dict_util():
     _left = dict(a=1, b=dict(a=10, b=20))

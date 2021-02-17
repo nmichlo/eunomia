@@ -61,20 +61,24 @@ class ConfigLoader(object):
         if K.OPT_SELF not in defaults:
             # allow referencing parent values in children
             defaults = [K.OPT_SELF] + defaults
-            # # allow parent overwriting children values
+            # allow parent overwriting children values
             # group_paths = group_paths + [s.OPT_SELF]
+        self_has_been_handled = False
         # ===================== #
         # 2. process options in order
         for default_item in defaults:
             # handle different cases
             if default_item == K.OPT_SELF:
                 # ===================== #
+                if self_has_been_handled:
+                    raise RuntimeError(f'{K.OPT_SELF} was encountered more than once in option: {option.abs_path}')
+                self_has_been_handled = True
                 # 2.a if self is encountered, merge into config. We skip the
                 #     value of the option_name here as it is not needed.
                 self._merge_option(option)
                 # ===================== #
             else:
-                # normalise the thing, can be strings, or dicts
+                # normalise the default, can be strings, dicts, options, config nodes, tuples -> Union[Tuple[str, str], K.OPT_SELF]
                 group_path, option_name = self._resolve_default_item(default_item)
                 # ===================== #
                 # 2.b dfs through options
@@ -92,7 +96,7 @@ class ConfigLoader(object):
         )
         # handle the case where an option instance was in the list
         if isinstance(result, Option):
-            group_path, option_name = result.group_path, result.key
+            group_path, option_name = result.abs_group_path, result.key
         elif result == K.OPT_SELF:
             raise RuntimeError('This is a bug')
         else:
@@ -134,7 +138,7 @@ class ConfigLoader(object):
         # 2. get the root config object according to the package
         root = recursive_getitem(self._merged_config, keys, make_missing=True)
         # 3. merge the option into the config
-        dict_recursive_update(left=root, right=option.get_unresolved_data())
+        dict_recursive_update(left=root, right=option.get_unresolved_data(), safe_merge=True)
 
     def _resolve_value(self, value):
         # 1. allow interpolation of config objects

@@ -1,4 +1,5 @@
-from typing import Iterable
+from numbers import Number
+from typing import Iterable, List, Tuple, Type
 
 
 # ========================================================================= #
@@ -17,28 +18,44 @@ def recursive_getitem(dct, keys: Iterable[str], make_missing=False):
 
 
 def recursive_setitem(dct, keys: Iterable[str], value, make_missing=False):
-    (key, *keys) = keys
+    if not keys:
+        raise KeyError(f'{recursive_setitem.__name__} requires as least one key: {keys}')
+    (*keys, key) = keys
     insert_at = recursive_getitem(dct, keys, make_missing=make_missing)
     insert_at[key] = value
 
 
-def dict_recursive_update(left, right):
-    _dict_recursive_update(left, right, [])
+def dict_recursive_update(left, right, safe_merge=True, allow_update_types: List[Tuple[Type, ...]] = None):
+    # check type groups
+    if allow_update_types is None:
+        allow_update_types = []
+    # allow floats and integers to mix by default
+    allow_update_types = [(Number,)] + allow_update_types
+    # check user groups
+    assert all(isinstance(group, tuple) for group in allow_update_types)
+    # begin merge!
+    _dict_recursive_update(left, right, [], safe_merge=safe_merge, type_merge_groups=allow_update_types)
 
 
-def _dict_recursive_update(left, right, stack):
+def _dict_recursive_update(left, right, stack, safe_merge, type_merge_groups):
     # right overwrites left
-    for k, v in right.items():
-        if k in left:
-            if isinstance(left[k], dict) or isinstance(v, dict):
-                new_stack = stack + [k]
-                if not (isinstance(left[k], dict) and isinstance(v, dict)):
-                    raise TypeError(f'Recursive update cannot merge keys with a different type if one is a dictionary. {".".join(new_stack)}')
-                else:
-                    _dict_recursive_update(left[k], v, stack=new_stack)
-                    continue
-        left[k] = v
-
+    for k, rv in right.items():
+        if k not in left:
+            left[k] = rv
+        else:
+            # get values
+            lv = left[k]
+            # handle cases
+            # -- l and r are dictionaries
+            if isinstance(lv, dict) and isinstance(rv, dict):
+                _dict_recursive_update(left[k], rv, stack=stack + [k], safe_merge=safe_merge, type_merge_groups=type_merge_groups)
+                continue
+            # -- l and r have different types
+            if type(lv) is not type(rv):
+                if not any(isinstance(lv, group) and isinstance(rv, group) for group in type_merge_groups):
+                    if safe_merge:
+                        raise TypeError(f'with safe_merge=True, {dict_recursive_update.__name__} cannot update keys with different types l={type(lv).__name__} r={type(rv).__name__}.\nError occurred at key: {stack + [k]}')
+            left[k] = rv
 
 # ========================================================================= #
 # End                                                                       #

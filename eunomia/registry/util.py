@@ -106,6 +106,7 @@ def make_target_option(
     dict_recursive_update(
         left=targ_merge_dict,
         right=make_target_dict(fn, target=target, params=params, mode=mode, keep_defaults=keep_defaults),
+        safe_merge=False,
     )
 
     # make option

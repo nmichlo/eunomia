@@ -44,6 +44,10 @@ class _ConfigObject(object):
         return tuple(n.key for n in self.walk_from_root(visit_root=False))
 
     @property
+    def abs_path(self):
+        return '/' + '/'.join(self.keys if self.keys else ())
+
+    @property
     def root(self) -> '_ConfigObject':
         node = self
         for node in self.walk_to_root(visit_root=True):
@@ -169,8 +173,12 @@ class Group(_ConfigObject):
         return {k: v for k, v in self._children.items() if isinstance(v, Option)}
 
     @property
-    def group_path(self):
-        return '/'.join(self.keys if self.keys else ())
+    def group_keys(self) -> Tuple[str]:
+        return self.keys
+
+    @property
+    def abs_group_path(self):
+        return self.abs_path
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Groups & Options                                                      #
@@ -329,8 +337,8 @@ class Option(_ConfigObject):
         return self.group.keys
 
     @property
-    def group_path(self):
-        return self.group.group_path
+    def abs_group_path(self):
+        return self.group.abs_group_path
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters - data                                                        #

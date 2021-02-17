@@ -16,6 +16,7 @@
 //     - B.2. syntax: ${=...} eg. ${='#'*100}
 //         - maybe allow support for the colon ";" before the last bracket
 //           eg. ${{{1: 2};}} <<< (this was buggy otherwise) or ${={1: 2};}
+//     - C. default syntax for chosen name
 
 substitute: interpret_fstring // _END_STMT?
            | substitute_string
@@ -31,11 +32,13 @@ FSTRING.10: /f".*"/
 substitute_string: // empty string
                   | (WSSTR | template | CHAR)+
 
-?template: "${" template_ref "}"
+?template: "${" template_ref "}"               // A. what about relative? maybe optional @ if ambiguous
+         | "${" template_opt "}"               // C. what about relative? maybe optional # if ambiguous
          | "${=" template_exp "}"              // B.1.
       // | "${=" template_exp _END_STMT? "}"   // B.1. allow semicolons
       // | "${{" template_exp "}}"             // B.2. DEPRICATED!
 template_ref: NAME ("." NAME)*
+template_opt: "/" (NAME ("/" NAME)*)?
 template_exp: expr_stmt
 
 // escaped string

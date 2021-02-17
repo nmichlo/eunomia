@@ -99,6 +99,25 @@ class RefNode(ConfigNode):
     def __str__(self):
         return f'${{{self.raw_value}}}'
 
+class OptNode(ConfigNode):
+
+    INSTANCE_OF = str
+
+    def get_config_value(self, merged_config: dict, merged_options: dict, current_config: dict) -> Any:
+        # TODO: add support for groups in the merged_options, prefix with /
+        keys, is_relative = V.split_config_path(self.raw_value)
+        if is_relative:
+            raise ValueError(f'option choice cannot be a relative path, must be from root: {self.raw_value}')
+        # check that a choice has been made so far!
+        keys, path = tuple(keys), "/" + "/".join(keys)
+        if keys not in merged_options:
+            raise KeyError(f'No option choice or default has yet been merged into the config for: {path}')
+        # get the name
+        return merged_options[keys][-1]
+
+    def __str__(self):
+        return f'${{{self.raw_value}}}'
+
 
 class EvalNode(ConfigNode):
 
@@ -127,7 +146,7 @@ class EvalNode(ConfigNode):
 class SubNode(ConfigNode):
 
     INSTANCE_OF = (str, list)
-    ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, EvalNode)
+    ALLOWED_SUB_NODES = (str, IgnoreNode, RefNode, OptNode, EvalNode)
 
     def _check_subnodes(self, nodes: list):
         for subnode in nodes:
@@ -200,6 +219,7 @@ class _InterpretLarkToConfNodesList(lark.visitors.Interpreter):
         ]
 
     def template_ref(self, tree): return RefNode(SUB_RECONSTRUCTOR.reconstruct(tree))
+    def template_opt(self, tree): return OptNode(SUB_RECONSTRUCTOR.reconstruct(tree))
     def template_exp(self, tree): return EvalNode(SUB_RECONSTRUCTOR.reconstruct(tree))
 
     # we no longer handle this due to the grammar change for CHAR and WSSTR

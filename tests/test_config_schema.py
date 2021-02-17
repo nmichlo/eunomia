@@ -24,7 +24,7 @@ def _do_identifier_tests(validator, prefix=''):
 
 
 def test_identifier():
-    _do_identifier_tests(V.validate_identifier)
+    _do_identifier_tests(V.validate_config_identifier)
 
 
 def test_pkg_path():

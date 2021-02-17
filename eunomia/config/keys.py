@@ -16,9 +16,9 @@ KEY_DATA = '__data__'
 KEY_CHILDREN = '__children__'
 
 # marker keys - these are not reserved
-MARKER_KEY_TARGET = '_target_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
-MARKER_KEY_ARGS   = '_args_'    # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
-MARKER_KEY_KWARGS = '_kwargs_'  # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
+MARKER_KEY_TARGET = '_target_'
+MARKER_KEY_ARGS   = '_args_'
+MARKER_KEY_KWARGS = '_kwargs_'
 MARKER_KEY_VALUE  = '_value_'   # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 
 # special types

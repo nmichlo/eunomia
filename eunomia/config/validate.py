@@ -19,10 +19,6 @@ def validate_identifier(key) -> str:
         raise ValueError(f'identifier is not a valid python identifier: {repr(key)}')
     if _keyword.iskeyword(key):
         raise ValueError(f'identifier is a python keyword: {repr(key)}')
-    if key in _K.RESERVED_KEYS:
-        raise ValueError(f'identifier is eunomia reserved key: {repr(key)}')
-    if key.startswith('__') and key.endswith('__'):
-        raise ValueError(f'identifier is reserved: {repr(key)}')
     return key
 
 
@@ -35,7 +31,20 @@ def validate_identifier_list(keys) -> list:
 
 
 def validate_config_identifier(key) -> str:
-    return validate_identifier(key)
+    key = validate_identifier(key)
+    if key in _K.RESERVED_KEYS:
+        raise ValueError(f'identifier is eunomia reserved key: {repr(key)}')
+    if key.startswith('__') and key.endswith('__'):
+        raise ValueError(f'identifier is reserved: {repr(key)}')
+    return key
+
+
+def validate_config_identifier_list(keys) -> list:
+    if not isinstance(keys, list):
+        raise TypeError(f'identifier list must be a list type: {type(keys)}')
+    for k in keys:
+        validate_config_identifier(k)
+    return keys
 
 
 # ========================================================================= #
@@ -54,7 +63,7 @@ def _split_path(path: str, sep: str) -> (str, bool):
     else:
         split = []
     # check identifiers
-    return validate_identifier_list(split), is_prefixed
+    return validate_config_identifier_list(split), is_prefixed
 
 
 def split_package_path(path: str) -> (str, bool):
@@ -116,7 +125,7 @@ def _validate_option_data(value):
         pass
     elif isinstance(value, dict):
         for k, v in value.items():
-            validate_identifier(k)
+            validate_config_identifier(k)
             _validate_option_data(v)
     elif isinstance(value, (list, tuple, set)):
         for v in value:

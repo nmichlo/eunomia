@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from eunomia._util_dict import recursive_getitem, dict_recursive_update
+from eunomia.util._util_dict import recursive_getitem, dict_recursive_update
 from eunomia.config import Option, Group
 from eunomia.config.nodes import ConfigNode
 

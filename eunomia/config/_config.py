@@ -1,9 +1,8 @@
 from typing import Dict, Union, List, Tuple
 
-from eunomia._util_traverse import RecursiveTransformer
+from eunomia.util._util_traverse import RecursiveTransformer
 from eunomia.config.nodes import ConfigNode, SubNode
 
-from eunomia.config import keys as K
 from eunomia.config import validate as V
 
 

@@ -69,7 +69,7 @@ class RegistryGroup(Group):
         path = _fn_get_module_path(fn) if path is None else path
         name = _camel_to_snake(fn.__name__) if name is None else name
         # make option under the specified group
-        group = self.get_group_from_path(path=path, make_missing=True)
+        group = self.get_group_recursive(path=path, make_missing=True)
         option = group.add_option(name, make_target_option(
             fn, target=target, params=params, mode=mode, keep_defaults=keep_defaults,
             nest_path=nest_path, data=data, pkg=pkg, defaults=defaults

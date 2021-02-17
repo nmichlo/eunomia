@@ -1,5 +1,4 @@
 import pytest
-
 from eunomia._util_attrdict import AttrDict
 
 
@@ -29,3 +28,5 @@ def test_attrdict():
     conf['valid'] = 7
     assert conf.valid == 7
     assert conf['valid'] == 7
+
+

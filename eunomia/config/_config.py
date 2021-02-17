@@ -49,7 +49,7 @@ class _ConfigObject(object):
 
     @property
     def abs_path(self):
-        return '/' + '/'.join(self.keys if self.keys else ())
+        return V.keys_as_abs_config_path(self.keys)
 
     @property
     def root(self) -> '_ConfigObject':
@@ -244,29 +244,77 @@ class Group(_ConfigObject):
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def get_subgroup_recursive(self, keys: List[str], make_missing=False) -> 'Group':
-        def _recurse(group: Group, old_keys):
-            if not old_keys:
-                return group
-            key, keys = old_keys[0], old_keys[1:]
-            if make_missing:
-                if not group.has_subgroup(key):
-                    return _recurse(group.new_subgroup(key), keys)
-            return _recurse(group.get_subgroup(key), keys)
-        return _recurse(self, keys)
+    def _get_subgroup_recursive(self, keys: Union[List[str], Tuple[str]], make_missing=False) -> 'Group':
+        group = self
+        while keys:
+            (current, *keys) = keys
+            if not group.has_subgroup(current):
+                if not make_missing:
+                    raise KeyError(f'group {repr(group.abs_group_path)} does not have subgroup {repr(current)}')
+                group = group.new_subgroup(current)
+            else:
+                group = group.get_subgroup(current)
+        return group
 
-    def get_group_from_path(self, path: str, make_missing=False):
+    def _get_keys_and_root(self, path: Union[str, List[str], Tuple[str]]):
+        if isinstance(path, str):
+            group_keys, is_relative = V.split_config_path(path)
+            # get the group corresponding to the path - must handle relative & root paths
+            root = (self if is_relative else self.root)
+        else:
+            group_keys, root = path, self
+        return group_keys, root
+
+    def get_group_recursive(self, path: Union[str, List[str], Tuple[str]], make_missing=False) -> 'Group':
         """
         This function checks if a path is relative or absolute.
         If the path is relative, it traverses from the current group.
         If the path is absolute, it traverses from the root group.
 
-        Supports make_missing like get_subgroups_recursive(...)
+        NOTE: If the path is a *list* of keys,
+              they are considered *relative*.
+
+        Supports make_missing, to create any missing groups.
         """
-        group_keys, is_relative = V.split_config_path(path)
-        # get the group corresponding to the path - must handle relative & root paths
-        root = (self if is_relative else self.root)
-        return root.get_subgroup_recursive(group_keys, make_missing=make_missing)
+        group_keys, root = self._get_keys_and_root(path)
+        # recursively get the group
+        return root._get_subgroup_recursive(group_keys, make_missing=make_missing)
+
+    def get_option_recursive(self, path: Union[str, List[str], Tuple[str]]) -> 'Option':
+        """
+        This function is like get_group_recursive, checking for relative
+        and absolute paths, except the last component of the path should
+        be an option name.
+
+        NOTE: If the path is a *list* of keys,
+              they are considered *relative*.
+        """
+        (*group_keys, option_name), root = self._get_keys_and_root(path)
+        group = self.get_group_recursive(group_keys, make_missing=False)
+        if not group.has_suboption(option_name):
+            raise KeyError(f'group {repr(group.abs_group_path)} does not have suboption {repr(option_name)}')
+        return group.get_option(option_name)
+
+    def has_group_recursive(self, path: Union[str, List[str], Tuple[str]]):
+        try:
+            self.get_group_recursive(path, make_missing=False)
+            return True
+        except KeyError:
+            return False
+
+    def has_option_recursive(self, path: Union[str, List[str], Tuple[str]]):
+        try:
+            self.get_option_recursive(path)
+            return True
+        except KeyError:
+            return False
+
+    def path_to_abs_keys(self, path: Union[str, List[str], Tuple[str]]) -> Tuple[str]:
+        """
+        convert a relative or abs path to abs keys
+        """
+        path, root = self._get_keys_and_root(path)
+        return root.keys + tuple(path)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Strings                                                               #

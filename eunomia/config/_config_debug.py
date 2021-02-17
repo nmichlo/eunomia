@@ -88,7 +88,7 @@ def debug_tree_str(root: _Union[Group, Option], colors=True, show_options=True, 
             # OPTION
             name = f"{nO}{item.node.key}{R}"
             if full_option_path:
-                name = f"{S}{('/' + '/'.join(item.node.keys[:-1]))}:{R} " + name
+                name = f"{S}{V.keys_as_abs_config_path(item.node.keys[:-1])}:{R} " + name
         # append for next iterations
         line = f'{tree} {name}'
         # get max line length

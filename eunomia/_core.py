@@ -1,6 +1,10 @@
+from typing import List as _List
+
+
 from eunomia.config import ConfigLoader
 from eunomia.backend import Backend, BackendObj, BackendYaml, BackendDict
 from eunomia.backend import DefaultConfigTypes as _ValidConfigTypes, infer_backend_load_group as _infer_backend_load_group
+
 
 # ========================================================================= #
 # Variables                                                                 #
@@ -18,7 +22,11 @@ DEFAULT_ENTRYPOINT = 'default'
 # ========================================================================= #
 
 
-def eunomia(config: _ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT, backend: Backend = None):
+def eunomia(
+        config: _ValidConfigTypes = DEFAULT_CONFIG,
+        entrypoint=DEFAULT_ENTRYPOINT,
+        backend: Backend = None,
+):
     """
     The main eunomia decorator.
     Automatically detects which backend to use based on the first argument.
@@ -32,7 +40,13 @@ def eunomia(config: _ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRY
     return wrapper
 
 
-def eunomia_runner(func: callable, config: _ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT, backend: Backend = None):
+def eunomia_runner(
+        func: callable,
+        config: _ValidConfigTypes = DEFAULT_CONFIG,
+        entrypoint=DEFAULT_ENTRYPOINT,
+        overrides: _List[str] = None,
+        backend: Backend = None,
+):
     """
     The non-decorator equivalent to @eunomia(...)
     - This function is the core of eunomia, calling the relevant plugins, creating
@@ -52,9 +66,14 @@ def eunomia_runner(func: callable, config: _ValidConfigTypes = DEFAULT_CONFIG, e
 # ========================================================================= #
 
 
-def eunomia_load(config: _ValidConfigTypes = DEFAULT_CONFIG, entrypoint=DEFAULT_ENTRYPOINT, backend: Backend = None):
+def eunomia_load(
+        config: _ValidConfigTypes = DEFAULT_CONFIG,
+        entrypoint=DEFAULT_ENTRYPOINT,
+        overrides: _List[str] = None,
+        backend: Backend = None,
+):
     group = _infer_backend_load_group(config, backend=backend)
-    loader = ConfigLoader(group)
+    loader = ConfigLoader(group, overrides=overrides)
     return loader.load_config(entrypoint)
 
 

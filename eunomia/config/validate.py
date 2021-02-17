@@ -1,6 +1,6 @@
 import os as _os
 import keyword as _keyword
-from typing import Union as _Union, Tuple as _Tuple
+from typing import Union as _Union, Tuple as _Tuple, Dict as _Dict, List as _List
 
 from eunomia.config import keys as _K
 
@@ -244,6 +244,42 @@ def validate_resolved_defaults_item(group_path, option_name):
         raise ValueError('group_path and option_name have not been resolved')
 
     return validate_config_path(group_path), validate_config_identifier(option_name)
+
+
+def normalise_override(override: str) -> _Tuple[_Tuple[str, ...], str]:
+    # make sure nothing is relative
+    if not isinstance(override, str):
+        raise TypeError(f'override must be a single absolute path string to an option: {override}')
+    group_path, option_name = split_defaults_item(override, allow_config_node_return=False)
+    group_keys, is_relative = split_config_path(group_path)
+    if is_relative:
+        raise ValueError(f'relative overrides are not allowed: {group_path}/{option_name}')
+    # the group is the key to the option name
+    return tuple(group_keys), option_name
+
+
+def normalise_overrides(overrides: list = None) -> _Dict[_Tuple[str, ...], str]:
+    # check overrides
+    overrides = overrides if (overrides is not None) else []
+    if not isinstance(overrides, list):
+        raise TypeError(f'default overrides must be a {list.__name__}')
+    # construct the overrides dictionary
+    overrides_dict = {}
+    for override in overrides:
+        group_keys, option_name = normalise_override(override)
+        if group_keys in overrides_dict:
+            raise KeyError(f'override has been listed more than once: {"/" + "/".join(group_keys + (option_name,))}')
+        overrides_dict[group_keys] = option_name
+    # done
+    return overrides_dict
+
+
+def keys_as_abs_config_path(keys: _Union[_Tuple[str], _List[str]]) -> str:
+    return validate_config_path('/' + '/'.join(keys))
+
+
+def keys_as_abs_pkg_path(keys: _Union[_Tuple[str], _List[str]]) -> str:
+    return validate_package_path('.'.join(keys))
 
 
 # ========================================================================= #

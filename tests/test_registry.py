@@ -187,12 +187,12 @@ def test_registry_with_options_as_defaults_advanced():
     registry = RegistryGroup()
 
     # data type -- what kind of data is being used, this affects what type of data wrapper is needed for the framework
-    data_type = registry.get_group_from_path('auto/data_type', make_missing=True)
+    data_type = registry.get_group_recursive('auto/data_type', make_missing=True)
     type_ground_truth = data_type.new_option('ground_truth', pkg='auto', data=dict(data_type='ground_truth'))
     type_episodes     = data_type.new_option('episodes',     pkg='auto', data=dict(data_type='episodes'))
 
     # data wrap mode -- how many inputs needs to be sampled to form a single observation from the dataset
-    data_wrap_mode = registry.get_group_from_path('auto/data_wrap_mode', make_missing=True)
+    data_wrap_mode = registry.get_group_recursive('auto/data_wrap_mode', make_missing=True)
     wrap_triples = data_wrap_mode.new_option('triples', pkg='auto', data=dict(data_wrap_mode='triples'), defaults=[SubNode('/auto/data_wrapper/${auto.data_type}_${auto.data_wrap_mode}')])
     wrap_pairs   = data_wrap_mode.new_option('pairs',   pkg='auto', data=dict(data_wrap_mode='pairs'),   defaults=[SubNode('/auto/data_wrapper/${auto.data_type}_${auto.data_wrap_mode}')])
     wrap_single  = data_wrap_mode.new_option('single',  pkg='auto', data=dict(data_wrap_mode='single'),  defaults=[SubNode('/auto/data_wrapper/${auto.data_type}_${auto.data_wrap_mode}')])

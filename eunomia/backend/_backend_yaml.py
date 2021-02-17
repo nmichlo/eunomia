@@ -41,7 +41,7 @@ class BackendYaml(Backend):
         root = Group()
         for path, (*subgroups, option_name) in self._get_sorted_option_paths(value):
             # add subgroups
-            group = root.get_subgroup_recursive(subgroups, make_missing=True)
+            group = root.get_group_recursive(subgroups, make_missing=True)
             # add option by loading file
             group.add_option(option_name, self.load_option(path))
         # done!

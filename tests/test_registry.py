@@ -3,6 +3,7 @@ import pytest
 from eunomia import eunomia_load
 from eunomia.backend import BackendDict
 from eunomia.config import Group, Option
+from eunomia.config.nodes import SubNode
 from eunomia.registry import RegistryGroup
 
 
@@ -176,6 +177,62 @@ def test_registry_with_options_as_defaults():
     registry.del_option('default')
     registry.add_option('default', Option(defaults=[option_fizz]))
     assert eunomia_load(registry) == {'tests': {'test_registry': {'_target_': 'tests.test_registry.fizz', 'foo': 10, 'bar': 20, 'buzz': 1, 'baz': 1}}}
+
+
+def fn(name='N/A'):
+    return name
+
+
+def test_registry_with_options_as_defaults_advanced():
+    registry = RegistryGroup()
+
+    # data type -- what kind of data is being used, this affects what type of data wrapper is needed for the framework
+    data_type = registry.get_group_from_path('auto/data_type', make_missing=True)
+    type_ground_truth = data_type.new_option('ground_truth', pkg='auto', data=dict(data_type='ground_truth'))
+    type_episodes     = data_type.new_option('episodes',     pkg='auto', data=dict(data_type='episodes'))
+
+    # data wrap mode -- how many inputs needs to be sampled to form a single observation from the dataset
+    data_wrap_mode = registry.get_group_from_path('auto/data_wrap_mode', make_missing=True)
+    wrap_triples = data_wrap_mode.new_option('triples', pkg='auto', data=dict(data_wrap_mode='triples'), defaults=[SubNode('/auto/data_wrapper/${auto.data_type}_${auto.data_wrap_mode}')])
+    wrap_pairs   = data_wrap_mode.new_option('pairs',   pkg='auto', data=dict(data_wrap_mode='pairs'),   defaults=[SubNode('/auto/data_wrapper/${auto.data_type}_${auto.data_wrap_mode}')])
+    wrap_single  = data_wrap_mode.new_option('single',  pkg='auto', data=dict(data_wrap_mode='single'),  defaults=[SubNode('/auto/data_wrapper/${auto.data_type}_${auto.data_wrap_mode}')])
+
+    # dataset wrappers
+    registry.register_target(fn, name='ground_truth_single',     params=dict(name='ground_truth_single'),     path='auto/data_wrapper')
+    registry.register_target(fn, name='ground_truth_pairs',      params=dict(name='ground_truth_pairs'),      path='auto/data_wrapper')
+    registry.register_target(fn, name='ground_truth_weak_pairs', params=dict(name='ground_truth_weak_pairs'), path='auto/data_wrapper')
+    registry.register_target(fn, name='ground_truth_triples',    params=dict(name='ground_truth_triples'),    path='auto/data_wrapper')
+    registry.register_target(fn, name='episodes_single',         params=dict(name='episodes_single'),         path='auto/data_wrapper')  # num_samples=1, sample_radius=32))
+    registry.register_target(fn, name='episodes_pairs',          params=dict(name='episodes_pairs'),          path='auto/data_wrapper')  # num_samples=2, sample_radius=32))
+    registry.register_target(fn, name='episodes_triples',        params=dict(name='episodes_triples'),        path='auto/data_wrapper')  # num_samples=3, sample_radius=32))
+
+    # data
+    registry.register_target(fn, name='dsprites',       params=dict(name='dsprites'),       path='disent/data', defaults=[type_ground_truth])
+    registry.register_target(fn, name='monte_rollouts', params=dict(name='monte_rollouts'), path='disent/data', defaults=[type_episodes])
+
+    # frameworks
+    registry.register_target(fn, name='betavae', params=dict(name='betavae'), path='disent/framework', nest_path='cfg', defaults=[wrap_single])
+    registry.register_target(fn, name='adavae',  params=dict(name='adavae'),  path='disent/framework', nest_path='cfg', defaults=[wrap_pairs])
+    registry.register_target(fn, name='tvae',    params=dict(name='tvae'),    path='disent/framework', nest_path='cfg', defaults=[wrap_triples])
+
+    def check(in_data, in_framework, out_data_type, out_data_wrap_mode):
+        if registry.has_suboption('default'):
+            registry.del_option('default')
+
+        registry.new_option('default', defaults=[
+            ('/disent/data', in_data),
+            ('/disent/framework', in_framework),
+        ])
+
+        assert eunomia_load(registry) == {'disent': {'data': {'_target_': 'tests.test_registry.fn', 'name': in_data}, 'framework': {'cfg': {'_target_': 'tests.test_registry.fn', 'name': in_framework}}}, 'auto': {'data_type': out_data_type, 'data_wrap_mode': out_data_wrap_mode, 'data_wrapper': {'_target_': 'tests.test_registry.fn', 'name': f'{out_data_type}_{out_data_wrap_mode}'}}}
+
+    check('dsprites', 'betavae', 'ground_truth', 'single')
+    check('dsprites', 'adavae', 'ground_truth', 'pairs')
+    check('dsprites', 'tvae', 'ground_truth', 'triples')
+
+    check('monte_rollouts', 'betavae', 'episodes', 'single')
+    check('monte_rollouts', 'adavae', 'episodes', 'pairs')
+    check('monte_rollouts', 'tvae', 'episodes', 'triples')
 
 
 # ========================================================================= #

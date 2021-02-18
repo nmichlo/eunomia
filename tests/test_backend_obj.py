@@ -13,17 +13,18 @@ from eunomia.config import keys as K
 def test_simple_option():
     bk = BackendDict()
 
-    bk.dump_option(Option(data={'foo': 'bar'}))
-    bk.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_ROOT))
-    bk.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_GROUP))
+    assert bk.dump_option(Option(data={'foo': 'bar'})) == {'__data__': {'foo': 'bar'}, '__defaults__': [], '__package__': '<group>', '__type__': 'option'}
+    assert bk.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_ROOT)) == {'__data__': {'foo': 'bar'}, '__defaults__': [], '__package__': '<root>', '__type__': 'option'}
+    assert bk.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_GROUP)) == {'__data__': {'foo': 'bar'}, '__defaults__': [], '__package__': '<group>', '__type__': 'option'}
+    assert bk.dump_option(Option(data={'foo': 'bar'}, pkg=K.PKG_OPTION)) == {'__data__': {'foo': 'bar'}, '__defaults__': [], '__package__': '<option>', '__type__': 'option'}
 
-    bk.dump_option(Option(data={'foo': 'bar'}, defaults=[]))
+    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=[])) == {'__data__': {'foo': 'bar'}, '__defaults__': [], '__package__': '<group>', '__type__': 'option'}
 
     # test relative path
-    bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/option1']))
-    bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/group2/option2']))
+    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/option1'])) == {'__data__': {'foo': 'bar'}, '__defaults__': ['group1/option1'], '__package__': '<group>', '__type__': 'option'}
+    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/group2/option2'])) == {'__data__': {'foo': 'bar'}, '__defaults__': ['group1/group2/option2'], '__package__': '<group>', '__type__': 'option'}
     # test absolute path
-    bk.dump_option(Option(data={'foo': 'bar'}, defaults=['/group1/group2/option2']))
+    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['/group1/group2/option2'])) == {'__data__': {'foo': 'bar'}, '__defaults__': ['/group1/group2/option2'], '__package__': '<group>', '__type__': 'option'}
 
     with pytest.raises(ValueError):  # TODO: fix error messages, match='is_identifier'):
         bk.dump_option(Option(data={'foo': 'bar'}, defaults=[{'group1': '1invalid'}]))
@@ -32,8 +33,8 @@ def test_simple_option():
     with pytest.raises(ValueError):  # TODO: fix error messages, match='Wrong key'):
         bk.dump_option(Option(data={'foo': 'bar'}, defaults=[{'group1/2invalid': 'option2'}]))
 
-    bk.dump_option(Option(data={'foo': 'bar'}, pkg='key1'))
-    bk.dump_option(Option(data={'foo': 'bar'}, pkg='key1.key2'))
+    assert bk.dump_option(Option(data={'foo': 'bar'}, pkg='key1')) == {'__data__': {'foo': 'bar'}, '__defaults__': [], '__package__': 'key1', '__type__': 'option'}
+    assert bk.dump_option(Option(data={'foo': 'bar'}, pkg='key1.key2')) == {'__data__': {'foo': 'bar'}, '__defaults__': [], '__package__': 'key1.key2', '__type__': 'option'}
 
 
 def test_simple_config():

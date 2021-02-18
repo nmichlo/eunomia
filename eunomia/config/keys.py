@@ -29,9 +29,21 @@ TYPE_NODE   = 'node'            # TODO: THIS IS NOT IMPLEMENTED, JUST RESERVED
 # special packages
 PKG_ROOT = '<root>'
 PKG_GROUP = '<group>'
+PKG_OPTION = '<option>'
+
+ALL_PACKAGE_ALIASES = {
+    PKG_ROOT,
+    PKG_GROUP,
+    PKG_OPTION,
+}
 
 # special options
 OPT_SELF = '<self>'
+OPT_GLOB = '*'
+
+ALL_OPT_ALIASES = {
+    OPT_SELF, OPT_GLOB
+}
 
 # default
 DEFAULT_PKG = PKG_GROUP

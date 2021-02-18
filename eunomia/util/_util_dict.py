@@ -25,7 +25,7 @@ def recursive_setitem(dct, keys: Iterable[str], value, make_missing=False):
     insert_at[key] = value
 
 
-def dict_recursive_update(left, right, safe_merge=True, allow_update_types: List[Tuple[Type, ...]] = None):
+def dict_recursive_update(left, right, allow_overwrite=True, safe_merge=True, allow_update_types: List[Tuple[Type, ...]] = None):
     # check type groups
     if allow_update_types is None:
         allow_update_types = []
@@ -34,10 +34,10 @@ def dict_recursive_update(left, right, safe_merge=True, allow_update_types: List
     # check user groups
     assert all(isinstance(group, tuple) for group in allow_update_types)
     # begin merge!
-    _dict_recursive_update(left, right, [], safe_merge=safe_merge, type_merge_groups=allow_update_types)
+    _dict_recursive_update(left, right, [], allow_overwrite=allow_overwrite, safe_merge=safe_merge, type_merge_groups=allow_update_types)
 
 
-def _dict_recursive_update(left, right, stack, safe_merge, type_merge_groups):
+def _dict_recursive_update(left, right, stack, allow_overwrite, safe_merge, type_merge_groups):
     # right overwrites left
     for k, rv in right.items():
         if k not in left:
@@ -48,8 +48,10 @@ def _dict_recursive_update(left, right, stack, safe_merge, type_merge_groups):
             # handle cases
             # -- l and r are dictionaries
             if isinstance(lv, dict) and isinstance(rv, dict):
-                _dict_recursive_update(left[k], rv, stack=stack + [k], safe_merge=safe_merge, type_merge_groups=type_merge_groups)
+                _dict_recursive_update(left[k], rv, stack=stack + [k], allow_overwrite=allow_overwrite, safe_merge=safe_merge, type_merge_groups=type_merge_groups)
                 continue
+            if not allow_overwrite:
+                raise KeyError(f'cannot overwrite existing keys {stack}')
             # -- l and r have different types
             if type(lv) is not type(rv):
                 if not any(isinstance(lv, group) and isinstance(rv, group) for group in type_merge_groups):

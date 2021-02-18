@@ -48,7 +48,7 @@ def test_instantiate_targets():
 
     bk = BackendDict()
     # check recursive instantiate
-    option = Option(data={'foo': 1}, pkg='pkg.subpkg', defaults=[('group', 'subgroup')])
+    option = Option(data={'foo': 1}, pkg='pkg.subpkg', defaults=['group/subgroup'])
     option_target = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1), 'pkg.subpkg', ['group/subgroup']]}
     # check no recursive elements
     assert bk.dump(instantiate(option_target, recursive=True, ensure_root_target=True)) == bk.dump(option)
@@ -76,21 +76,21 @@ def test_instantiate_targets():
     assert bk.dump(instantiate(group_target, recursive=True, ensure_root_target=True)) == bk.dump(group)
 
     # check advanced recursive instantiate
-    option_alt = Option(data={'foo': 1}, pkg='pkg.subpkg', defaults=[('group', 'subgroup')])
+    option_alt = Option(data={'foo': 1}, pkg='pkg.subpkg', defaults=[{'group': 'subgroup'}])
     # args, kwargs key mix
-    option_target_alt1 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1), 'pkg.subpkg', ['group/subgroup']]}
-    option_target_alt2 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1), 'pkg.subpkg'], '_kwargs_': dict(defaults=['group/subgroup'])}
-    option_target_alt3 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1)], '_kwargs_': dict(pkg='pkg.subpkg', defaults=['group/subgroup'])}
-    option_target_alt4 = {'_target_': 'eunomia.config.Option', '_kwargs_': dict(data=dict(foo=1), pkg='pkg.subpkg', defaults=['group/subgroup'])}
+    option_target_alt1 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1), 'pkg.subpkg', [{'group': 'subgroup'}]]}
+    option_target_alt2 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1), 'pkg.subpkg'], '_kwargs_': dict(defaults=[{'group': 'subgroup'}])}
+    option_target_alt3 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1)], '_kwargs_': dict(pkg='pkg.subpkg', defaults=[{'group': 'subgroup'}])}
+    option_target_alt4 = {'_target_': 'eunomia.config.Option', '_kwargs_': dict(data=dict(foo=1), pkg='pkg.subpkg', defaults=[{'group': 'subgroup'}])}
     assert bk.dump(instantiate(option_target_alt1)) == bk.dump(option_alt)
     assert bk.dump(instantiate(option_target_alt2)) == bk.dump(option_alt)
     assert bk.dump(instantiate(option_target_alt3)) == bk.dump(option_alt)
     assert bk.dump(instantiate(option_target_alt4)) == bk.dump(option_alt)
     # args, root kwargs mix
-    option_target_alt1 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1), 'pkg.subpkg'], 'defaults': ['group/subgroup']}
-    option_target_alt2 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1)], 'pkg': 'pkg.subpkg', 'defaults': ['group/subgroup']}
-    option_target_alt3 = {'_target_': 'eunomia.config.Option', 'data': dict(foo=1), 'pkg': 'pkg.subpkg', 'defaults': ['group/subgroup']}
-    option_target_alt4 = {'_target_': 'eunomia.config.Option', 'data': dict(foo=1), 'pkg': 'pkg.subpkg', '_kwargs_': dict(defaults=['group/subgroup'])}
+    option_target_alt1 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1), 'pkg.subpkg'], 'defaults': [{'group': 'subgroup'}]}
+    option_target_alt2 = {'_target_': 'eunomia.config.Option', '_args_': [dict(foo=1)], 'pkg': 'pkg.subpkg', 'defaults': [{'group': 'subgroup'}]}
+    option_target_alt3 = {'_target_': 'eunomia.config.Option', 'data': dict(foo=1), 'pkg': 'pkg.subpkg', 'defaults': [{'group': 'subgroup'}]}
+    option_target_alt4 = {'_target_': 'eunomia.config.Option', 'data': dict(foo=1), 'pkg': 'pkg.subpkg', '_kwargs_': dict(defaults=[{'group': 'subgroup'}])}
     assert bk.dump(instantiate(option_target_alt1)) == bk.dump(option_alt)
     assert bk.dump(instantiate(option_target_alt2)) == bk.dump(option_alt)
     assert bk.dump(instantiate(option_target_alt3)) == bk.dump(option_alt)

@@ -100,11 +100,15 @@ def debug_tree_str(root: _Union[Group, Option], colors=True, show_options=True, 
         items.append(item)
 
     def get_defaults(option):
-        for default in V.split_defaults_list_items(option.get_unresolved_defaults(), allow_config_node_return=True):
+        for default in option.get_unresolved_defaults():
+            default = default._default
             if isinstance(default, Option):
                 yield f'{default.abs_group_path}: {default.key}'
-            elif isinstance(default, tuple):
-                yield f'{str(default[0])}: {str(default[1])}'
+            elif isinstance(default, dict):
+                ((k, v),) = default.items()
+                if isinstance(k, (Group, Option)): k = k.abs_path
+                if isinstance(v, (Group, Option)): v = v.abs_path
+                yield f'{k}: {v}'
             elif isinstance(default, ConfigNode):
                 yield str(default)
             else:

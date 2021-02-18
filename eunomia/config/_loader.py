@@ -198,10 +198,15 @@ class ConfigLoader(object):
         if not isinstance(path, str):
             raise TypeError(f'{K.KEY_PKG} must be a string')
         # handle special values
-        if path == K.PKG_ROOT:
-            keys = ()
-        elif path == K.PKG_GROUP:
-            keys = option.group_keys
+        if path in K.ALL_PACKAGE_ALIASES:
+            if path == K.PKG_ROOT:
+                keys = ()
+            elif path == K.PKG_GROUP:
+                keys = option.group_keys
+            elif path == K.PKG_OPTION:
+                keys = option.keys
+            else:  # pragma: no cover
+                raise AssertionError('This is a bug and should never happen.')
         else:
             keys, is_relative = V.split_package_path(path)
             if is_relative:

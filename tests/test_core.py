@@ -39,7 +39,19 @@ def test_eunomia_loader():
     # test root package
     assert eunomia_load(_make_config_group(suboption2='suboption2', package1='<root>')) == {'foo': 1, 'bar': 1, 'subgroup2': {'subgroup3': {'baz': 2}}}
     assert eunomia_load(_make_config_group(suboption2='suboption2', package2='<root>')) == {'foo': 1, 'subgroup': {'bar': 1}, 'baz': 2}
-    assert eunomia_load(_make_config_group(suboption2='suboption2', package1='<root>', package2='<root>')) == {'foo': 1, 'bar': 1, 'baz': 2}
+
+    # test package variations
+    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption2', package1='<root>', package2='<root>')) == {'foo': 1, 'bar': 2, 'baz': 2}
+    assert eunomia_load(_make_config_group(suboption='suboption1', suboption2='suboption2', package1='<root>', package2='<group>')) == {'foo': 1, 'bar': 1, 'subgroup2': {'subgroup3': {'baz': 2}}}
+    assert eunomia_load(_make_config_group(suboption='suboption1', suboption2='suboption1', package1='<root>', package2='<option>')) == {'foo': 1, 'bar': 1, 'subgroup2': {'subgroup3': {'suboption1': {'baz': 1}}}}
+
+    assert eunomia_load(_make_config_group(suboption='suboption1', suboption2='suboption1', package1='<group>', package2='<root>')) == {'foo': 1, 'subgroup': {'bar': 1}, 'baz': 1}
+    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption2', package1='<group>', package2='<group>')) == {'foo': 1, 'subgroup': {'bar': 2}, 'subgroup2': {'subgroup3': {'baz': 2}}}
+    assert eunomia_load(_make_config_group(suboption='suboption1', suboption2='suboption2', package1='<group>', package2='<option>')) == {'foo': 1, 'subgroup': {'bar': 1}, 'subgroup2': {'subgroup3': {'suboption2': {'baz': 2}}}}
+
+    assert eunomia_load(_make_config_group(suboption='suboption1', suboption2='suboption2', package1='<option>', package2='<root>')) == {'foo': 1, 'subgroup': {'suboption1': {'bar': 1}}, 'baz': 2}
+    assert eunomia_load(_make_config_group(suboption='suboption1', suboption2='suboption1', package1='<option>', package2='<group>')) == {'foo': 1, 'subgroup': {'suboption1': {'bar': 1}}, 'subgroup2': {'subgroup3': {'baz': 1}}}
+    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption2', package1='<option>', package2='<option>')) == {'foo': 1, 'subgroup': {'suboption2': {'bar': 2}}, 'subgroup2': {'subgroup3': {'suboption2': {'baz': 2}}}}
 
     # test custom package
     assert eunomia_load(_make_config_group(suboption2='suboption2', package1='asdf', package2='fdsa.asdf')) == {'asdf': {'bar': 1}, 'fdsa': {'asdf': {'baz': 2}}, 'foo': 1}

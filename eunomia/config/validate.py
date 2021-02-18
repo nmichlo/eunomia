@@ -67,7 +67,7 @@ def _split_path(path: str, sep: str) -> (str, bool):
 
 
 def split_package_path(path: str) -> (str, bool):
-    if path in {_K.PKG_GROUP, _K.PKG_ROOT}:
+    if path in _K.ALL_PACKAGE_ALIASES:
         raise RuntimeError('special package keys should be handled separately')
     keys, is_relative = _split_path(path, '.')
     return keys, is_relative
@@ -87,7 +87,7 @@ def validate_package_path(path) -> str:
     if not isinstance(path, str):
         raise TypeError(f'package path is not of type string: {type(path)}')
     # check for aliases
-    if path in {_K.PKG_GROUP, _K.PKG_ROOT}:
+    if path in _K.ALL_PACKAGE_ALIASES:
         return path
     # try split
     split_package_path(path)

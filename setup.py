@@ -14,7 +14,7 @@ setuptools.setup(
     author="Nathan Juraj Michlo",
     author_email="NathanJMichlo@gmail.com",
 
-    version="0.0.1.dev18",
+    version="0.0.1.dev19",
     python_requires=">=3.6",
     packages=setuptools.find_packages(),
 

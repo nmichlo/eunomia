@@ -57,6 +57,22 @@ class _ConfigObject(object):
             pass
         return node
 
+    def rel_keys_to(self, right: '_ConfigObject'):
+        if right.root is not self.root:
+            raise AssertionError('trying to get relative path to config object in different tree.')
+        # check that we are a parent
+        l_keys, r_keys = self.keys, right.keys
+        while l_keys:
+            if not r_keys:
+                raise KeyError('left config object is a child of the right config object')
+            (l_key, *l_keys), (r_key, *r_keys) = l_keys, r_keys
+            if l_key != r_key:
+                raise KeyError('left config object is not a parent of the right config object')
+        return r_keys
+
+    def rel_path_to(self, right: '_ConfigObject'):
+        return '/'.join(self.rel_keys_to(right))
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -106,6 +122,7 @@ class _ConfigObject(object):
         child._parent = None
         child._key = None
         del self._children[key]
+        return child
 
     def get_child(self, key: str):
         return self._children[key]
@@ -118,7 +135,7 @@ class _ConfigObject(object):
     __contains__ = has_child
 
     def __iter__(self):
-        yield from self._children
+        raise NotImplementedError
 
 
 # ========================================================================= #
@@ -157,6 +174,11 @@ class Group(_ConfigObject):
         yield from self.groups
         yield from self.options
 
+    def walk_descendant_options(self):
+        for node in self.walk_descendants():
+            if isinstance(node, Option):
+                yield node
+
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Getters                                                               #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
@@ -193,9 +215,9 @@ class Group(_ConfigObject):
             raise TypeError(f'node with key: {repr(key)} is not a {Group.__name__}')
         return node
 
-    def del_subgroup(self, key: str) -> 'Option':
+    def del_subgroup(self, key: str) -> 'Group':
         assert self.has_subgroup(key)
-        self.del_child(key)
+        return self.del_child(key)
 
     def get_option(self, key: str) -> 'Option':
         node = self.get_child(key)
@@ -215,7 +237,7 @@ class Group(_ConfigObject):
 
     def del_option(self, key: str) -> 'Option':
         assert self.has_suboption(key)
-        self.del_child(key)
+        return self.del_child(key)
 
     def new_subgroup(self, key: str) -> 'Group':
         return self.add_subgroup(key, Group())
@@ -324,6 +346,52 @@ class Group(_ConfigObject):
 
     def __repr__(self):
         return f'{self.__class__.__name__}({self._children})'
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Merge                                                                 #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def absorb_children(self, group: 'Group', allow_replace_options=False) -> 'Group':
+        # like dict.update, but modify right hand side...
+        if not isinstance(group, Group):
+            raise TypeError('group can only absorb other groups.')
+        # -- this should be split out into a func
+        if group.root is self.root:
+            raise AssertionError('tried to absorb group from the same tree.')
+        # recursive walk to check conflicts first, so that things arent modified if there is a failure
+        # TODO: this is not very efficient, walks down tree each time to check...
+        # -- this should maybe be split out into a func
+        if not allow_replace_options:
+            for r_option in group.walk_descendant_options():
+                r_rel_keys = group.rel_keys_to(r_option)
+                if self.has_option_recursive(r_rel_keys):
+                    l_option = self.get_option_recursive(r_rel_keys)
+                    raise KeyError(f'left group {repr(self.abs_path)} cannot absorb right group {repr(group.abs_path)} because conflicting left option was found at {repr(l_option.abs_path)} and right option at {repr(r_option.abs_path)}.')
+        # do absorb!
+        self._absorb_children(group, allow_replace_options=allow_replace_options)
+        return self
+
+    def _absorb_children(self, group: 'Group', allow_replace_options: bool):
+        # absorb options
+        for r_option_name, r_option in group.options.items():
+            group.del_option(r_option_name)
+            # remove left option if allowed
+            if self.has_suboption(r_option_name):
+                if allow_replace_options:
+                    self.del_option(r_option_name)
+                else:
+                    raise AssertionError('This is a bug and should never happen! Check that no conflicts exist first!')
+            # add right option to left
+            self.add_option(r_option_name, r_option)
+        # absorb subgroups
+        for r_group_name, r_group in group.groups.items():
+            group.del_subgroup(r_group_name)
+            if self.has_subgroup(r_group_name):
+                # recursively absorb if same group already exists in left
+                self.get_subgroup(r_group_name)._absorb_children(r_group, allow_replace_options=allow_replace_options)
+            else:
+                # add right group to left
+                self.add_subgroup(r_group_name, r_group)
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Debug                                                                 #

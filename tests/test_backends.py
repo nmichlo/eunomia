@@ -2,7 +2,6 @@ import pytest
 
 from eunomia.backend import BackendObj, BackendDict, BackendYaml
 from tests.test_backend_obj import _make_config_group
-from tests.util import path_from_root
 
 
 # ========================================================================= #

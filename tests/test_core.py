@@ -46,6 +46,22 @@ def test_eunomia_loader():
     assert eunomia_load(_make_config_group(suboption2='suboption2', package1='asdf', package2='asdf.fdsa')) == {'asdf': {'bar': 1, 'fdsa': {'baz': 2}}, 'foo': 1}
 
 
+def test_eunomia_loader_overrides():
+    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption1')) == {'foo': 1, 'subgroup': {'bar': 2}, 'subgroup2': {'subgroup3': {'baz': 1}}}
+    # change suboption2=suboption2
+    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption1'), overrides=['/subgroup2/subgroup3/suboption2']) == {'foo': 1, 'subgroup': {'bar': 2}, 'subgroup2': {'subgroup3': {'baz': 2}}}
+    # change suboption=suboption1 and suboption2=suboption2
+    assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption1'), overrides=['/subgroup2/subgroup3/suboption2', '/subgroup/suboption1']) == {'foo': 1, 'subgroup': {'bar': 1}, 'subgroup2': {'subgroup3': {'baz': 2}}}
+    # check missing override
+    with pytest.raises(KeyError, match='specified override does not exist in the config'):
+        eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption1'), overrides=['/subgroup2/subgroup3/suboption2', '/MALFORMED/suboption1'])
+    # check unused override
+    with pytest.raises(RuntimeError, match="the following overrides were not used to override defaults listed in the config: \\['/subgroup2/subgroup3']"):
+        eunomia_load(_make_config_group(suboption='suboption2', suboption2=None), overrides=['/subgroup2/subgroup3/suboption2', '/subgroup/suboption1'])
+    with pytest.raises(RuntimeError, match="the following overrides were not used to override defaults listed in the config: \\['/subgroup', '/subgroup2/subgroup3']"):
+        eunomia_load(_make_config_group(suboption=None, suboption2=None), overrides=['/subgroup2/subgroup3/suboption2', '/subgroup/suboption1'])
+
+
 def test_eunomia_loader_interpolation():
     # test custom packages with substitution
     with pytest.raises(TypeError, match='can never be a config node'):

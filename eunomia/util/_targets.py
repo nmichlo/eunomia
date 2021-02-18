@@ -1,7 +1,10 @@
 import inspect
+import importlib
 import re
+from copy import deepcopy
 
-from eunomia._util_dict import recursive_getitem, dict_recursive_update
+from eunomia.util._util_dict import recursive_getitem, dict_recursive_update
+from eunomia.util._util_traverse import RecursiveTransformer
 from eunomia.config import keys as K
 from eunomia.config import validate as V
 from eunomia.config import Option
@@ -68,7 +71,7 @@ def _camel_to_snake(name):
 
 
 # ========================================================================= #
-# Advanced Group                                                            #
+# Make Targets                                                              #
 # ========================================================================= #
 
 
@@ -176,6 +179,99 @@ def make_target_dict(
         K.MARKER_KEY_TARGET: target,
         **defaults,
     }
+
+
+# ========================================================================= #
+# Instantiate Targets                                                       #
+# ========================================================================= #
+
+
+def import_module_attr(target):
+    # check the keys
+    try:
+        keys = V.validate_identifier_list(str.split(target, '.'))
+    except Exception as e:
+        raise ValueError(f'target {repr(target)} must contain at least one module component, and one attribute component eg: "math.log" or one builtin eg: "dict". Given target is: {repr(target)}').with_traceback(e.__traceback__)
+    # special case, handle all builtins like dict or list
+    if len(keys) < 1: # pragma: no cover
+        raise RuntimeError('This is a bug and should not happen!')
+    if len(keys) < 2:
+        keys = ['builtins'] + keys
+    # [1, len) : leaves at least one module keys, and at least one attr keys. Never empty
+    for i in reversed(range(1, len(keys))):
+        module_keys, attr_keys = keys[:i], keys[i:]
+        # get the module, importlib cant import attributes on modules.
+        try:
+            module = importlib.import_module('.'.join(module_keys))
+        except:
+            continue
+        # get the attr on the module
+        obj = module
+        try:
+            for attr in attr_keys:
+                obj = getattr(obj, attr)
+        except AttributeError as e:
+            raise AttributeError(f'could not import target {repr(target)}. {e}')
+        return obj
+    # we failed...
+    raise ImportError(f'could not import target {repr(target)}. Are you sure the import module is correct?')
+
+
+class _InstantiateTransformer(RecursiveTransformer):
+
+    def __init__(self, recursive: bool = True):
+        self._recursive = recursive
+        self._visited = False
+
+    def transform(self, value):
+        # if not recursive, only go one layer deep
+        if not self._recursive:
+            if self._visited:
+                return value
+            self._visited = True
+        # recurse like usual!
+        return super().transform(value)
+
+    def __transform_default__(self, value):
+        # we dont throw an error if we encounter an unknown type
+        return value
+
+    def _transform_dict(self, config):
+        # transform like usual
+        config = super()._transform_dict(config)
+        # return early
+        if K.MARKER_KEY_TARGET not in config:
+            return config
+        # get args and kwargs
+        target = config.pop(K.MARKER_KEY_TARGET)
+        args = config.pop(K.MARKER_KEY_ARGS, ())
+        kwargs = config.pop(K.MARKER_KEY_KWARGS, config)
+        # if kwargs key existed in the config
+        # check that config is empty after popping everything
+        if (kwargs is not config) and config:
+            raise KeyError(f'target dictionary contains the {K.MARKER_KEY_KWARGS} key as well as unused keys, which otherwise would be extracted as the kwargs. Choose one mode or the other.')
+        # import & call
+        fn = import_module_attr(target)
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:
+            raise RuntimeError(f'Could not call target {repr(target)} object {fn} with args: {args} and kwargs: {kwargs}').with_traceback(e.__traceback__)
+
+
+def instantiate(config, recursive=True, ensure_root_target=True):
+    # if the root must be a dictionary and valid target
+    if ensure_root_target:
+        if not isinstance(config, dict):
+            raise TypeError(f'Could not instantiate root object: not a dictionary! Otherwise set ensure_root_target=False')
+        if K.MARKER_KEY_TARGET not in config:
+            raise KeyError(f'Could not instantiate root object: target marker key {repr(K.MARKER_KEY_TARGET)} not found in root! Otherwise set ensure_root_target=False')
+    # WARNING: this can mutate the given config
+    config = deepcopy(config)
+    # transform!
+    return _InstantiateTransformer(recursive=recursive).transform(config)
+
+
+call = instantiate
 
 
 # ========================================================================= #

@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from eunomia._util_dict import recursive_getitem, dict_recursive_update
+from eunomia.util._util_dict import recursive_getitem, dict_recursive_update
 from eunomia.config import Option, Group
 from eunomia.config.nodes import ConfigNode
 
@@ -15,13 +15,17 @@ from eunomia.config import validate as V
 
 class ConfigLoader(object):
 
-    def __init__(self, root_group: Group):
+    def __init__(self, root_group: Group, overrides: list = None):
+        # check root group
         if not isinstance(root_group, Group):
             raise TypeError(f'root_group must be a {Group.__name__}')
         self._root_group = root_group
         # merged items
         self._merged_options = None
         self._merged_config = None
+        # make defaults overrides
+        self._overrides = V.normalise_overrides(overrides)
+        self._overridden = {}
 
     def load_config(self, config_name, return_merged_options=False):
         """
@@ -41,8 +45,18 @@ class ConfigLoader(object):
         root_group = self._root_group
         entry_option = root_group.get_option(config_name)
         # ===================== #
-        # 2. perform dfs & merging and finally resolve values
+        # 2.1 check overrides exist in config
+        if self._overrides:
+            for group_keys, opt_name in self._overrides.items():
+                if not root_group.has_option_recursive(group_keys + (opt_name,)):
+                    raise KeyError(f'specified override does not exist in the config: {V.keys_as_abs_config_path(group_keys + (opt_name,))}')
+        # 2.2. perform dfs & merging and finally resolve values
         self._visit_option(entry_option)
+        # 2.3 make sure all overrides were used!
+        if self._overrides:
+            unused_overrides = set(self._overrides.keys()) - set(self._overridden.keys())
+            if unused_overrides:
+                raise RuntimeError(f'the following overrides were not used to override defaults listed in the config: {sorted(map(V.keys_as_abs_config_path, unused_overrides))}')
         # ===================== #
         # 3. finally resolve all the values in the config
         self._resolve_all_values()
@@ -81,9 +95,20 @@ class ConfigLoader(object):
                 # normalise the default, can be strings, dicts, options, config nodes, tuples -> Union[Tuple[str, str], K.OPT_SELF]
                 group_path, option_name = self._resolve_default_item(default_item)
                 # ===================== #
+                # allow groups/options to be overridden
+                if self._overrides:
+                    # get the absolute keys to the group
+                    orig_group_keys: Tuple[str] = option.group.path_to_abs_keys(group_path)
+                    if orig_group_keys in self._overrides:
+                        # make sure it has not been overridden before
+                        if orig_group_keys in self._overridden:
+                            raise RuntimeError(f'default entry for group: {option.group.abs_path} has already been overridden: "{orig_group_keys}: {orig_option_name}"')
+                        self._overridden[orig_group_keys] = option_name
+                        option_name = self._overrides[orig_group_keys]
+                # ===================== #
                 # 2.b dfs through options
                 # supports relative & absolute paths
-                group = option.group.get_group_from_path(group_path, make_missing=False)
+                group = option.group.get_group_recursive(group_path, make_missing=False)
                 # visit the next option
                 self._visit_option(group.get_option(option_name))
                 # ===================== #

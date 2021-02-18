@@ -1,6 +1,6 @@
 import os as _os
 import keyword as _keyword
-from typing import Union as _Union, Tuple as _Tuple
+from typing import Union as _Union, Tuple as _Tuple, Dict as _Dict, List as _List
 
 from eunomia.config import keys as _K
 
@@ -19,10 +19,6 @@ def validate_identifier(key) -> str:
         raise ValueError(f'identifier is not a valid python identifier: {repr(key)}')
     if _keyword.iskeyword(key):
         raise ValueError(f'identifier is a python keyword: {repr(key)}')
-    if key in _K.RESERVED_KEYS:
-        raise ValueError(f'identifier is eunomia reserved key: {repr(key)}')
-    if key.startswith('__') and key.endswith('__'):
-        raise ValueError(f'identifier is reserved: {repr(key)}')
     return key
 
 
@@ -35,7 +31,20 @@ def validate_identifier_list(keys) -> list:
 
 
 def validate_config_identifier(key) -> str:
-    return validate_identifier(key)
+    key = validate_identifier(key)
+    if key in _K.RESERVED_KEYS:
+        raise ValueError(f'identifier is eunomia reserved key: {repr(key)}')
+    if key.startswith('__') and key.endswith('__'):
+        raise ValueError(f'identifier is reserved: {repr(key)}')
+    return key
+
+
+def validate_config_identifier_list(keys) -> list:
+    if not isinstance(keys, list):
+        raise TypeError(f'identifier list must be a list type: {type(keys)}')
+    for k in keys:
+        validate_config_identifier(k)
+    return keys
 
 
 # ========================================================================= #
@@ -54,7 +63,7 @@ def _split_path(path: str, sep: str) -> (str, bool):
     else:
         split = []
     # check identifiers
-    return validate_identifier_list(split), is_prefixed
+    return validate_config_identifier_list(split), is_prefixed
 
 
 def split_package_path(path: str) -> (str, bool):
@@ -116,7 +125,7 @@ def _validate_option_data(value):
         pass
     elif isinstance(value, dict):
         for k, v in value.items():
-            validate_identifier(k)
+            validate_config_identifier(k)
             _validate_option_data(v)
     elif isinstance(value, (list, tuple, set)):
         for v in value:
@@ -244,6 +253,42 @@ def validate_resolved_defaults_item(group_path, option_name):
         raise ValueError('group_path and option_name have not been resolved')
 
     return validate_config_path(group_path), validate_config_identifier(option_name)
+
+
+def normalise_override(override: str) -> _Tuple[_Tuple[str, ...], str]:
+    # make sure nothing is relative
+    if not isinstance(override, str):
+        raise TypeError(f'override must be a single absolute path string to an option: {override}')
+    group_path, option_name = split_defaults_item(override, allow_config_node_return=False)
+    group_keys, is_relative = split_config_path(group_path)
+    if is_relative:
+        raise ValueError(f'relative overrides are not allowed: {group_path}/{option_name}')
+    # the group is the key to the option name
+    return tuple(group_keys), option_name
+
+
+def normalise_overrides(overrides: list = None) -> _Dict[_Tuple[str, ...], str]:
+    # check overrides
+    overrides = overrides if (overrides is not None) else []
+    if not isinstance(overrides, list):
+        raise TypeError(f'default overrides must be a {list.__name__}')
+    # construct the overrides dictionary
+    overrides_dict = {}
+    for override in overrides:
+        group_keys, option_name = normalise_override(override)
+        if group_keys in overrides_dict:
+            raise KeyError(f'override has been listed more than once: {"/" + "/".join(group_keys + (option_name,))}')
+        overrides_dict[group_keys] = option_name
+    # done
+    return overrides_dict
+
+
+def keys_as_abs_config_path(keys: _Union[_Tuple[str], _List[str]]) -> str:
+    return validate_config_path('/' + '/'.join(keys))
+
+
+def keys_as_abs_pkg_path(keys: _Union[_Tuple[str], _List[str]]) -> str:
+    return validate_package_path('.'.join(keys))
 
 
 # ========================================================================= #

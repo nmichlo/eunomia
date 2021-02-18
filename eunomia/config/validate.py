@@ -240,6 +240,7 @@ def validate_defaults_item(default, allow_config_nodes=False) -> _Union[str, _Di
         # done!
     else:
         raise TypeError(f'default entry is invalid type {type(default)}, can only be string paths, {Group.__name__}s or {Option.__name__}s, or a dictionary containing those.')
+    return default
 
 
 def keys_as_abs_config_path(keys: _Union[_Tuple[str], _List[str]]) -> str:

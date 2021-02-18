@@ -27,6 +27,32 @@ class ConfigLoader(object):
         self._overrides = V.normalise_overrides(overrides)
         self._overridden = {}
 
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Checks                                                                #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def _pre_merge_checks(self):
+        # 2.1 check all overrides exist in config
+        if self._overrides:
+            for group_keys, opt_name in self._overrides.items():
+                if not self._root_group.has_option_recursive(group_keys + (opt_name,)):
+                    raise KeyError(f'specified override does not exist in the config: {V.keys_as_abs_config_path(group_keys + (opt_name,))}')
+
+    def _post_merge_checks(self):
+        # ===================== #
+        # all values have not yet been resolved in the merge config!
+        # ===================== #
+        # 2.3 make sure all overrides were used!
+        if self._overrides:
+            unused_overrides = set(self._overrides.keys()) - set(self._overridden.keys())
+            if unused_overrides:
+                raise RuntimeError(
+                    f'the following overrides were not used to override defaults listed in the config: {sorted(map(V.keys_as_abs_config_path, unused_overrides))}')
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Core Algorithm                                                        #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
     def load_config(self, config_name, return_merged_options=False):
         """
         flatten and merge the options lists using DFS, while
@@ -42,21 +68,14 @@ class ConfigLoader(object):
 
         # ===================== #
         # 1. entry point for dfs, get initial option
-        root_group = self._root_group
-        entry_option = root_group.get_option(config_name)
+        entry_option = self._root_group.get_option(config_name)
         # ===================== #
-        # 2.1 check overrides exist in config
-        if self._overrides:
-            for group_keys, opt_name in self._overrides.items():
-                if not root_group.has_option_recursive(group_keys + (opt_name,)):
-                    raise KeyError(f'specified override does not exist in the config: {V.keys_as_abs_config_path(group_keys + (opt_name,))}')
+        # 2.1. pre checks
+        self._pre_merge_checks()
         # 2.2. perform dfs & merging and finally resolve values
         self._visit_option(entry_option)
-        # 2.3 make sure all overrides were used!
-        if self._overrides:
-            unused_overrides = set(self._overrides.keys()) - set(self._overridden.keys())
-            if unused_overrides:
-                raise RuntimeError(f'the following overrides were not used to override defaults listed in the config: {sorted(map(V.keys_as_abs_config_path, unused_overrides))}')
+        # 2.3 post checks
+        self._post_merge_checks()
         # ===================== #
         # 3. finally resolve all the values in the config
         self._resolve_all_values()
@@ -113,6 +132,40 @@ class ConfigLoader(object):
                 self._visit_option(group.get_option(option_name))
                 # ===================== #
 
+    def _merge_option(self, option: Option):
+        # TODO: this should have different modes
+        #       - do not allow from the same group to be merged
+        #       - allow from the same group to be merged
+        #       - only replace existing values on lhs, don't merge
+        #       - only add missing values on lhs, don't merge or replace
+        # ===================== #
+        # 1. check that the group that the option belongs to has not already been merged.
+        #    Then mark the group the option belongs to as visited
+        # ===================== #
+        # check that this is not a duplicate
+        group_keys = option.group_keys
+        if group_keys in self._merged_options:
+            prev_added_keys = self._merged_options[group_keys]
+            raise KeyError(f'Group has duplicate entry: {repr(group_keys)}. '
+                           f'Key previously added by: {repr(prev_added_keys)}. '
+                           f'Current config file is: {repr(option.keys)}.')
+        # mark group as visited
+        self._merged_options[group_keys] = option.keys
+        # ===================== #
+        # 2. merged the data
+        # ===================== #
+        # 2.1. get the package and handle special values
+        keys = self._resolve_package(option)
+        # 2.2. get the root config object according to the package
+        root = recursive_getitem(self._merged_config, keys, make_missing=True)
+        # 2.3. merge the option into the config
+        dict_recursive_update(left=root, right=option.get_unresolved_data(), allow_overwrite=False)
+        # ===================== #
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Resolving Values                                                      #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
     def _resolve_default_item(self, default_item):
         # split the default item
         result = V.split_defaults_item(
@@ -131,39 +184,6 @@ class ConfigLoader(object):
             self._resolve_value(group_path),
             self._resolve_value(option_name),
         )
-
-    def _merge_option(self, option: Option):
-        # 1. check that the group has not already been merged
-        # 2. check that the option has not already been merged
-        self._merge_option_mark_visited(option)
-        # 3. merged the data
-        self._merge_option_into_config(option)
-
-    def _merge_option_mark_visited(self, option: Option):
-        # TODO: this should have different modes
-        #       - do not allow from the same group to be merged
-        #       - allow from the same group to be merged
-        #       1. check that the group has not already been merged
-        #       2. check that the option has not already been merged
-        # get the path to the config - recursive version of whats listed in the __defaults__
-        # maybe lift the non-recursive limitation in future?
-        group_keys = option.group_keys
-        # check that this is not a duplicate
-        if group_keys in self._merged_options:
-            prev_added_keys = self._merged_options[group_keys]
-            raise KeyError(f'Group has duplicate entry: {repr(group_keys)}. '
-                           f'Key previously added by: {repr(prev_added_keys)}. '
-                           f'Current config file is: {repr(option.keys)}.')
-        # merge the path!
-        self._merged_options[group_keys] = option.keys
-
-    def _merge_option_into_config(self, option: Option):
-        # 1. get the package and handle special values
-        keys = self._resolve_package(option)
-        # 2. get the root config object according to the package
-        root = recursive_getitem(self._merged_config, keys, make_missing=True)
-        # 3. merge the option into the config
-        dict_recursive_update(left=root, right=option.get_unresolved_data(), allow_overwrite=False)
 
     def _resolve_value(self, value):
         # 1. allow interpolation of config objects
@@ -198,6 +218,10 @@ class ConfigLoader(object):
             {},
             self._merged_config
         )
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # END Loader                                                            #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
 
 # ========================================================================= #

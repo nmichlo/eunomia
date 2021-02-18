@@ -1,4 +1,3 @@
-import os as _os
 import keyword as _keyword
 from typing import Union as _Union, Tuple as _Tuple, Dict as _Dict, List as _List
 
@@ -96,7 +95,7 @@ def validate_package_path(path) -> str:
 
 def validate_config_path(path) -> str:
     if not isinstance(path, str):
-        raise TypeError(f'config path is not of type string: {type(path)}')
+        raise TypeError(f'config path is not of type string: {path}')
     # try split
     split_config_path(path)
     return path
@@ -159,13 +158,16 @@ def validate_option_defaults(defaults, allow_config_nodes=False) -> list:
 
     if isinstance(defaults, ConfigNode):
         raise TypeError(f'option defaults can never directly be a config node, only its items: {repr(defaults)}')
+    if not isinstance(defaults, list):
+        raise TypeError('defualts must be a list of values')
+
     try:
-        return split_defaults_list_items(
-            defaults,
-            allow_config_node_return=allow_config_nodes
-        )
+        for default in defaults:
+            validate_defaults_item(default, allow_config_nodes=allow_config_nodes)
     except Exception as e:
         raise ValueError(f'option defaults is invalid: {repr(defaults)}').with_traceback(e.__traceback__)
+
+    return defaults
 
 
 def validate_option_type(typ) -> str:
@@ -188,99 +190,56 @@ def validate_option_type(typ) -> str:
 # ========================================================================= #
 
 
-def split_defaults_item(item, allow_config_node_return=False) -> _Union[_Tuple[str, str], str, 'Option']:
+def validate_defaults_item(default, allow_config_nodes=False) -> _Union[str, _Dict[str, str], _Dict[str, _List[str]]]:
+    from eunomia.config import Group, Option
     from eunomia.config.nodes import ConfigNode
-    from eunomia.config._config import Option
 
-    if isinstance(item, ConfigNode):
-        if allow_config_node_return:
-            return item
-        raise RuntimeError('single defaults items that are config nodes are disabled and should be resolved before being split.')
+    # we cant resolve options or defaults here in case the tree is modified after adding!
+    # we can only resolve them at merge time!
+    if isinstance(default, str):
+        if default != _K.OPT_SELF:
+            validate_config_path(default)
+    elif isinstance(default, (Group, Option, ConfigNode)):
+        if not allow_config_nodes:
+            raise TypeError(f'{default.__class__.__name__} have been disabled as the group key for default entry. Invalid: {default}')
+    elif isinstance(default, dict):
+        # split
+        if len(default) != 1:
+            raise ValueError(f'if defaults entry is a dictionary it must have one and only one key. Invalid: {default}')
+        ((group, opts),) = default.items()
 
-    # support references to options
-    # - these need to be resolved outside of this function in case things are
-    #   updated while constructing the config tree
-    if isinstance(item, Option):
-        if allow_config_node_return:
-            return item
-        raise RuntimeError(f'single defaults items that are an {Option.__name__} instance are disabled.')
+        # check key
+        if isinstance(group, str):
+            validate_config_path(group)
+        elif isinstance(group, Group):
+            if not allow_config_nodes:
+                raise TypeError(f'{group.__class__.__name__} have been disabled as the group key for default entry. Invalid: {group}')
+        elif isinstance(group, ConfigNode):
+            raise TypeError(f'substitution is not supported for the group key of a defaults entry: {group}')
+        else:
+            raise TypeError(f'unsupported defaults entry group key type. Invalid: {group}')
 
-    # check the normal types
-    if item == _K.OPT_SELF:
-        # this must be handled externally
-        # its possibly an error if this is used here!
-        return item
-    elif isinstance(item, (tuple, list)):
-        group_path, option_name = item
-    elif isinstance(item, str):
-        option_name = _os.path.basename(item)
-        group_path = _os.path.dirname(item)
-    elif isinstance(item, dict):
-        assert len(item) == 1
-        group_path, option_name = list(item.items())[0]
+        # check value
+        if isinstance(opts, str):
+            if opts != _K.OPT_GLOB:
+                validate_config_path(opts)
+        elif isinstance(opts, (Group, Option, ConfigNode)):
+            if not allow_config_nodes:
+                raise TypeError(f'{opts.__class__.__name__} have been disabled as the option values for default entry. Invalid: {opts}')
+        elif isinstance(opts, list):
+            for opt in opts:
+                if isinstance(opt, str):
+                    validate_config_path(opt)
+                elif isinstance(opt, Option):
+                    if not allow_config_nodes:
+                        raise TypeError(f'{opts.__class__.__name__} have been disabled as the item in option value list for default entry. Invalid: {opts}')
+                else:
+                    raise TypeError(f'unsupported item in defaults entry value list type. Invalid: {opts}')
+        else:
+            raise TypeError(f'unsupported defaults entry group value type {type(opts)} with value {opts}')
+        # done!
     else:
-        raise TypeError(f'invalid defaults item type: {type(item)} with value: {item}')
-
-    # we allow this to return config nodes,
-    # but they need to be resolved
-    if not allow_config_node_return:
-        if isinstance(group_path, ConfigNode) or isinstance(option_name, ConfigNode):
-            raise TypeError('returning of config nodes is not allowed')
-
-    # validate identifiers
-    if not isinstance(group_path, ConfigNode):
-        group_path = validate_config_path(group_path)
-    if not isinstance(option_name, ConfigNode):
-        option_name = validate_config_identifier(option_name)
-
-    # return!
-    return group_path, option_name
-
-
-def split_defaults_list_items(defaults, allow_config_node_return=False) -> list:
-    if not isinstance(defaults, list):
-        raise TypeError(f'defaults list must be of type: {list}')
-    return [
-        split_defaults_item(item, allow_config_node_return=allow_config_node_return)
-        for item in defaults
-    ]
-
-
-def validate_resolved_defaults_item(group_path, option_name):
-    from eunomia.config.nodes import ConfigNode
-
-    if isinstance(group_path, ConfigNode) or isinstance(option_name, ConfigNode):
-        raise ValueError('group_path and option_name have not been resolved')
-
-    return validate_config_path(group_path), validate_config_identifier(option_name)
-
-
-def normalise_override(override: str) -> _Tuple[_Tuple[str, ...], str]:
-    # make sure nothing is relative
-    if not isinstance(override, str):
-        raise TypeError(f'override must be a single absolute path string to an option: {override}')
-    group_path, option_name = split_defaults_item(override, allow_config_node_return=False)
-    group_keys, is_relative = split_config_path(group_path)
-    if is_relative:
-        raise ValueError(f'relative overrides are not allowed: {group_path}/{option_name}')
-    # the group is the key to the option name
-    return tuple(group_keys), option_name
-
-
-def normalise_overrides(overrides: list = None) -> _Dict[_Tuple[str, ...], str]:
-    # check overrides
-    overrides = overrides if (overrides is not None) else []
-    if not isinstance(overrides, list):
-        raise TypeError(f'default overrides must be a {list.__name__}')
-    # construct the overrides dictionary
-    overrides_dict = {}
-    for override in overrides:
-        group_keys, option_name = normalise_override(override)
-        if group_keys in overrides_dict:
-            raise KeyError(f'override has been listed more than once: {"/" + "/".join(group_keys + (option_name,))}')
-        overrides_dict[group_keys] = option_name
-    # done
-    return overrides_dict
+        raise TypeError(f'default entry is invalid type {type(default)}, can only be string paths, {Group.__name__}s or {Option.__name__}s, or a dictionary containing those.')
 
 
 def keys_as_abs_config_path(keys: _Union[_Tuple[str], _List[str]]) -> str:

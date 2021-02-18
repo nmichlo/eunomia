@@ -21,10 +21,10 @@ def test_simple_option():
     assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=[])) == {'__data__': {'foo': 'bar'}, '__defaults__': [], '__package__': '<group>', '__type__': 'option'}
 
     # test relative path
-    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/option1'])) == {'__data__': {'foo': 'bar'}, '__defaults__': [('group1', 'option1')], '__package__': '<group>', '__type__': 'option'}
-    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/group2/option2'])) == {'__data__': {'foo': 'bar'}, '__defaults__': [('group1/group2', 'option2')], '__package__': '<group>', '__type__': 'option'}
+    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/option1'])) == {'__data__': {'foo': 'bar'}, '__defaults__': ['group1/option1'], '__package__': '<group>', '__type__': 'option'}
+    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['group1/group2/option2'])) == {'__data__': {'foo': 'bar'}, '__defaults__': ['group1/group2/option2'], '__package__': '<group>', '__type__': 'option'}
     # test absolute path
-    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['/group1/group2/option2'])) == {'__data__': {'foo': 'bar'}, '__defaults__': [('/group1/group2', 'option2')], '__package__': '<group>', '__type__': 'option'}
+    assert bk.dump_option(Option(data={'foo': 'bar'}, defaults=['/group1/group2/option2'])) == {'__data__': {'foo': 'bar'}, '__defaults__': ['/group1/group2/option2'], '__package__': '<group>', '__type__': 'option'}
 
     with pytest.raises(ValueError):  # TODO: fix error messages, match='is_identifier'):
         bk.dump_option(Option(data={'foo': 'bar'}, defaults=[{'group1': '1invalid'}]))

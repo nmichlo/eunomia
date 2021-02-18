@@ -4,6 +4,7 @@ from eunomia.util._util_traverse import RecursiveTransformer
 from eunomia.config.nodes import ConfigNode, SubNode
 
 from eunomia.config import validate as V
+from eunomia.config import keys as K
 
 
 # ========================================================================= #
@@ -45,6 +46,13 @@ class _ConfigObject(object):
     @property
     def keys(self) -> Tuple[str]:
         return tuple(n.key for n in self.walk_from_root(visit_root=False))
+
+    def get_package_keys(self, pkg_override: str = None) -> Tuple[str]:
+        raise NotImplementedError
+
+    @property
+    def group(self) -> 'Group':
+        raise NotImplementedError
 
     @property
     def abs_path(self):
@@ -190,6 +198,10 @@ class Group(_ConfigObject):
         return g
 
     @property
+    def group(self) -> 'Group':
+        return self
+
+    @property
     def groups(self) -> Dict[str, 'Group']:
         return {k: v for k, v in self._children.items() if isinstance(v, Group)}
 
@@ -204,6 +216,14 @@ class Group(_ConfigObject):
     @property
     def abs_group_path(self):
         return self.abs_path
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Package                                                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def get_package_keys(self, pkg_override=None) -> Tuple[str]:
+        assert pkg_override is None, 'cannot override the groups package'
+        return self.keys
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # Groups & Options                                                      #
@@ -265,18 +285,6 @@ class Group(_ConfigObject):
     # Walk                                                                  #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def _get_subgroup_recursive(self, keys: Union[List[str], Tuple[str]], make_missing=False) -> 'Group':
-        group = self
-        while keys:
-            (current, *keys) = keys
-            if not group.has_subgroup(current):
-                if not make_missing:
-                    raise KeyError(f'group {repr(group.abs_group_path)} does not have subgroup {repr(current)}')
-                group = group.new_subgroup(current)
-            else:
-                group = group.get_subgroup(current)
-        return group
-
     def _get_keys_and_root(self, path: Union[str, List[str], Tuple[str]]):
         if isinstance(path, str):
             group_keys, is_relative = V.split_config_path(path)
@@ -285,6 +293,22 @@ class Group(_ConfigObject):
         else:
             group_keys, root = path, self
         return group_keys, root
+
+    def get_child_recursive(self, path: Union[str, List[str], Tuple[str]], make_missing_as_groups=False) -> Union['Group', 'Option']:
+        keys, current = self._get_keys_and_root(path)
+        while keys:
+            (key, *keys) = keys
+            if isinstance(current, Option):
+                raise KeyError(f'an option has no descendants, tired to visit child {repr(key)} of option {repr(current.abs_path)}')
+            if not current.has_child(key):
+                if not make_missing_as_groups:
+                    raise KeyError(f'{current.__class__.__name__} {repr(current.abs_path)} does not have child {repr(key)}')
+                else:
+                    if not isinstance(current, Group):
+                        raise KeyError(f'cannot make missing group {repr(key)} on option {repr(current.abs_path)} for path {repr(path)}')
+                    current.new_subgroup(key)
+            current = current.get_child(key)
+        return current
 
     def get_group_recursive(self, path: Union[str, List[str], Tuple[str]], make_missing=False) -> 'Group':
         """
@@ -297,9 +321,10 @@ class Group(_ConfigObject):
 
         Supports make_missing, to create any missing groups.
         """
-        group_keys, root = self._get_keys_and_root(path)
-        # recursively get the group
-        return root._get_subgroup_recursive(group_keys, make_missing=make_missing)
+        group = self.get_child_recursive(path, make_missing_as_groups=make_missing)
+        if not isinstance(group, Group):
+            raise KeyError(f'{group.__class__.__name__} config object at path {repr(path)} is not a group.')
+        return group
 
     def get_option_recursive(self, path: Union[str, List[str], Tuple[str]]) -> 'Option':
         """
@@ -428,16 +453,16 @@ class Option(_ConfigObject):
         self._defaults = V.validate_option_defaults(defaults, allow_config_nodes=True)
 
     @property
-    def pkg(self):
+    def pkg(self) -> str:
         return self._pkg
 
     @property
-    def data(self):
+    def data(self) -> dict:
         return self._data.copy()
 
     @property
-    def defaults(self):
-        return self._defaults.copy()
+    def defaults(self) -> list:
+        return self._defaults
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters                                                               #
@@ -462,8 +487,27 @@ class Option(_ConfigObject):
         return self.group.keys
 
     @property
-    def abs_group_path(self):
+    def abs_group_path(self) -> str:
         return self.group.abs_group_path
+
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+    # Package                                                               #
+    # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
+
+    def get_package_keys(self, pkg_override: str = None) -> Tuple[str]:
+        pkg = self._pkg if (pkg_override is None) else pkg_override
+        # resolve special keys
+        if pkg in K.ALL_PACKAGE_ALIASES:
+            if pkg == K.PKG_ROOT: return tuple()
+            elif pkg == K.PKG_GROUP: return self.group_keys
+            elif pkg == K.PKG_OPTION: return self.keys
+            else: raise AssertionError('it is a bug and should never happen.')
+        # split
+        keys, is_relative = V.split_package_path(pkg)
+        # resolve relative -- NOTE! RELATIVE from the GROUP not the option
+        if is_relative:
+            keys = self.group_keys + keys
+        return keys
 
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
     # getters - data                                                        #
@@ -482,8 +526,9 @@ class Option(_ConfigObject):
                 raise TypeError(f'keys in configs cannot be config nodes: {key}')
             return super()._transform_dict_key(key)
 
-    def get_unresolved_defaults(self):
-        return self._ReplaceStrings().transform(self._defaults)
+    def get_unresolved_defaults(self) -> List['Default']:
+        from eunomia.config._default import Default
+        return [Default(d) for d in self._defaults]
 
     def get_unresolved_package(self):
         return self._ReplaceStrings().transform(self._pkg)

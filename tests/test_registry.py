@@ -5,6 +5,7 @@ from eunomia.backend import BackendDict
 from eunomia.config import Group, Option
 from eunomia.config.nodes import SubNode
 from eunomia.registry import RegistryGroup
+from eunomia.util._util_dict import recursive_setitem
 
 
 # ========================================================================= #
@@ -166,13 +167,11 @@ def test_registry_with_options_as_defaults():
     option_foo = registry.register_target_fn(foo, params=dict(bar=20))
     option_fizz = registry.register_target_fn(fizz, params=dict(foo=10, bar=20))
 
-    registry.add_option('default', Option(defaults=[option_foo, option_fizz]))
-    with pytest.raises(KeyError, match='Group has duplicate entry'):
-        eunomia_load(registry)
-
-    registry.del_option('default')
     registry.add_option('default', Option(defaults=[option_foo]))
     assert eunomia_load(registry) == {'tests': {'test_registry': {'_target_': 'tests.test_registry.foo', 'bar': 20, 'baz': 1}}}
+
+    with pytest.raises(KeyError, match='parent already has child with key'):
+        registry.add_option('default', Option(defaults=[option_foo, option_fizz]))
 
     registry.del_option('default')
     registry.add_option('default', Option(defaults=[option_fizz]))
@@ -220,8 +219,8 @@ def test_registry_with_options_as_defaults_advanced():
             registry.del_option('default')
 
         registry.new_option('default', defaults=[
-            ('/disent/data', in_data),
-            ('/disent/framework', in_framework),
+            {'/disent/data': in_data},
+            {'/disent/framework': in_framework},
         ])
 
         assert eunomia_load(registry) == {'disent': {'data': {'_target_': 'tests.test_registry.fn', 'name': in_data}, 'framework': {'cfg': {'_target_': 'tests.test_registry.fn', 'name': in_framework}}}, 'auto': {'data_type': out_data_type, 'data_wrap_mode': out_data_wrap_mode, 'data_wrapper': {'_target_': 'tests.test_registry.fn', 'name': f'{out_data_type}_{out_data_wrap_mode}'}}}
@@ -233,6 +232,42 @@ def test_registry_with_options_as_defaults_advanced():
     check('monte_rollouts', 'betavae', 'episodes', 'single')
     check('monte_rollouts', 'adavae', 'episodes', 'pairs')
     check('monte_rollouts', 'tvae', 'episodes', 'triples')
+
+    # CHECK MULTIPLE OPTIONS IN A SINGLE DEFAULT
+
+    option_metric_dci = registry.register_target_fn(fn, name='metric_dci', params=dict(name='metric_dci'), pkg='<option>', path='disent/metrics')
+    option_metric_mig = registry.register_target_fn(fn, name='metric_mig', params=dict(name='metric_mig'), pkg='<option>', path='disent/metrics')
+    option_metric_fvs = registry.register_target_fn(fn, name='metric_fvs', params=dict(name='metric_fvs'), pkg='<option>', path='disent/metrics')
+
+    def check(defaults, out_metrics, pkg_keys=None):
+        if registry.has_suboption('default'):
+            registry.del_option('default')
+
+        registry.new_option('default', defaults=defaults)
+
+        output = {}
+        merged_metrics = {
+            metric: {'_target_': 'tests.test_registry.fn', 'name': metric}
+            for metric in out_metrics
+        }
+        recursive_setitem(output, ['disent', 'metrics'], merged_metrics, make_missing=True)
+
+        assert eunomia_load(registry) == output
+
+    # check that we can load all of them
+    check(defaults=['/disent/metrics/metric_dci'], out_metrics=['metric_dci'])
+    check(defaults=[option_metric_dci], out_metrics=['metric_dci'])
+
+    check(defaults=[{'/disent/metrics': ['/disent/metrics/metric_dci', '/disent/metrics/metric_mig']}], out_metrics=['metric_dci', 'metric_mig'])
+    check(defaults=[{'/disent/metrics': ['/disent/metrics/metric_dci', option_metric_mig]}], out_metrics=['metric_dci', 'metric_mig'])
+    check(defaults=[{'/disent/metrics': '*'}], out_metrics=['metric_dci', 'metric_mig', 'metric_fvs'])
+
+    check(defaults=[{'/disent/metrics': [option_metric_dci, option_metric_mig]}], out_metrics=['metric_dci', 'metric_mig'])
+    check(defaults=[{'/disent/metrics': [option_metric_dci, option_metric_mig, option_metric_fvs]}], out_metrics=['metric_dci', 'metric_mig', 'metric_fvs'])
+
+    # check that the group can be added itself
+    check([registry.get_group_recursive('/disent/metrics')], ['metric_dci', 'metric_mig', 'metric_fvs'])
+
 
 
 # ========================================================================= #

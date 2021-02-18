@@ -51,7 +51,7 @@ def _dict_recursive_update(left, right, stack, allow_overwrite, safe_merge, type
                 _dict_recursive_update(left[k], rv, stack=stack + [k], allow_overwrite=allow_overwrite, safe_merge=safe_merge, type_merge_groups=type_merge_groups)
                 continue
             if not allow_overwrite:
-                raise KeyError('cannot overwrite existing key!')
+                raise KeyError(f'cannot overwrite existing keys {stack}')
             # -- l and r have different types
             if type(lv) is not type(rv):
                 if not any(isinstance(lv, group) and isinstance(rv, group) for group in type_merge_groups):

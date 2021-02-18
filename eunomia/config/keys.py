@@ -39,6 +39,11 @@ ALL_PACKAGE_ALIASES = {
 
 # special options
 OPT_SELF = '<self>'
+OPT_GLOB = '*'
+
+ALL_OPT_ALIASES = {
+    OPT_SELF, OPT_GLOB
+}
 
 # default
 DEFAULT_PKG = PKG_GROUP

@@ -65,7 +65,7 @@ def test_eunomia_loader_overrides():
     # change suboption=suboption1 and suboption2=suboption2
     assert eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption1'), overrides=['/subgroup2/subgroup3/suboption2', '/subgroup/suboption1']) == {'foo': 1, 'subgroup': {'bar': 1}, 'subgroup2': {'subgroup3': {'baz': 2}}}
     # check missing override
-    with pytest.raises(KeyError, match='specified override does not exist in the config'):
+    with pytest.raises(KeyError, match='could not resolve the override'):
         eunomia_load(_make_config_group(suboption='suboption2', suboption2='suboption1'), overrides=['/subgroup2/subgroup3/suboption2', '/MALFORMED/suboption1'])
     # check unused override
     with pytest.raises(RuntimeError, match="the following overrides were not used to override defaults listed in the config: \\['/subgroup2/subgroup3']"):

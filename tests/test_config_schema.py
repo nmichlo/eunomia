@@ -114,62 +114,54 @@ def test_group_path():
 def test_defaults():
 
     # check self
-    assert V.split_defaults_item('<self>') == '<self>'
+    V.validate_defaults_item('<self>')
     with pytest.raises(ValueError):
-        V.split_defaults_item(['<self>s'])
+        V.validate_defaults_item('<self>s')
 
     # check strings
-    assert V.split_defaults_item('option1') == ('', 'option1')
-    assert V.split_defaults_item('/option1') == ('/', 'option1')
-    assert V.split_defaults_item('group/option1') == ('group', 'option1')
-    assert V.split_defaults_item('/group/option1') == ('/group', 'option1')
+    V.validate_defaults_item('option1')
+    V.validate_defaults_item('/option1')
+    V.validate_defaults_item('group/option1')
+    V.validate_defaults_item('/group/option1')
     with pytest.raises(ValueError):
-        V.split_defaults_item('/1invalidgroup/option1')
+        V.validate_defaults_item('/1invalidgroup/option1')
 
     # check dictionaries
-    assert V.split_defaults_item({'': 'option1'}) == ('', 'option1')
-    assert V.split_defaults_item({'/': 'option1'}) == ('/', 'option1')
-    assert V.split_defaults_item({'group': 'option1'}) == ('group', 'option1')
-    assert V.split_defaults_item({'/group': 'option1'}) == ('/group', 'option1')
+    V.validate_defaults_item({'': 'option1'})
+    V.validate_defaults_item({'/': 'option1'})
+    V.validate_defaults_item({'group': 'option1'})
+    V.validate_defaults_item({'/group': 'option1'})
     with pytest.raises(ValueError):
-        V.split_defaults_item({'/group/subgroup': '1invalidopt'})
+        V.validate_defaults_item({'/group/subgroup': '1invalidopt'})
     with pytest.raises(ValueError):
-        V.split_defaults_item({'/1invalidgroup/subgroup': 'option1'})
+        V.validate_defaults_item({'/1invalidgroup/subgroup': 'option1'})
 
     # check tuples
-    assert V.split_defaults_item(('', 'option1')) == ('', 'option1')
-    assert V.split_defaults_item(('/', 'option1')) == ('/', 'option1')
-    assert V.split_defaults_item(('group', 'option1')) == ('group', 'option1')
-    assert V.split_defaults_item(('/group', 'option1')) == ('/group', 'option1')
+    V.validate_defaults_item({'': 'option1'})
+    V.validate_defaults_item({'/': 'option1'})
+    V.validate_defaults_item({'group': 'option1'})
+    V.validate_defaults_item({'/group': 'option1'})
 
-    assert V.split_defaults_item(['', 'option1']) == ('', 'option1')
-    assert V.split_defaults_item(['/', 'option1']) == ('/', 'option1')
-    assert V.split_defaults_item(['group', 'option1']) == ('group', 'option1')
-    assert V.split_defaults_item(['/group', 'option1']) == ('/group', 'option1')
+    with pytest.raises(TypeError):
+        V.validate_defaults_item(['', 'option1'])
+    with pytest.raises(TypeError):
+        V.validate_defaults_item(('', 'option1'))
 
     # check options as refs
-    option = Group().new_option('default')
-    with pytest.raises(RuntimeError, match='single defaults items that are an Option instance are disabled'):
-        V.split_defaults_list_items([option])
-    with pytest.raises(RuntimeError, match='single defaults items that are an Option instance are disabled'):
-        V.split_defaults_list_items([option], allow_config_node_return=False)
-    assert V.split_defaults_list_items([option], allow_config_node_return=True) == [option]
+    V.validate_defaults_item(Group(), allow_config_nodes=True)
+    V.validate_defaults_item(Option(), allow_config_nodes=True)
+    with pytest.raises(TypeError, match='disabled as the group key for default entry'):
+        V.validate_defaults_item(Group())
+    with pytest.raises(TypeError, match='disabled as the group key for default entry'):
+        V.validate_defaults_item(Option())
 
     # check lots
-    assert V.split_defaults_list_items([]) == []
-    assert V.split_defaults_list_items([
+    V.validate_option_defaults([
         'group1/option1',
         '/group2/option2',
         {'/group/subgroup': 'option1'},
         {'group/subgroup2': 'option2'},
         '<self>',
-        option,
-    ], allow_config_node_return=True) == [
-        ('group1', 'option1'),
-        ('/group2', 'option2'),
-        ('/group/subgroup', 'option1'),
-        ('group/subgroup2', 'option2'),
-        '<self>',
-        option,
-    ]
+        Option(),
+    ], allow_config_nodes=True)
 

@@ -5,10 +5,10 @@ from eunomia.backend import BackendYaml, BackendDict, BackendObj, Backend
 from eunomia.config import Group
 
 
-DefaultConfigTypes = Union[str, Path, dict, Group]
+ValidConfigTypes = Union[str, Path, dict, Group]
 
 
-def infer_backend_load_group(config: DefaultConfigTypes, backend: Backend = None) -> Group:
+def infer_backend_load_group(config: ValidConfigTypes, backend: Backend = None) -> Group:
     # override backend
     if backend is not None:
         return backend.load_group(config)

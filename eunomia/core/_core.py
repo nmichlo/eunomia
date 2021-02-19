@@ -1,9 +1,10 @@
-from typing import List as _List
-
+from typing import List
 
 from eunomia.config import ConfigLoader
 from eunomia.backend import Backend, BackendObj, BackendYaml, BackendDict
-from eunomia.backend import DefaultConfigTypes as _ValidConfigTypes, infer_backend_load_group as _infer_backend_load_group
+from eunomia.backend import ValidConfigTypes, infer_backend_load_group as _infer_backend_load_group
+from eunomia.core.runner import RunnerLocal
+from eunomia.core.runner._runner import BaseRunner
 
 
 # ========================================================================= #
@@ -13,6 +14,7 @@ from eunomia.backend import DefaultConfigTypes as _ValidConfigTypes, infer_backe
 
 # default config gives BackedYaml pointing to ./configs
 # default entrypoint recursively loads ./configs/default.yaml
+
 DEFAULT_CONFIG = 'configs'
 DEFAULT_ENTRYPOINT = 'default'
 
@@ -23,9 +25,11 @@ DEFAULT_ENTRYPOINT = 'default'
 
 
 def eunomia(
-        config: _ValidConfigTypes = DEFAULT_CONFIG,
+        config: ValidConfigTypes = DEFAULT_CONFIG,
         entrypoint=DEFAULT_ENTRYPOINT,
+        overrides: List = None,
         backend: Backend = None,
+        runner: BaseRunner = None,
 ):
     """
     The main eunomia decorator.
@@ -34,31 +38,29 @@ def eunomia(
     def wrapper(func):
         from functools import wraps
         @wraps(func)
-        def runner():
-            return eunomia_runner(func=func, config=config, entrypoint=entrypoint, backend=backend)
-        return runner
+        def wrapper():
+            eunomia_runner(func=func, config=config, entrypoint=entrypoint, overrides=overrides, backend=backend, runner=runner)
+        return wrapper
     return wrapper
 
 
 def eunomia_runner(
         func: callable,
-        config: _ValidConfigTypes = DEFAULT_CONFIG,
+        config: ValidConfigTypes = DEFAULT_CONFIG,
         entrypoint=DEFAULT_ENTRYPOINT,
-        overrides: _List[str] = None,
+        overrides: List = None,
         backend: Backend = None,
+        runner: BaseRunner = None,
 ):
     """
     The non-decorator equivalent to @eunomia(...)
     - This function is the core of eunomia, calling the relevant plugins, creating
       the merged config and finally calling your entry.
     """
-    config = eunomia_load(
-        config=config,
-        entrypoint=entrypoint,
-        backend=backend,
-    )
-    # TODO: extract runner from config, and run that way!
-    func(config)
+    if runner is None:
+        runner = RunnerLocal()
+    # run this!
+    runner.run(func, config, entrypoint, overrides, backend)
 
 
 # ========================================================================= #
@@ -67,11 +69,12 @@ def eunomia_runner(
 
 
 def eunomia_load(
-        config: _ValidConfigTypes = DEFAULT_CONFIG,
+        config: ValidConfigTypes = DEFAULT_CONFIG,
         entrypoint=DEFAULT_ENTRYPOINT,
-        overrides: _List[str] = None,
+        overrides: List = None,
         backend: Backend = None,
-):
+) -> dict:
+    # this should not allow matrix...
     group = _infer_backend_load_group(config, backend=backend)
     loader = ConfigLoader(group, overrides=overrides)
     return loader.load_config(entrypoint)

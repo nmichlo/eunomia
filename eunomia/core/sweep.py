@@ -24,7 +24,7 @@ class _Choices(_SweepList):
 
 class _Reverse(_Choices):
     def __iter__(self):
-        yield from reversed(self._iterable)
+        yield from reversed(list(self._iterable))
 
 
 class _Sort(_Choices):
@@ -35,17 +35,12 @@ class _Sort(_Choices):
         items = sorted(self._iterable)
         yield from reversed(items) if self._reverse else items
 
-# used internally
-class _Single(_SweepList):
-    def __init__(self, value):
-        self._value = value
-    def __iter__(self):
-        yield self._value
 
 class _Options(_SweepList):
-    def __init__(self, group: str, options: list):
+    def __init__(self, group: str, options: _Iterable):
         self._group = group
         self._options = options
+
     def __iter__(self):
         from eunomia.config import Group
         # handle group
@@ -53,7 +48,7 @@ class _Options(_SweepList):
         if isinstance(options, Group):
             options = options.options.values()
         # return values
-        for option in self._options:
+        for option in options:
             yield {self._group: option}
 
 # rename
@@ -68,36 +63,6 @@ options = _Options
 # ========================================================================= #
 
 
-def _get_flat_sweepable(dct: _Dict[str, object]):
-    return {k: v for k, v in dct.items() if isinstance(v, _SweepList)}
-
-
-def _pretty_flat_sweepable(dct: _Dict[str, object]) -> str:
-    return f"[{', '.join(f'{k}={v}' for k, v in dct.items())}]"
-
-
-def _num_flat_sweep_iterations(dct: _Dict[str, object]):
-    count = 1
-    for v in _get_flat_sweepable(dct).values():
-        count *= len(list(v))
-    return count
-
-
-def _yield_flat_dct_sweep(dct: _Dict[str, object], return_sweep=True):
-    """
-    dct must be a flat dictionary with values that should
-    be product-iterated in instances of SweepList.
-
-    Note that if not SweepList values are found, only one item is returned.
-    """
-    permutable = _get_flat_sweepable(dct)
-    import itertools
-    for values in itertools.product(*permutable.values()):
-        sweep = dict(zip(permutable.keys(), values))
-        merged = {**dct, **sweep}
-        yield (merged, sweep) if return_sweep else merged
-
-
 def _num_list_sweep_iterations(values: list):
     count = 1
     for v in (v for v in values if isinstance(v, _SweepList)):
@@ -106,6 +71,12 @@ def _num_list_sweep_iterations(values: list):
 
 
 def _yield_list_sweep(values: list, return_sweep=True):
+    """
+    list will be product-iterated over all instances of SweepList.
+    - nested data structures are not searched.
+
+    Note that if not SweepList values are found, only one item is returned.
+    """
     permutable = [v for i, v in enumerate(values) if isinstance(v, _SweepList)]
     indices    = [i for i, v in enumerate(values) if isinstance(v, _SweepList)]
     # permutable = [v if isinstance(v, _SweepList) else _Single(v) for v in values]
@@ -115,6 +86,7 @@ def _yield_list_sweep(values: list, return_sweep=True):
         for i, v in zip(indices, sweep):
             merged[i] = v
         yield (merged, sweep) if return_sweep else merged
+
 
 # ========================================================================= #
 # End                                                                       #

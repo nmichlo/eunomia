@@ -1,11 +1,11 @@
 from eunomia import eunomia_runner
-import re
+from eunomia.config import Group, Option
+from eunomia.core.sweep import options, sort, choices, reverse
+
 
 # ========================================================================= #
 # Test Config Objects                                                       #
 # ========================================================================= #
-from eunomia.config import Group, Option
-from eunomia.core.sweep import options
 
 
 def test_local_sweep():
@@ -48,6 +48,31 @@ def test_local_sweep():
         {'bar1': 1, 'foo1': 1},
         {'bar2': 2, 'foo1': 1},
         {'foo1': 1}
+    ]
+
+    assert run(overrides=[options('bar', sort(['bar3', 'bar1']))]) == [
+        {'bar1': 1, 'foo1': 1},
+        {'bar3': 3, 'foo1': 1},
+    ]
+
+    assert run(overrides=[options('bar', sort(['bar1', 'bar3']))]) == [
+        {'bar1': 1, 'foo1': 1},
+        {'bar3': 3, 'foo1': 1},
+    ]
+
+    assert run(overrides=[options('bar', sort(['bar1', 'bar3'], reverse=True))]) == [
+        {'bar3': 3, 'foo1': 1},
+        {'bar1': 1, 'foo1': 1},
+    ]
+
+    assert run(overrides=[choices([{'bar': 'bar1'}, {'foo': 'foo2'}])]) == [
+        {'bar1': 1, 'foo1': 1},
+        {'bar1': 1, 'bar2': 2, 'bar3': 3, 'bar4': 4, 'bar5': 5, 'foo2': 2}
+    ]
+
+    assert run(overrides=[reverse(choices([{'bar': 'bar1'}, {'foo': 'foo2'}]))]) == [
+        {'bar1': 1, 'bar2': 2, 'bar3': 3, 'bar4': 4, 'bar5': 5, 'foo2': 2},
+        {'bar1': 1, 'foo1': 1},
     ]
 
     assert run(overrides=[options('foo', ['foo3', ['foo1', 'foo4']]), options('bar', ['bar1', 'bar2', []])]) == [

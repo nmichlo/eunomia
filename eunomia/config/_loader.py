@@ -63,7 +63,7 @@ class ConfigLoader(object):
     # Core Algorithm                                                        #
     # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - #
 
-    def load_config(self, config_name, return_merged_options=False):
+    def load_config(self, config_name, return_merged_options=False) -> Union[dict, Tuple[dict, dict]]:
         """
         flatten and merge the options lists using DFS, while
         simultaneously merging the config

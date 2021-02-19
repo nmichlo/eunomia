@@ -34,6 +34,12 @@
 
 ----------------------
 
+<p align="center">
+    <b>NOTE</b>: As of 19 Feb 2021 development of Eunomia has been placed on hold until I finish my degree in the next few months, around June.
+</p>
+
+----------------------
+
 ### Overview
 
 Simple [Hydra](https://github.com/facebookresearch/hydra) inspired configuration

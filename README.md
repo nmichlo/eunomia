@@ -35,7 +35,9 @@
 ----------------------
 
 <p align="center">
-    <b>NOTE</b>: As of 19 Feb 2021 development of Eunomia has been placed on hold until I finish my degree in the next few months, around June.
+    <b>NOTE</b>: As of 19 Feb 2021 development of Eunomia has been placed on hold until I finish my degree.
+    </br></br>
+    <b>NOTE</b>: As of Hydra version 1.1, many of the limitations that originally inspired this project have been addressed. However, the main one I do not see beeing adressed is the use of config keys in defaults lists.
 </p>
 
 ----------------------

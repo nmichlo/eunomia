@@ -28,7 +28,7 @@
 
 <p align="center">
     <p align="center">
-        Visit the <a href="https://eunomia.dontpanic.sh/">docs</a> for more info.
+        Visit the <a href="https://eunomia.michlo.dev/">docs</a> for more info.
     </p>
 </p>
 
@@ -59,7 +59,7 @@ that can be selectively activated.
 
 1. Install with: `pip install eunomia`
 
-2. Visit the [docs](https://eunomia.dontpanic.sh)!
+2. Visit the [docs](https://eunomia.michlo.dev)!
 
 ### Citing Eunomia
 
